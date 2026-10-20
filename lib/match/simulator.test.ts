@@ -1,0 +1,710 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { describe, test } from "node:test";
+import { ruleBasedProvider } from "./insights";
+import {
+  countReached,
+  initialPlayback,
+  pitchPosition,
+  playbackReducer,
+  type PlaybackAction,
+  type PlaybackState,
+} from "./playback";
+import {
+  accuracy,
+  aggregate,
+  createStatistics,
+  emptyMetrics,
+  StatisticsAccumulator,
+} from "./statistics";
+import type { EventType, MatchData, MatchEvent, Metrics, Statistics } from "./types";
+import { validateMatch } from "./validation";
+
+type Fixture = Omit<MatchData, "match" | "events"> & {
+  match: MatchData["match"] & { final_score: Record<string, number> };
+  events: (MatchEvent & { score: Record<string, number> })[];
+  final_statistics: Record<string, Omit<Metrics, "actions"> & { pass_accuracy_pct: number }>;
+};
+
+// Resolve against this file, not the test runner's working directory.
+const fixture = JSON.parse(
+  readFileSync(new URL("../../public/arsenal-vs-chelsea-match.json", import.meta.url), "utf8"),
+) as Fixture;
+const data = validateMatch(fixture);
+const half = data.match.period_seconds;
+const end = data.match.duration_seconds;
+const zero: Metrics = {
+  goals: 0,
+  shots: 0,
+  shots_on_target: 0,
+  passes_attempted: 0,
+  passes_completed: 0,
+  tackles_won: 0,
+  pressure_events: 0,
+  actions: 0,
+};
+
+function act(state: PlaybackState, action: PlaybackAction): PlaybackState {
+  return playbackReducer(data, state, action);
+}
+
+function eventOf(match: MatchData, type: EventType): MatchEvent {
+  const event = match.events.find((entry) => entry.type === type);
+  assert.ok(event, `Fixture needs a ${type} event`);
+  return event;
+}
+
+function assertZero(stats: Statistics): void {
+  assert.deepEqual(Object.keys(stats.teams).sort(), data.teams.map((team) => team.team_id).sort());
+  assert.deepEqual(Object.keys(stats.players).sort(), data.players.map((player) => player.player_id).sort());
+  for (const metrics of [...Object.values(stats.teams), ...Object.values(stats.players)]) {
+    assert.deepEqual(metrics, zero);
+  }
+}
+
+function score(stats: Statistics): Record<string, number> {
+  return Object.fromEntries(Object.entries(stats.teams).map(([id, metrics]) => [id, metrics.goals]));
+}
+
+function rejectsUpload(name: string, mutate: (upload: Fixture) => void, error: RegExp): void {
+  test(name, () => {
+    const upload = structuredClone(fixture);
+    mutate(upload);
+    assert.throws(() => validateMatch(upload), error);
+  });
+}
+
+describe("match upload validation", () => {
+  test("bundled player labels omit Demo while retaining fictional-roster disclosure", () => {
+    assert.equal(data.players.length, 22);
+    assert.equal(data.synthetic, true);
+    assert.match(data.disclaimer ?? "", /fictional player labels/i);
+    for (const player of data.players) {
+      const team = data.teams.find(team => team.team_id === player.team_id)!;
+      assert.equal(player.name, `${team.name} ${player.player_id.slice(-2)}`);
+      assert.equal(player.fictional, true);
+    }
+  });
+
+  test("uploaded player names are preserved, including the word Demo", () => {
+    const upload = structuredClone(fixture);
+    upload.players[0].name = "Custom Demo Player";
+    assert.equal(validateMatch(upload).players[0].name, "Custom Demo Player");
+  });
+
+  test("validates the actual dataset without changing its events or leaking final summaries", () => {
+    const original = structuredClone(fixture);
+    const validated = validateMatch(fixture);
+    assert.equal(validated.match.match_id, fixture.match.match_id);
+    assert.equal(validated.events.length, fixture.events.length);
+    assert.ok(validated.events.length > 0);
+    assert.deepEqual(validated.teams, fixture.teams);
+    assert.deepEqual(validated.players, fixture.players);
+    assert.deepEqual(validated.events.map((event) => event.event_id), fixture.events.map((event) => event.event_id));
+    assert.ok(!("final_statistics" in validated));
+    assert.ok(!("final_score" in validated.match));
+    assert.ok(validated.events.every((event) => !("score" in event)));
+    assert.deepEqual(fixture, original);
+  });
+
+  test("normalizes shuffled input by sequence without mutating the upload", () => {
+    const upload = structuredClone(fixture);
+    upload.events.reverse();
+    const before = structuredClone(upload);
+    assert.deepEqual(validateMatch(upload).events, data.events);
+    assert.deepEqual(upload, before);
+  });
+
+  for (const [name, value] of [
+    ["null", null], ["undefined", undefined], ["array", []], ["text", "match"], ["number", 1],
+  ] as const) {
+    test(`rejects a ${name} instead of an upload object`, () => {
+      assert.throws(() => validateMatch(value), /JSON object/);
+    });
+  }
+
+  for (const key of ["match", "teams", "players", "events"] as const) {
+    rejectsUpload(`rejects missing ${key}`, (upload) => { Reflect.deleteProperty(upload, key); }, /required|teams|events/i);
+  }
+
+  rejectsUpload("rejects duplicate event IDs", (upload) => {
+    upload.events[1].event_id = upload.events[0].event_id;
+  }, /event_id.*unique/);
+  rejectsUpload("rejects duplicate sequences", (upload) => {
+    upload.events[1].sequence = upload.events[0].sequence;
+  }, /sequence.*unique/);
+  rejectsUpload("rejects duplicate team IDs", (upload) => {
+    upload.teams[1].team_id = upload.teams[0].team_id;
+  }, /Duplicate team_id/);
+  rejectsUpload("rejects duplicate player IDs", (upload) => {
+    upload.players[1].player_id = upload.players[0].player_id;
+  }, /Duplicate player_id/);
+
+  for (const sequence of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, "3"]) {
+    rejectsUpload(`rejects invalid sequence ${String(sequence)}`, (upload) => {
+      Object.assign(upload.events[0], { sequence });
+    }, /sequence.*integer/);
+  }
+
+  for (const key of ["position", "start_position", "end_position"] as const) {
+    for (const [name, position] of [
+      ["negative x", { x: -0.01, y: 50 }],
+      ["x above 100", { x: 100.01, y: 50 }],
+      ["negative y", { x: 50, y: -0.01 }],
+      ["y above 100", { x: 50, y: 100.01 }],
+      ["non-finite x", { x: Number.NaN, y: 50 }],
+      ["non-finite y", { x: 50, y: Number.POSITIVE_INFINITY }],
+      ["string x", { x: "50", y: 50 }],
+      ["missing y", { x: 50 }],
+      ["null", null],
+    ] as const) {
+      rejectsUpload(`rejects ${key} with ${name}`, (upload) => {
+        Object.assign(eventOf(upload, "pass"), { [key]: position });
+      }, new RegExp(`${key}.*numeric x and y`));
+    }
+  }
+
+  test("accepts coordinate edges on both axes", () => {
+    const upload = structuredClone(fixture);
+    Object.assign(eventOf(upload, "pass"), {
+      position: { x: 0, y: 100 },
+      start_position: { x: 100, y: 0 },
+      end_position: { x: 100, y: 100 },
+    });
+    assert.doesNotThrow(() => validateMatch(upload));
+  });
+
+  rejectsUpload("rejects an unknown home team", (upload) => {
+    upload.match.home_team_id = "UNKNOWN";
+  }, /Home and away team IDs/);
+  rejectsUpload("rejects identical home and away teams", (upload) => {
+    upload.match.away_team_id = upload.match.home_team_id;
+  }, /two different teams/);
+  rejectsUpload("rejects a player's unknown team", (upload) => {
+    upload.players[0].team_id = "UNKNOWN";
+  }, /valid team_id/);
+  rejectsUpload("rejects an event's unknown team", (upload) => {
+    eventOf(upload, "pass").team_id = "UNKNOWN";
+  }, /team_id must reference/);
+  rejectsUpload("rejects an action without a team", (upload) => {
+    eventOf(upload, "pass").team_id = null;
+  }, /action events require a team_id/);
+  rejectsUpload("rejects an unknown acting player", (upload) => {
+    eventOf(upload, "pass").player_id = "UNKNOWN";
+  }, /player_id must reference/);
+  rejectsUpload("rejects an acting player from the opposing team", (upload) => {
+    const event = eventOf(upload, "pass");
+    const opponent = upload.players.find((player) => player.team_id !== event.team_id);
+    assert.ok(opponent);
+    event.player_id = opponent.player_id;
+  }, /acting player must belong/);
+  for (const key of ["recipient_player_id", "target_player_id"] as const) {
+    rejectsUpload(`rejects an unknown ${key}`, (upload) => {
+      eventOf(upload, "pass")[key] = "UNKNOWN";
+    }, new RegExp(`${key} references an unknown player`));
+  }
+  rejectsUpload("rejects a pass recipient from the opposing team", (upload) => {
+    const event = eventOf(upload, "pass");
+    const opponent = upload.players.find((player) => player.team_id !== event.team_id);
+    assert.ok(opponent);
+    event.recipient_player_id = opponent.player_id;
+  }, /pass recipient must belong/);
+  rejectsUpload("rejects an unknown possession-change origin team", (upload) => {
+    eventOf(upload, "possession_change").from_team_id = "UNKNOWN";
+  }, /from_team_id is unknown/);
+
+  for (const [type, outcome] of [["pass", "goal"], ["shot", "complete"], ["tackle", "saved"]] as const) {
+    rejectsUpload(`rejects ${outcome} as a ${type} outcome`, (upload) => {
+      eventOf(upload, type).outcome = outcome;
+    }, /unsupported.*outcome/);
+  }
+  for (const outcome of ["", 1, null]) {
+    rejectsUpload(`rejects non-text or empty outcome ${String(outcome)}`, (upload) => {
+      Object.assign(eventOf(upload, "pass"), { outcome });
+    }, /outcome must be text/);
+  }
+  rejectsUpload("rejects an unsupported event type", (upload) => {
+    Object.assign(upload.events[0], { type: "goal" });
+  }, /unsupported event type/);
+
+  for (const period of [0, 3, "1"]) {
+    rejectsUpload(`rejects invalid period ${JSON.stringify(period)}`, (upload) => {
+      Object.assign(upload.events[0], { period });
+    }, /period must be 1 or 2/);
+  }
+  rejectsUpload("rejects period 1 after half-time", (upload) => {
+    eventOf(upload, "pass").match_time_seconds = half + 1;
+  }, /period conflicts with its timestamp/);
+  rejectsUpload("rejects period 2 before half-time", (upload) => {
+    eventOf(upload, "pass").period = 2;
+  }, /period conflicts with its timestamp/);
+  for (const [type, timestamp] of [["half_time", half - 1], ["second_half_start", half + 1], ["full_time", end - 1]] as const) {
+    rejectsUpload(`rejects ${type} at the wrong boundary`, (upload) => {
+      eventOf(upload, type).match_time_seconds = timestamp;
+    }, new RegExp(`${type} must be at`));
+  }
+  for (const timestamp of [-1, end + 1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    rejectsUpload(`rejects invalid timestamp ${String(timestamp)}`, (upload) => {
+      upload.events[0].match_time_seconds = timestamp;
+    }, /match_time_seconds must be within/);
+  }
+  rejectsUpload("rejects timestamps that decrease in sequence order", (upload) => {
+    const pressure = eventOf(upload, "pressure");
+    const pass = eventOf(upload, "pass");
+    [pressure.sequence, pass.sequence] = [pass.sequence, pressure.sequence];
+  }, /non-decreasing timestamps and periods/);
+  rejectsUpload("rejects periods that decrease at a shared timestamp", (upload) => {
+    const first = eventOf(upload, "half_time");
+    const second = eventOf(upload, "second_half_start");
+    [first.sequence, second.sequence] = [second.sequence, first.sequence];
+  }, /non-decreasing timestamps and periods/);
+
+  test("accepts an empty event list and replays it safely to full-time", () => {
+    const upload = structuredClone(fixture);
+    upload.events = [];
+    const empty = validateMatch(upload);
+    assert.deepEqual(empty.events, []);
+    assertZero(aggregate(empty, empty.events));
+    let state = playbackReducer(empty, initialPlayback(), { type: "toggle" });
+    state = playbackReducer(empty, state, { type: "tick", seconds: end });
+    assert.equal(state.status, "half-time");
+    assert.equal(state.cursor, 0);
+    state = playbackReducer(empty, state, { type: "toggle" });
+    state = playbackReducer(empty, state, { type: "tick", seconds: end });
+    assert.equal(state.status, "full-time");
+    assert.equal(state.elapsed, end);
+    assert.equal(state.cursor, 0);
+  });
+});
+
+describe("playback controls and event boundaries", () => {
+  test("starts ready with zero elapsed time, zero cursor, and zero statistics", () => {
+    assert.deepEqual(initialPlayback(), { elapsed: 0, cursor: 0, status: "ready", speed: 5, secondHalf: false });
+    assertZero(aggregate(data, data.events.slice(0, initialPlayback().cursor)));
+  });
+
+  test("does not advance while ready, paused, at half-time, or at full-time", () => {
+    const playing = act(act(initialPlayback(), { type: "toggle" }), { type: "tick", seconds: 10 });
+    const paused = act(playing, { type: "toggle" });
+    assert.equal(paused.status, "paused");
+    for (const state of [initialPlayback(), paused, act(playing, { type: "seek", elapsed: half }), act(playing, { type: "seek", elapsed: end })]) {
+      assert.deepEqual(act(state, { type: "tick", seconds: end * 10 }), state);
+    }
+    const resumed = act(paused, { type: "toggle" });
+    assert.equal(resumed.elapsed, paused.elapsed);
+    assert.equal(act(resumed, { type: "tick", seconds: 1 }).elapsed, paused.elapsed + paused.speed);
+  });
+
+  for (const speed of [1, 5, 10, 30]) {
+    test(`advances by real elapsed time at ${speed}x`, () => {
+      const selected = act(initialPlayback(), { type: "speed", speed });
+      const state = act(act(selected, { type: "toggle" }), { type: "tick", seconds: 2.5 });
+      assert.equal(state.speed, speed);
+      assert.equal(state.elapsed, 2.5 * speed);
+      assert.equal(state.cursor, data.events.filter((event) => event.period === 1 && event.match_time_seconds <= 2.5 * speed).length);
+      assert.equal(state.status, "playing");
+    });
+  }
+
+  test("ignores unsupported speeds and invalid clock inputs", () => {
+    const playing = act(initialPlayback(), { type: "toggle" });
+    for (const speed of [0, -1, 2, 100, Number.NaN, Number.POSITIVE_INFINITY]) {
+      assert.deepEqual(act(playing, { type: "speed", speed }), playing);
+    }
+    for (const seconds of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      assert.deepEqual(act(playing, { type: "tick", seconds }), playing);
+    }
+    for (const elapsed of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      assert.deepEqual(act(playing, { type: "seek", elapsed }), playing);
+    }
+  });
+
+  test("half-time excludes every period-2 event sharing its timestamp", () => {
+    const expected = data.events.filter((event) => event.period === 1);
+    const boundaryEvents = data.events.filter((event) => event.period === 2 && event.match_time_seconds === half);
+    assert.ok(boundaryEvents.length >= 2, "Fixture must exercise multiple second-half boundary events");
+    const playing = act(initialPlayback(), { type: "toggle" });
+    for (const state of [act(playing, { type: "tick", seconds: end * 10 }), act(playing, { type: "seek", elapsed: half })]) {
+      assert.equal(state.elapsed, half);
+      assert.equal(state.status, "half-time");
+      assert.equal(state.secondHalf, false);
+      assert.equal(state.cursor, expected.length);
+      assert.equal(countReached(data.events, half, false), expected.length);
+      assert.deepEqual(data.events.slice(0, state.cursor), expected);
+      assert.ok(boundaryEvents.every((event) => !data.events.slice(0, state.cursor).includes(event)));
+      assert.deepEqual(act(state, { type: "step" }), state);
+      const halfTimeScore = fixture.events.find((event) => event.type === "half_time")?.score;
+      assert.ok(halfTimeScore);
+      assert.deepEqual(score(aggregate(data, expected)), halfTimeScore);
+    }
+  });
+
+  test("starting the second half releases all its boundary events without advancing the clock", () => {
+    const stopped = act(initialPlayback(), { type: "seek", elapsed: half });
+    const resumed = act(stopped, { type: "toggle" });
+    const released = data.events.filter((event) => event.period === 2 && event.match_time_seconds === half);
+    assert.equal(resumed.status, "playing");
+    assert.equal(resumed.secondHalf, true);
+    assert.equal(resumed.elapsed, half);
+    assert.equal(resumed.cursor, stopped.cursor + released.length);
+    assert.deepEqual(data.events.slice(stopped.cursor, resumed.cursor), released);
+    assert.equal(countReached(data.events, half, true), resumed.cursor);
+    assert.deepEqual(act(resumed, { type: "tick", seconds: 0 }), resumed);
+    assert.deepEqual(act(act(resumed, { type: "toggle" }), { type: "toggle" }), resumed);
+  });
+
+  test("stops exactly at full-time and cannot play or step beyond the final event", () => {
+    let state = act(initialPlayback(), { type: "toggle" });
+    state = act(state, { type: "tick", seconds: end * 10 });
+    state = act(state, { type: "toggle" });
+    state = act(state, { type: "tick", seconds: end * 10 });
+    assert.equal(state.status, "full-time");
+    assert.equal(state.elapsed, end);
+    assert.equal(state.cursor, data.events.length);
+    assert.equal(data.events[state.cursor - 1].type, "full_time");
+    for (const action of [{ type: "toggle" }, { type: "step" }, { type: "tick", seconds: end }] as const) {
+      assert.deepEqual(act(state, action), state);
+    }
+    assert.deepEqual(score(aggregate(data, data.events.slice(0, state.cursor))), fixture.match.final_score);
+  });
+
+  test("seeking clamps to the match and resets the second-half flag when going backwards", () => {
+    const finished = act(initialPlayback(), { type: "seek", elapsed: end + 100 });
+    assert.equal(finished.elapsed, end);
+    assert.equal(finished.status, "full-time");
+    assert.equal(finished.secondHalf, true);
+    const previousHalf = act(finished, { type: "seek", elapsed: half - 1 });
+    assert.equal(previousHalf.status, "paused");
+    assert.equal(previousHalf.secondHalf, false);
+    assert.ok(data.events.slice(0, previousHalf.cursor).every((event) => event.period === 1));
+    const beginning = act(previousHalf, { type: "seek", elapsed: -100 });
+    assert.equal(beginning.elapsed, 0);
+    assert.equal(beginning.cursor, data.events.filter((event) => event.match_time_seconds === 0).length);
+  });
+
+  test("restart resets the clock, cursor, period, score, and every metric while retaining speed", () => {
+    const accumulator = new StatisticsAccumulator(data);
+    let state = act(initialPlayback(), { type: "speed", speed: 30 });
+    state = act(state, { type: "seek", elapsed: end });
+    assert.deepEqual(score(accumulator.at(state.cursor)), fixture.match.final_score);
+    state = act(state, { type: "restart" });
+    assert.deepEqual(state, { elapsed: 0, cursor: 0, status: "ready", speed: 30, secondHalf: false });
+    assertZero(accumulator.at(state.cursor));
+    assertZero(aggregate(data, data.events.slice(0, state.cursor)));
+    const first = act(state, { type: "step" });
+    assert.equal(first.cursor, 1);
+    assert.equal(first.elapsed, data.events[0].match_time_seconds);
+  });
+
+  test("steps the two initial timestamp-zero events individually", () => {
+    const first = act(initialPlayback(), { type: "step" });
+    const second = act(first, { type: "step" });
+    assert.equal(first.cursor, 1);
+    assert.equal(second.cursor, 2);
+    assert.equal(first.elapsed, 0);
+    assert.equal(second.elapsed, 0);
+    assert.equal(first.status, "paused");
+    assert.equal(second.status, "paused");
+    assert.equal(data.events[first.cursor - 1].type, "match_start");
+    assert.equal(data.events[second.cursor - 1].type, "kickoff");
+  });
+
+  for (const period of [1, 2]) {
+    test(`steps same-timestamp actions one by one in period ${period}`, () => {
+      const index = data.events.findIndex((event, index, events) =>
+        event.period === period && event.match_time_seconds > 0 && event.match_time_seconds !== half &&
+        events[index + 1]?.period === period && events[index + 1]?.match_time_seconds === event.match_time_seconds,
+      );
+      assert.ok(index >= 0, `Fixture needs a same-timestamp action pair in period ${period}`);
+      const timestamp = data.events[index].match_time_seconds;
+      const group = data.events.filter((event) => event.period === period && event.match_time_seconds === timestamp);
+      let state = act(initialPlayback(), { type: "seek", elapsed: timestamp - 0.5 });
+      const emitted: string[] = [];
+      for (const event of group) {
+        const before = state.cursor;
+        state = act(state, { type: "step" });
+        assert.equal(state.cursor, before + 1);
+        assert.equal(state.elapsed, timestamp);
+        assert.equal(state.status, "paused");
+        assert.equal(data.events[state.cursor - 1].event_id, event.event_id);
+        emitted.push(data.events[state.cursor - 1].event_id);
+      }
+      assert.deepEqual(emitted, group.map((event) => event.event_id));
+    });
+  }
+
+  test("stepping reaches half-time and full-time without crossing either boundary", () => {
+    let state = act(initialPlayback(), { type: "seek", elapsed: half - 0.5 });
+    state = act(state, { type: "step" });
+    assert.equal(state.status, "half-time");
+    assert.equal(state.elapsed, half);
+    assert.equal(data.events[state.cursor - 1].type, "half_time");
+    assert.equal(data.events[state.cursor].period, 2);
+    state = act(state, { type: "seek", elapsed: end - 0.5 });
+    state = act(state, { type: "step" });
+    assert.equal(state.status, "full-time");
+    assert.equal(state.elapsed, end);
+    assert.equal(state.cursor, data.events.length);
+  });
+});
+
+describe("event-derived statistics", () => {
+  test("matches every actual final_statistics field, including two-decimal pass accuracy", () => {
+    const stats = aggregate(data, data.events);
+    const published = Object.fromEntries(Object.entries(stats.teams).map(([id, metrics]) => [id, {
+      goals: metrics.goals,
+      passes_attempted: metrics.passes_attempted,
+      passes_completed: metrics.passes_completed,
+      pass_accuracy_pct: Number(accuracy(metrics).toFixed(2)),
+      shots: metrics.shots,
+      shots_on_target: metrics.shots_on_target,
+      tackles_won: metrics.tackles_won,
+      pressure_events: metrics.pressure_events,
+    }]));
+    assert.deepEqual(published, fixture.final_statistics);
+    assert.deepEqual(score(stats), fixture.match.final_score);
+  });
+
+  test("derives each player's metrics only from their own actions", () => {
+    const stats = aggregate(data, data.events);
+    for (const player of data.players) {
+      const events = data.events.filter((event) => event.player_id === player.player_id);
+      assert.deepEqual(stats.players[player.player_id], {
+        goals: events.filter((event) => event.type === "shot" && event.outcome === "goal").length,
+        shots: events.filter((event) => event.type === "shot").length,
+        shots_on_target: events.filter((event) => event.type === "shot" && ["goal", "saved", "on_target"].includes(event.outcome ?? "")).length,
+        passes_attempted: events.filter((event) => event.type === "pass").length,
+        passes_completed: events.filter((event) => event.type === "pass" && event.outcome === "complete").length,
+        tackles_won: events.filter((event) => event.type === "tackle" && event.outcome === "won").length,
+        pressure_events: events.filter((event) => event.type === "pressure").length,
+        actions: events.length,
+      }, player.player_id);
+    }
+  });
+
+  test("counts every goal as exactly one shot and one shot on target", () => {
+    const goals = data.events.filter((event) => event.type === "shot" && event.outcome === "goal");
+    assert.ok(goals.length > 0);
+    for (const goal of goals) {
+      assert.ok(goal.team_id && goal.player_id);
+      const stats = aggregate(data, [goal]);
+      const expected = { ...zero, goals: 1, shots: 1, shots_on_target: 1, actions: 1 };
+      assert.deepEqual(stats.teams[goal.team_id], expected);
+      assert.deepEqual(stats.players[goal.player_id], expected);
+    }
+    const total = Object.values(aggregate(data, data.events).teams).reduce((sum, team) => sum + team.shots, 0);
+    assert.equal(total, data.events.filter((event) => event.type === "shot").length);
+  });
+
+  for (const [outcome, goals, onTarget] of [["goal", 1, 1], ["saved", 0, 1], ["on_target", 0, 1], ["blocked", 0, 0], ["off_target", 0, 0]] as const) {
+    test(`classifies a ${outcome} shot without double counting`, () => {
+      const shot = { ...eventOf(data, "shot"), outcome };
+      assert.ok(shot.team_id);
+      assert.deepEqual(aggregate(data, [shot]).teams[shot.team_id], {
+        ...zero, goals, shots: 1, shots_on_target: onTarget, actions: 1,
+      });
+    });
+  }
+
+  test("accuracy handles no attempts and rounds only when displaying percentages", () => {
+    assert.equal(accuracy(emptyMetrics()), 0);
+    const metrics = { ...zero, passes_attempted: 3, passes_completed: 2 };
+    assert.equal(accuracy(metrics), 2 / 3 * 100);
+    assert.equal(Number(accuracy(metrics).toFixed(2)), 66.67);
+    assert.equal(accuracy({ ...metrics, passes_completed: 3 }), 100);
+  });
+
+  test("backwards seeks rebuild statistics rather than retaining future goals or counters", () => {
+    const accumulator = new StatisticsAccumulator(data);
+    let state = initialPlayback();
+    const firstGoal = data.events.find((event) => event.type === "shot" && event.outcome === "goal");
+    assert.ok(firstGoal);
+    for (const elapsed of [end, half + 100, half, half - 1, firstGoal.match_time_seconds - 0.5, 60, 0, end]) {
+      state = act(state, { type: "seek", elapsed });
+      const emitted = data.events.slice(0, state.cursor);
+      const stats = accumulator.at(state.cursor);
+      assert.deepEqual(stats, aggregate(data, emitted), `Statistics after seeking to ${elapsed}`);
+      assert.deepEqual(score(stats), fixture.events[state.cursor - 1].score);
+      assert.deepEqual(accumulator.at(state.cursor), stats, "Repeated reads must not count events twice");
+    }
+  });
+
+  test("accumulator snapshots stay independent across forward, backwards, and reset reads", () => {
+    const accumulator = new StatisticsAccumulator(data);
+    const earlyCount = countReached(data.events, 60, false);
+    const early = accumulator.at(earlyCount);
+    const saved = structuredClone(early);
+    accumulator.at(data.events.length);
+    assert.deepEqual(early, saved);
+    assert.deepEqual(accumulator.at(earlyCount), saved);
+    early.teams[data.teams[0].team_id].shots = 999;
+    early.players[data.players[0].player_id].passes_attempted = 999;
+    assert.deepEqual(accumulator.at(earlyCount), saved);
+    assertZero(accumulator.at(0));
+    assert.deepEqual(accumulator.at(data.events.length), aggregate(data, data.events));
+  });
+
+  test("creates independent zero counters and never uses uploaded score snapshots", () => {
+    const initial = createStatistics(data);
+    assertZero(initial);
+    initial.teams[data.teams[0].team_id].goals = 1;
+    assert.deepEqual(initial.teams[data.teams[1].team_id], zero);
+    assert.deepEqual(initial.players[data.players[0].player_id], zero);
+    assertZero(createStatistics(data));
+    const upload = structuredClone(fixture);
+    for (const id of Object.keys(upload.final_statistics)) {
+      upload.match.final_score[id] = 999;
+      upload.final_statistics[id].goals = 999;
+      for (const event of upload.events) event.score[id] = 999;
+    }
+    const validated = validateMatch(upload);
+    assertZero(aggregate(validated, []));
+    assert.deepEqual(aggregate(validated, validated.events), aggregate(data, data.events));
+  });
+});
+
+describe("fixed pitch coordinate conversion", () => {
+  test("keeps home and neutral coordinates unchanged and rotates both away axes", () => {
+    const point = { x: 23, y: 71 };
+    const before = { ...point };
+    assert.deepEqual(pitchPosition(point, data.match.home_team_id, data.match.home_team_id), { x: 23, y: 71 });
+    assert.deepEqual(pitchPosition(point, null, data.match.home_team_id), { x: 23, y: 71 });
+    assert.deepEqual(pitchPosition(point, data.match.away_team_id, data.match.home_team_id), { x: 77, y: 29 });
+    assert.deepEqual(point, before);
+    for (const [input, expected] of [
+      [{ x: 0, y: 0 }, { x: 100, y: 100 }],
+      [{ x: 100, y: 0 }, { x: 0, y: 100 }],
+      [{ x: 0, y: 100 }, { x: 100, y: 0 }],
+      [{ x: 100, y: 100 }, { x: 0, y: 0 }],
+      [{ x: 50, y: 50 }, { x: 50, y: 50 }],
+    ]) {
+      assert.deepEqual(pitchPosition(input, data.match.away_team_id, data.match.home_team_id), expected);
+    }
+  });
+
+  test("uses the same fixed orientation for actual events in both halves", () => {
+    for (const period of [1, 2]) {
+      for (const team of data.teams) {
+        const event = data.events.find((event) => event.period === period && event.team_id === team.team_id && event.position && event.position.x !== 50 && event.position.y !== 50);
+        assert.ok(event?.position, `Fixture needs a non-central position for ${team.team_id} in period ${period}`);
+        const original = { ...event.position };
+        const expected = team.team_id === data.match.home_team_id ? original : { x: 100 - original.x, y: 100 - original.y };
+        assert.deepEqual(pitchPosition(event.position, team.team_id, data.match.home_team_id), expected);
+        assert.deepEqual(event.position, original);
+      }
+    }
+  });
+});
+
+describe("rule-based insight provider", () => {
+  test("is local and deterministic across repeated runs, reordered input, and backwards seeks", () => {
+    assert.equal(ruleBasedProvider.kind, "rule-based");
+    const elapsed = 1200;
+    const prefix = data.events.filter((event) => event.match_time_seconds <= elapsed);
+    const before = structuredClone(data);
+    const expected = ruleBasedProvider.generate(data, prefix, elapsed);
+    assert.ok(expected.length > 0);
+    assert.deepEqual(ruleBasedProvider.generate(data, prefix, elapsed), expected);
+    assert.deepEqual(ruleBasedProvider.generate(data, [...prefix].reverse(), elapsed), expected);
+    ruleBasedProvider.generate(data, data.events, end);
+    assert.deepEqual(ruleBasedProvider.generate(data, prefix, elapsed), expected);
+    assert.deepEqual(data, before);
+  });
+
+  test("uses only supplied emitted events, never future events in the dataset", () => {
+    const prefix = data.events.filter((event) => event.match_time_seconds <= 600);
+    const expected = ruleBasedProvider.generate(data, prefix, 600);
+    assert.ok(expected.length > 0);
+    assert.deepEqual(ruleBasedProvider.generate(data, data.events, 600), expected);
+    assert.deepEqual(ruleBasedProvider.generate(data, prefix, end), expected);
+    assert.deepEqual(ruleBasedProvider.generate({ ...data, events: [] }, prefix, 600), expected);
+    assert.deepEqual(ruleBasedProvider.generate(data, [], end), []);
+  });
+
+  test("keeps all evidence within emitted events and emits bilingual, bounded, unique cards", () => {
+    const state = act(initialPlayback(), { type: "seek", elapsed: half });
+    const prefix = data.events.slice(0, state.cursor);
+    const events = new Map(prefix.map((event) => [event.event_id, event]));
+    const insights = ruleBasedProvider.generate(data, prefix, half);
+    assert.ok(insights.length > 0 && insights.length <= 200);
+    assert.equal(new Set(insights.map((insight) => insight.id)).size, insights.length);
+    const cooldowns = new Map<string, number>();
+    for (const [index, insight] of insights.entries()) {
+      assert.ok(insight.from >= 0 && insight.from <= insight.at && insight.at <= half);
+      if (index > 0) assert.ok(insight.at >= insights[index - 1].at);
+      assert.ok(data.teams.some((team) => team.team_id === insight.teamId));
+      if (insight.playerId) assert.ok(data.players.some((player) => player.player_id === insight.playerId && player.team_id === insight.teamId));
+      const key = JSON.stringify([insight.rule, insight.teamId, insight.playerId]);
+      const previous = cooldowns.get(key);
+      if (previous !== undefined) assert.ok(insight.at - previous >= 180);
+      cooldowns.set(key, insight.at);
+      assert.ok(insight.eventIds.length > 0);
+      assert.equal(new Set(insight.eventIds).size, insight.eventIds.length);
+      for (const id of insight.eventIds) {
+        const event = events.get(id);
+        assert.ok(event, `Missing emitted evidence: ${id}`);
+        assert.equal(event.period, 1);
+        assert.equal(event.team_id, insight.teamId);
+        assert.ok(event.match_time_seconds >= insight.from && event.match_time_seconds <= insight.at);
+        if (insight.playerId) assert.equal(event.player_id, insight.playerId);
+      }
+      assert.ok(insight.metrics.length > 0);
+      for (const translation of [insight.headline, insight.explanation, insight.casual, insight.interpretation, ...insight.metrics.map((metric) => metric.label)]) {
+        assert.ok(translation.en.trim().length > 0);
+        assert.ok(translation.fil.trim().length > 0);
+      }
+      assert.ok(insight.metrics.every((metric) => metric.value.trim().length > 0));
+    }
+  });
+
+  test("returns no insights for an empty prefix or invalid elapsed time", () => {
+    for (const elapsed of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      assert.deepEqual(ruleBasedProvider.generate(data, data.events, elapsed), []);
+    }
+    assert.deepEqual(ruleBasedProvider.generate(data, [], 0), []);
+  });
+
+  test("counts attacking-third recoveries using team-relative x for both teams", () => {
+    for (const team of data.teams) {
+      const player = data.players.find((player) => player.team_id === team.team_id);
+      assert.ok(player);
+      const event: MatchEvent = {
+        ...eventOf(data, "possession_change"),
+        event_id: `recovery-${team.team_id}`,
+        sequence: 1,
+        match_time_seconds: 100,
+        period: 1,
+        team_id: team.team_id,
+        player_id: player.player_id,
+        position: { x: 66.67, y: 20 },
+        reason: "interception",
+      };
+      const recoveries = ruleBasedProvider.generate(data, [event], 100).filter((insight) => insight.rule === "recoveries");
+      assert.equal(recoveries.length, 1);
+      assert.equal(recoveries[0].teamId, team.team_id);
+      assert.deepEqual(recoveries[0].eventIds, [event.event_id]);
+      for (const excluded of [
+        { ...event, position: { x: 66.66, y: 20 } },
+        { ...event, reason: "shot_end" },
+        { ...event, type: "tackle" as const, outcome: "won" },
+      ]) {
+        assert.equal(ruleBasedProvider.generate(data, [excluded], 100).filter((insight) => insight.rule === "recoveries").length, 0);
+      }
+    }
+  });
+
+  test("a goal yields one shot of evidence and one recorded player action", () => {
+    const goal = data.events.find((event) => event.type === "shot" && event.outcome === "goal");
+    assert.ok(goal);
+    const insights = ruleBasedProvider.generate(data, [goal], goal.match_time_seconds);
+    const shots = insights.find((insight) => insight.rule === "shots");
+    const player = insights.find((insight) => insight.rule === "player");
+    assert.ok(shots && player);
+    assert.deepEqual(shots.eventIds, [goal.event_id]);
+    assert.equal(shots.metrics.find((metric) => metric.label.en === "Recent shots")?.value, "1");
+    assert.equal(player.playerId, goal.player_id);
+    assert.deepEqual(player.eventIds, [goal.event_id]);
+    assert.equal(player.metrics.find((metric) => metric.label.en === "Recorded actions")?.value, "1");
+    assert.equal(player.metrics.find((metric) => metric.label.en === "Goals")?.value, "1");
+  });
+});

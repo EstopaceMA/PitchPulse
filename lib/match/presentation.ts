@@ -1,0 +1,11 @@
+import type { Language, MatchEvent } from "./types";
+
+export const tr = (language: Language, en: string, fil: string): string => language === "fil" ? fil : en;
+const actions: Record<string, [string, string]> = {
+    match_start: ["Match started", "Nagsimula ang laban"], kickoff: ["Kick-off", "Simula ng laro"], pass: ["Pass", "Pasa"], shot: ["Shot", "Tira"], tackle: ["Tackle", "Agaw"], pressure: ["Pressure", "Pagdiin"], possession_change: ["Possession change", "Pagpalit ng may bola"], half_time: ["Half-time", "Pahinga"], second_half_start: ["Second half", "Ikalawang hati"], full_time: ["Full-time", "Tapos na"],
+};
+const outcomes: Record<string, [string, string]> = { complete: ["Completed", "Kumpleto"], intercepted: ["Intercepted", "Naagaw"], incomplete: ["Incomplete", "Hindi kumpleto"], goal: ["Goal", "Gol"], saved: ["Saved", "Nasagip"], off_target: ["Off target", "Hindi tumama"], on_target: ["On target", "Sa target"], blocked: ["Blocked", "Naharang"], won: ["Won", "Nakuha"], lost: ["Lost", "Nawala"], high: ["High intensity", "Mataas na pagdiin"], medium: ["Medium intensity", "Katamtamang pagdiin"], low: ["Low intensity", "Mababang pagdiin"], interception: ["Interception", "Pagharang"], tackle: ["Tackle recovery", "Pag-agaw ng bola"], shot_end: ["After shot", "Pagkatapos ng tira"] };
+export function eventLabel(event: MatchEvent, language: Language): string { const pair = actions[event.type]; return event.type === "shot" && event.outcome === "goal" ? tr(language, "Goal!", "Gol!") : pair ? pair[language === "fil" ? 1 : 0] : event.type; }
+export function outcomeLabel(event: MatchEvent, language: Language): string { const raw = event.outcome ?? event.intensity ?? event.reason; if (!raw) return "—"; return outcomes[raw]?.[language === "fil" ? 1 : 0] ?? raw.replaceAll("_", " "); }
+export function teamColor(id: string | null, home: string): string { return id === home ? "#ff6276" : id ? "#669cff" : "#9aa8c0"; }
+export function initials(name: string): string { return name.length <= 3 ? name.toUpperCase() : name.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase(); }
