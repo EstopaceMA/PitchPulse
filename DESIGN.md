@@ -11,6 +11,7 @@ The library begins with the one bundled synthetic demo. Additional games come fr
 - Charcoal background `#111315`, surfaces `#1a1d20`, inset panels `#15191c`, borders `#30363a`.
 - Green `#32D74B` for playback, actions, and active indicators; lime `#A3E635` for focus. Keep accents restrained.
 - Home red `#FF6276` and away blue `#669CFF` consistently identify teams on the pitch, timeline, and comparisons. Use labels and distinct solid/dashed marks as well as color.
+- Violet `#b9a7ff` (`--ai-accent`) marks Microsoft Foundry AI output only: the **AI · Microsoft Foundry** badge, AI tags, and the left rule on AI cards. It always appears with a text label, never color alone.
 - Inter for interface text, JetBrains Mono for clock/data values. Both remain self-hosted.
 - Library cards use rounded corners and generous spacing. Studio panels use shared edges, compact headers, and independent scrolling. Extend the existing tokens in `app/globals.css`; reuse the Base UI button/select components.
 
@@ -19,7 +20,8 @@ The library begins with the one bundled synthetic demo. Additional games come fr
 - Library: branding, language, browser save status, introduction/import action, search, responsive card grid, quiet footer. Cards show teams, duration, source, saved progress, and annotation count.
 - Studio: the pitch dominates the workspace. The event browser starts collapsed, the inspector stays narrow, and the top bars and bottom timeline remain compact. Pitch view options open from the **View** menu; note/bookmark actions share the pitch header.
 - Browser tabs: reached events with team/player/type filters, or saved library entries with import.
-- Inspector tabs: Details, Stats, Insights, Notes. Retain viewing modes, player focus, rule-based disclosures, commentary, evidence links, and boundary recaps.
+- Inspector tabs: Details, Stats, Insights, Notes, plus **Ask** only while AI analysis is on. Retain viewing modes, player focus, rule-based disclosures, commentary, evidence links, and boundary recaps.
+- AI analysis is opt-in per session (Preferences, or the Insights call to action) and is disabled with an explanation when the server isn't configured. AI sections sit beside, never inside, the rule-based panels: the AI analysis section under the rule-based insights, the AI recap under the statistics recap, and narration under each templated commentary row. On desktop, the Ask question box stays pinned at the bottom of the inspector.
 - Desktop side panels collapse independently. Tablet/mobile stack the pitch, inspector, and browser; retain a single accessible playback dock with safe-area space. Zoomed tracks scroll inside their own viewport.
 
 ## Timeline and analysis
@@ -36,6 +38,7 @@ The library begins with the one bundled synthetic demo. Additional games come fr
 - Retain all playback invariants: elapsed time plus event cursor, explicit second-half transition, full-time stop, deterministic seeking/restart, and one shared movement clock. Reopening restores playback paused.
 - Derive scores, statistics, insights, recaps, and event tracks only from the processed prefix. Strip embedded final summaries at validation. Only user-authored annotations can remain visible beyond a rewound playhead.
 - Movement remains explicitly illustrative. Recorded-event view uses supplied positions only; no invented missing shot endpoints, possession percentages, player distances, tracking measurements, or calibrated probabilities.
-- Insight facts and cautious interpretations remain separate, supported by reached evidence IDs. Local rules are not labeled AI.
+- Insight facts and cautious interpretations remain separate, supported by reached evidence IDs. Local rules are not labeled AI, and AI output is always labeled AI.
+- AI requests pause playback and describe that frozen moment ("As of mm:ss"). Results and chat from a later playhead are hidden after a rewind, like future events. AI evidence opens the same historical inspection as rule evidence. When the evidence list is capped, the full count is stated.
 
 See [README.md](README.md) for the user workflow and upload contract, and [AGENTS.md](AGENTS.md) for development and verification requirements.

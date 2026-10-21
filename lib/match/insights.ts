@@ -306,4 +306,5 @@ function generate(data: MatchData, events: readonly MatchEvent[], elapsed: numbe
     return historyStart === 0 ? history : [...history.slice(historyStart), ...history.slice(0, historyStart)];
 }
 
-export const ruleBasedProvider: InsightProvider = { kind: "rule-based", generate };
+// `satisfies` keeps the synchronous signature for existing call sites.
+export const ruleBasedProvider = { kind: "rule-based", generate } satisfies InsightProvider;

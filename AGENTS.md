@@ -4,7 +4,8 @@ This file applies to the whole repository. Read [README.md](README.md) for simul
 
 ## Project and boundaries
 
-- PitchPulse is an event-driven football replay app using Next.js App Router, React, strict TypeScript, and Tailwind CSS v4. The shipped insights are local and rule-based; no AI service, credentials, or recorded player tracking are required.
+- PitchPulse is an event-driven football replay app using Next.js App Router, React, strict TypeScript, and Tailwind CSS v4. The built-in insights are local and rule-based, and no recorded player tracking is required. Optional Microsoft Foundry agents are the only AI service. They are off by default, and the app runs fully without them or any credentials.
+- [lib/agents/](lib/agents/) holds the pure agent layer: contracts, the prefix-only packet, guards, tools, instructions and the request pipeline. [lib/foundry/run-agent.ts](lib/foundry/run-agent.ts) is the injectable Foundry runner. [lib/foundry/client.ts](lib/foundry/client.ts) is the only `server-only` module that touches the Azure SDK and credentials. [app/api/agents/[agent]/route.ts](app/api/agents/[agent]/route.ts) is the single entry point.
 - [app/page.tsx](app/page.tsx) renders the match library. [app/studio/[id]/page.tsx](app/studio/[id]/page.tsx) opens [components/match/simulator.tsx](components/match/simulator.tsx), which owns studio composition and session-only preferences. Browser persistence lives in `lib/match/library-storage.ts` and `lib/match/use-library.ts`; keep pure domain logic independent of storage and React.
 - [app/api/match/route.ts](app/api/match/route.ts) validates the bundled [public/arsenal-vs-chelsea-match.json](public/arsenal-vs-chelsea-match.json) before responding. Do not depend on datasets outside the repository or expand the Turbopack root to find them.
 - [lib/match/types.ts](lib/match/types.ts) defines data and provider contracts; [lib/match/validation.ts](lib/match/validation.ts) is the boundary for unknown input.
@@ -13,6 +14,7 @@ This file applies to the whole repository. Read [README.md](README.md) for simul
 ## Development and verification
 
 - Use npm and keep [package.json](package.json) and [package-lock.json](package-lock.json) consistent. Use `npm ci` when dependencies need installing; avoid unrelated upgrades or competing lockfiles.
+- Use Node 22 or later ([.nvmrc](.nvmrc)); the Azure SDK requires it. `npm run agents:provision` and `npm run agents:evaluate` need a configured `.env.local` (see [.env.example](.env.example)) and `az login`. Tests never call Foundry.
 - `npm run dev` starts development; `npm run build` creates a production build; `npm start` serves an existing production build.
 - For code changes, run `npm test`, `npm run lint`, and `npm run build`. Report any failures or checks that could not be run. Documentation-only changes need link/content checks, not a full build.
 - Tests use `node:test` and `node:assert/strict` through `tsx`, not Jest or Vitest. Extend [lib/match/simulator.test.ts](lib/match/simulator.test.ts) and [lib/match/movement.test.ts](lib/match/movement.test.ts) for domain regressions, and [components/match/presentation.test.tsx](components/match/presentation.test.tsx) for component markup regressions. Resolve fixture paths relative to `import.meta.url`.
@@ -26,8 +28,17 @@ This file applies to the whole repository. Read [README.md](README.md) for simul
 - Keep movement deterministic and explicitly illustrative, with no extra events or statistics. Preserve pause/boundary freezing, historical-prefix inspection, and reduced-motion snapshots. Recorded-event mode must use only supplied positions; never invent a missing shot endpoint.
 - Coordinates are team-relative, 0–100. Use `pitchPosition` to rotate **both axes** for the away team, maintaining home-right / away-left attacks in both halves.
 - Validate uploads before rendering or reducing them. Preserve sequence ordering, reference checks, the 10 MB upload / 50,000-event limits, and the current match on invalid input. Accept supported missing optional fields and empty event lists.
-- Keep insight facts separate from cautious interpretations, with evidence IDs referencing processed events. Preserve bilingual output, cooldowns, deduplication, and bounded history. Keep `InsightProvider` as the replacement boundary and the local provider as the offline fallback if a remote provider is requested.
+- Keep insight facts separate from cautious interpretations, with evidence IDs referencing processed events. Preserve bilingual output, cooldowns, deduplication, and bounded history. `InsightProvider` is the Foundry boundary: `foundryInsightProvider` is the remote implementation, and `ruleBasedProvider` stays always on as the local fallback.
 - Do not infer possession percentages, player distances, real tracking, or calibrated probabilities from this dataset. Preserve the illustrative labels on synthetic estimates and the fictional-roster disclosure.
+
+## Foundry agent invariants
+
+- Only the processed prefix leaves the browser. Keep the client stripping in `agentRequest` and the server assertions in `handleAgentRequest`: `validateMatch`, cursor/elapsed/period/boundary checks, and cursor-checked Ask history.
+- Code supplies the numbers and evidence. Metric labels, values and evidence come from the packet catalog. Every number and mm:ss time in AI text must be grounded, and every cited event must be reached. Items that fail are dropped, never silently truncated. New packet facts or tool outputs must still reach `addGrounding`.
+- Never enable web or Bing grounding, Code Interpreter or outside knowledge. Keep the banned-claim patterns aligned with the dataset limits: no possession share, distances, speeds, xG, probabilities, ratings or betting.
+- AI output is always labeled AI and hidden after a rewind past its cursor; local rules are never labeled AI. AI is opt-in per session, and every Foundry call follows an explicit click or question.
+- Keep `lib/agents` and `lib/foundry/run-agent.ts` free of React, browser APIs and `server-only`. Never import `lib/foundry/client.ts` from client components or tests.
+- Bump `PROMPT_VERSION` when instructions or schemas change, then re-run `npm run agents:provision`. Extend `lib/agents/*.test.ts` and `lib/foundry/run-agent.test.ts` using fake runners, and `components/match/agent-panels.test.tsx` for AI markup.
 
 ## UI conventions
 

@@ -8,6 +8,7 @@ import { annotationAnchor, formatTime } from "@/lib/match/playback";
 import { tr } from "@/lib/match/presentation";
 import { ruleBasedProvider } from "@/lib/match/insights";
 import { useSimulation } from "@/lib/match/use-simulation";
+import { AgentRequestError, useStudioAgents } from "@/lib/match/use-agents";
 import { saveReview, setLibraryLanguage, useLibrary } from "@/lib/match/use-library";
 import type { LibraryMatch, MatchAnnotation, Preferences } from "@/lib/match/types";
 import { Pitch } from "./pitch";
@@ -20,17 +21,20 @@ import { PreferencesMenu, ViewControls } from "./view-controls";
 import { ImportMatch, StorageStatus, StudioBrand } from "./match-library";
 import { StudioTimeline } from "./studio-timeline";
 import { StudioNotes } from "./studio-notes";
+import { AgentInsights, agentErrorText } from "./agent-insights";
+import { AgentRecapPanel } from "./agent-recap";
+import { AskAnalyst } from "./ask-analyst";
 
-export default function Studio({ id }: { id: string }) {
+export default function Studio({ id, aiAvailable = false }: { id: string; aiAvailable?: boolean }) {
     const library = useLibrary();
     const record = library.matches.find(match => match.id === id);
     const l = library.language;
     if (!library.ready) return <div className="studio-loading"><StudioBrand /><p role="status">{tr(l, "Opening your studio…", "Binubuksan ang iyong studio…")}</p></div>;
     if (!record) return <div className="studio-loading"><StudioBrand /><FolderOpen size={40} /><h1>{tr(l, "This match isn’t in your library", "Wala sa iyong library ang laban")}</h1><p>{tr(l, "Imported games are saved in the browser where you added them. Open your library to import this match again.", "Naka-save ang mga laban sa browser kung saan sila na-import. Buksan ang library upang i-import muli ang laban.")}</p><StorageStatus language={l} /><Link className="open-studio" href="/">{tr(l, "Back to library", "Bumalik sa library")}<ArrowUpRight size={16} /></Link></div>;
-    return <MatchStudio key={record.id} record={record} />;
+    return <MatchStudio key={record.id} record={record} aiAvailable={aiAvailable} />;
 }
 
-function MatchStudio({ record }: { record: LibraryMatch }) {
+function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailable: boolean }) {
     const data = record.data;
     const panelId = useId();
     const viewerRef = useRef<HTMLElement>(null);
@@ -40,18 +44,25 @@ function MatchStudio({ record }: { record: LibraryMatch }) {
     const [preferences, setPreferences] = useState<Preferences>({ mode: "analyst", language: library.language, team: data.match.home_team_id, player: data.players.find(p => p.team_id === data.match.home_team_id && p.position !== "GK")?.player_id ?? data.players[0]?.player_id ?? "" });
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [leftTab, setLeftTab] = useState<"events" | "library">("events");
-    const [inspector, setInspector] = useState<"details" | "statistics" | "insights" | "notes">("statistics");
+    const [inspector, setInspector] = useState<"details" | "statistics" | "insights" | "ask" | "notes">("statistics");
     const [leftOpen, setLeftOpen] = useState(false);
     const [rightOpen, setRightOpen] = useState(true);
     const [annotations, setAnnotations] = useState(record.annotations);
     const [draft, setDraft] = useState<MatchAnnotation | null>(null);
     const [selectedNote, setSelectedNote] = useState<string | null>(null);
+    // AI is opt-in per session and every agent call is on demand.
+    const [aiEnabled, setAiEnabled] = useState(false);
+    const [drafting, setDrafting] = useState(false);
+    const [draftStatus, setDraftStatus] = useState("");
     const l = preferences.language;
     const selected = events.find(e => e.event_id === selectedId);
     const home = data.teams.find(t => t.team_id === data.match.home_team_id)!;
     const away = data.teams.find(t => t.team_id === data.match.away_team_id)!;
     const reachedTime = events.at(-1)?.match_time_seconds ?? 0;
     const insights = useMemo(() => ruleBasedProvider.generate(data, events, reachedTime), [data, events, reachedTime]);
+    const ai = useStudioAgents(record.id, data, events, { elapsed: state.elapsed, secondHalf: state.secondHalf, status: state.status }, preferences);
+    const aiOn = aiAvailable && aiEnabled;
+    const activeInspector = inspector === "ask" && !aiOn ? "insights" : inspector;
     const statusText = { ready: tr(l, "Ready", "Handa"), playing: tr(l, "Playing", "Naglalaro"), paused: tr(l, "Paused", "Nakahinto"), "half-time": tr(l, "Half-time", "Pahinga"), "full-time": tr(l, "Full-time", "Tapos na") }[state.status];
     const latest = useRef({ state, annotations });
     useEffect(() => {
@@ -107,6 +118,15 @@ function MatchStudio({ record }: { record: LibraryMatch }) {
         if (window.matchMedia("(max-width: 900px)").matches) requestAnimationFrame(() => inspectorRef.current?.scrollIntoView({ block: "start" }));
     };
     const restart = () => { setSelectedId(null); dispatch({ type: "restart" }); };
+    const setAi = (enabled: boolean) => { setAiEnabled(enabled); if (!enabled && inspector === "ask") setInspector("insights"); };
+    // Drafts come from the note's own anchor prefix and only fill the editor; saving keeps them user-authored.
+    const draftWithAI = (note: MatchAnnotation) => {
+        const language = l;
+        setDrafting(true); setDraftStatus("");
+        ai.draftNote(note.anchor).then(text => setDraft(current => current?.id === note.id ? { ...current, text: (current.text.trim() ? `${current.text.trim()}\n\n${text[language]}` : text[language]).slice(0, 4000) } : current),
+            (error: unknown) => setDraftStatus(agentErrorText(error instanceof AgentRequestError ? error.code : "upstream_error", language)))
+            .finally(() => setDrafting(false));
+    };
     const showRecap = state.status === "half-time" || state.status === "full-time";
     return <div className="studio-shell" data-left-open={leftOpen} data-right-open={rightOpen}>
         <a className="skip-link" href={`#${panelId}-viewer`}>{tr(l, "Skip to match", "Lumaktaw sa laban")}</a>
@@ -115,7 +135,7 @@ function MatchStudio({ record }: { record: LibraryMatch }) {
             <div className="studio-match-title"><span className="eyebrow">{tr(l, "ANALYSIS STUDIO", "STUDIO NG PAGSUSURI")}</span><h1>{home.name} <span>vs</span> {away.name}</h1></div>
             <div className="studio-score" aria-label={`${home.name} ${stats.teams[home.team_id].goals}, ${away.name} ${stats.teams[away.team_id].goals}`} data-testid="score"><span>{stats.teams[home.team_id].goals}</span><b>:</b><span>{stats.teams[away.team_id].goals}</span></div>
             <div className="studio-clock"><time data-testid="match-clock">{formatTime(state.elapsed)}</time><span>{statusText}</span></div>
-            <div className="studio-topbar-actions"><StorageStatus language={l} /><PreferencesMenu data={data} preferences={preferences} onChange={update} compact /></div>
+            <div className="studio-topbar-actions"><StorageStatus language={l} /><PreferencesMenu data={data} preferences={preferences} onChange={update} compact ai={{ available: aiAvailable, enabled: aiEnabled, onChange: setAi }} /></div>
         </header>
         <div className="studio-workbar"><div><span className="tiny-dot" />{tr(l, "EVENT-BASED REPLAY", "REPLAY MULA SA MGA PANGYAYARI")}<span className="workbar-disclosure">{tr(l, "Illustrative movement · Demo uses fictional players", "Halimbawang galaw · Kathang-isip na manlalaro sa demo")}</span></div><div><button type="button" aria-expanded={leftOpen} aria-controls={`${panelId}-browser`} onClick={() => setLeftOpen(value => !value)}><ListFilter size={14} />{tr(l, "Browser", "Browser")}{leftOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}</button><button type="button" aria-expanded={rightOpen} aria-controls={`${panelId}-inspector`} onClick={() => setRightOpen(value => !value)}><FilePenLine size={14} />{tr(l, "Inspector", "Tagasuri")}{rightOpen ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}</button></div></div>
         <div className="studio-body">
@@ -130,14 +150,16 @@ function MatchStudio({ record }: { record: LibraryMatch }) {
             </main>
             <aside ref={inspectorRef} id={`${panelId}-inspector`} className="studio-inspector" hidden={!rightOpen} aria-label={tr(l, "Analysis inspector", "Tagasuri ng laban")}>
                 <div className="studio-tabs inspector-tabs" role="group" aria-label={tr(l, "Analysis panels", "Mga panel ng pagsusuri")}>{([
-                    ["details", tr(l, "Details", "Detalye")], ["statistics", tr(l, "Stats", "Datos")], ["insights", tr(l, "Insights", "Pagsusuri")], ["notes", tr(l, "Notes", "Mga tala")],
-                ] as const).map(([id, label]) => <button key={id} type="button" aria-pressed={inspector === id} onClick={() => setInspector(id)}>{label}{id === "notes" && annotations.length > 0 && <small>{annotations.length}</small>}</button>)}</div>
+                    ["details", tr(l, "Details", "Detalye")], ["statistics", tr(l, "Stats", "Datos")], ["insights", tr(l, "Insights", "Pagsusuri")], ...(aiOn ? [["ask", tr(l, "Ask", "Magtanong")] as const] : []), ["notes", tr(l, "Notes", "Mga tala")],
+                ] as const).map(([id, label]) => <button key={id} type="button" aria-pressed={activeInspector === id} onClick={() => setInspector(id)}>{label}{id === "notes" && annotations.length > 0 && <small>{annotations.length}</small>}</button>)}</div>
                 <div className="studio-pane-scroll">
-                    {inspector === "details" && <><ViewControls data={data} preferences={preferences} onChange={update} showPreferences={false} />{selected ? <EventDetails data={data} event={selected} language={l} id="studio-event-details" /> : <div className="workspace-empty"><ListFilter size={28} /><h2>{tr(l, "A closer look", "Mas malapit na pagtingin")}</h2><p>{tr(l, "Select a reached event in the browser or timeline to inspect its recorded details.", "Pumili ng naabot na pangyayari sa browser o timeline upang suriin ang mga detalye.")}</p></div>}</>}
-                    {inspector === "statistics" && <><ViewControls data={data} preferences={preferences} onChange={update} showPreferences={false} /><StatisticsPanel data={data} stats={stats} preferences={preferences} /></>}
-                    {inspector === "insights" && <><InsightsPanel data={data} insights={insights} elapsed={state.elapsed} preferences={preferences} onEvidence={inspect} /><CommentaryPanel data={data} events={events} preferences={preferences} onEvidence={inspect} /></>}
-                    {inspector === "notes" && <StudioNotes annotations={annotations} language={l} selectedId={selectedNote} draft={draft} onSelect={selectNote} onDraft={setDraft} onCreate={createAnnotation} onSave={note => { setAnnotations(previous => previous.some(a => a.id === note.id) ? previous.map(a => a.id === note.id ? note : a) : [...previous, note]); setDraft(null); setSelectedNote(note.id); }} onDelete={id => { setAnnotations(previous => previous.filter(a => a.id !== id)); setSelectedNote(null); }} onGo={note => { dispatch({ type: "restore", checkpoint: note.anchor }); setSelectedId(note.eventId ?? null); }} />}
+                    {activeInspector === "details" && <><ViewControls data={data} preferences={preferences} onChange={update} showPreferences={false} />{selected ? <EventDetails data={data} event={selected} language={l} id="studio-event-details" /> : <div className="workspace-empty"><ListFilter size={28} /><h2>{tr(l, "A closer look", "Mas malapit na pagtingin")}</h2><p>{tr(l, "Select a reached event in the browser or timeline to inspect its recorded details.", "Pumili ng naabot na pangyayari sa browser o timeline upang suriin ang mga detalye.")}</p></div>}</>}
+                    {activeInspector === "statistics" && <><ViewControls data={data} preferences={preferences} onChange={update} showPreferences={false} /><StatisticsPanel data={data} stats={stats} preferences={preferences} /></>}
+                    {activeInspector === "insights" && <><InsightsPanel data={data} insights={insights} elapsed={state.elapsed} preferences={preferences} onEvidence={inspect} aiConnected={aiOn} /><AgentInsights preferences={preferences} available={aiAvailable} enabled={aiEnabled} task={ai.analyst} cursor={events.length} canAnalyze={events.length > 0} onAnalyze={() => { pause(); ai.analyze(); }} onEnable={() => setAi(true)} onEvidence={inspect} /><CommentaryPanel data={data} events={events} preferences={preferences} onEvidence={inspect} narration={aiOn ? { lines: ai.lines, pending: ai.pending, loading: ai.narrating.loading, errorText: ai.narrating.error ? agentErrorText(ai.narrating.error, l) : undefined, onNarrate: () => { pause(); ai.narrate(); } } : undefined} /></>}
+                    {activeInspector === "ask" && <AskAnalyst entries={ai.chat} cursor={events.length} elapsed={state.elapsed} language={l} asking={ai.asking} onAsk={question => { pause(); ai.ask(question); }} onEvidence={inspect} />}
+                    {activeInspector === "notes" && <StudioNotes annotations={annotations} language={l} selectedId={selectedNote} draft={draft} onDraftWithAI={aiOn ? draftWithAI : undefined} drafting={drafting} draftStatus={draftStatus} onSelect={selectNote} onDraft={setDraft} onCreate={createAnnotation} onSave={note => { setAnnotations(previous => previous.some(a => a.id === note.id) ? previous.map(a => a.id === note.id ? note : a) : [...previous, note]); setDraft(null); setSelectedNote(note.id); }} onDelete={id => { setAnnotations(previous => previous.filter(a => a.id !== id)); setSelectedNote(null); }} onGo={note => { dispatch({ type: "restore", checkpoint: note.anchor }); setSelectedId(note.eventId ?? null); }} />}
                     {showRecap && <Recap data={data} events={events} stats={stats} insights={insights} preferences={preferences} kind={state.status === "half-time" ? "half-time" : "full-time"} onEvidence={inspect} onContinue={() => state.status === "half-time" ? dispatch({ type: "toggle" }) : restart()} />}
+                    {showRecap && aiOn && <AgentRecapPanel data={data} events={events} preferences={preferences} kind={state.status === "half-time" ? "half-time" : "full-time"} task={ai.recap} onWrite={ai.writeRecap} onEvidence={inspect} />}
                 </div>
             </aside>
         </div>

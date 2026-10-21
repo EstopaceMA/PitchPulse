@@ -71,18 +71,25 @@ export interface LibraryMatch {
     checkpoint: PlaybackCheckpoint;
     annotations: MatchAnnotation[];
 }
+export const AGENT_TOPICS = ["pressing", "build_up", "chance_creation", "turnovers", "flank_preference", "momentum", "player_involvement", "defensive_actions"] as const;
+export type AgentTopic = (typeof AGENT_TOPICS)[number];
 export interface Insight {
-    id: string; rule: "recoveries" | "shots" | "passing" | "player";
+    id: string; rule: "recoveries" | "shots" | "passing" | "player" | "agent";
     teamId: string; playerId?: string; at: number; from: number;
+    /** Set only on Microsoft Foundry agent cards. Local rule cards are never labeled AI. */
+    source?: "foundry"; topic?: AgentTopic;
     headline: Record<Language, string>;
     explanation: Record<Language, string>;
     casual: Record<Language, string>;
     interpretation: Record<Language, string>;
     metrics: { label: Record<Language, string>; value: string }[];
     eventIds: string[];
+    /** When larger than eventIds.length, eventIds lists only the most recent supporting events. */
+    evidenceTotal?: number;
 }
-/** A remote provider can implement this contract later. The shipped implementation is local and deterministic. */
+export interface InsightRequestOptions { signal?: AbortSignal; preferences?: Preferences }
+/** The local provider is synchronous and deterministic; the Microsoft Foundry adapter is remote, server-side and async. */
 export interface InsightProvider {
     readonly kind: "rule-based" | "remote";
-    generate(data: MatchData, events: readonly MatchEvent[], elapsed: number): Insight[];
+    generate(data: MatchData, events: readonly MatchEvent[], elapsed: number, options?: InsightRequestOptions): Insight[] | Promise<Insight[]>;
 }

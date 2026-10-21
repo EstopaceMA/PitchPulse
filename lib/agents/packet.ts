@@ -1,0 +1,268 @@
+import { isKeyMoment, isMeaningful } from "@/lib/match/commentary";
+import { ruleBasedProvider } from "@/lib/match/insights";
+import { formatTime, pitchPosition, type MatchStatus } from "@/lib/match/playback";
+import { accuracy, addEvent, emptyMetrics } from "@/lib/match/statistics";
+import type { Insight, MatchData, MatchEvent, Metrics, Position, Preferences } from "@/lib/match/types";
+import type { Bilingual } from "./contracts";
+
+const BLOCK_SECONDS = 900;
+const RECENT_LIMIT = 30;
+const KEY_MOMENT_LIMIT = 12;
+const RULE_INSIGHT_LIMIT = 8;
+const RULE_EVIDENCE_LIMIT = 20;
+
+export const THIRDS = ["defensive", "middle", "attacking"] as const;
+export const FLANKS = ["top", "centre", "bottom"] as const;
+export const ZONE_TYPES = ["passes", "shots", "recoveries", "turnovers", "pressures"] as const;
+export type Third = (typeof THIRDS)[number];
+export type Flank = (typeof FLANKS)[number];
+export type ZoneType = (typeof ZONE_TYPES)[number];
+const COUNTED = ["goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "tackles_won", "pressure_events", "actions"] as const satisfies readonly (keyof Metrics)[];
+type MetricName = (typeof COUNTED)[number] | "pass_accuracy" | "high_pressure" | "recoveries" | "turnovers";
+const TEAM_TOTALS: readonly MetricName[] = ["goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "tackles_won", "pressure_events", "high_pressure", "recoveries", "turnovers"];
+const BLOCK_METRICS: readonly MetricName[] = ["goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "pressure_events", "recoveries", "turnovers"];
+const PLAYER_TOTALS: readonly MetricName[] = ["actions", "goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "tackles_won", "pressure_events", "recoveries"];
+
+const b = (en: string, fil: string): Bilingual => ({ en, fil });
+const LABELS: Record<MetricName, Bilingual> = {
+    goals: b("Goals", "Mga gol"),
+    shots: b("Shots", "Mga tira"),
+    shots_on_target: b("Shots on target", "Mga tirang sa target"),
+    passes_attempted: b("Passes attempted", "Mga sinubukang pasa"),
+    passes_completed: b("Passes completed", "Mga kumpletong pasa"),
+    pass_accuracy: b("Pass accuracy", "Katumpakan ng pasa"),
+    tackles_won: b("Tackles won", "Mga matagumpay na agaw"),
+    pressure_events: b("Pressure events", "Mga pagdiin"),
+    high_pressure: b("High-intensity pressure", "Mataas na pagdiin"),
+    recoveries: b("Recoveries (interceptions and tackles)", "Mga pagbawi (interception at tackle)"),
+    turnovers: b("Ball losses (interceptions and tackles)", "Mga nawalang bola (interception at tackle)"),
+    actions: b("Recorded actions", "Naitalang aksyon"),
+};
+const ZONE_LABELS: Record<ZoneType, Bilingual> = {
+    passes: b("Passes started", "Mga pasang nagsimula"),
+    shots: b("Shots", "Mga tira"),
+    recoveries: b("Recoveries", "Mga pagbawi"),
+    turnovers: b("Ball losses", "Mga nawalang bola"),
+    pressures: b("Pressure events", "Mga pagdiin"),
+};
+const THIRD_LABELS: Record<Third, Bilingual> = { defensive: b("defensive third", "defensive third"), middle: b("middle third", "middle third"), attacking: b("attacking third", "attacking third") };
+const FLANK_LABELS: Record<Flank, Bilingual> = { top: b("top flank", "itaas na gilid"), centre: b("centre channel", "gitnang daan"), bottom: b("bottom flank", "ibabang gilid") };
+
+/** Team-relative x, with the same attacking-third boundary as the rule-based recovery insight. */
+export const thirdOf = (x: number): Third => x >= 66.67 ? "attacking" : x > 33.33 ? "middle" : "defensive";
+/** Display y (after pitchPosition), so "top" and "bottom" match the studio pitch for both teams. */
+export const flankOf = (y: number): Flank => y <= 33.33 ? "top" : y >= 66.67 ? "bottom" : "centre";
+export const locationOf = (event: MatchEvent): Position | undefined => event.type === "pass" ? event.start_position ?? event.position : event.position;
+/** Interceptions and tackles only, as in the rule-based recovery insight. Shot-end changes never count. */
+export const isRecovery = (event: MatchEvent): boolean => event.type === "possession_change" && (event.reason === "interception" || event.reason === "tackle");
+
+export interface ZoneEntry { owner: string; type: ZoneType; third: Third; flank: Flank }
+/** Zone entries for one event with a recorded location: the owning team, its third (owner-relative) and the drawn flank. */
+export function zonesOf(event: MatchEvent, homeId: string, isTeam: (teamId: string) => boolean): ZoneEntry[] {
+    const location = locationOf(event);
+    if (!location || event.team_id === null || !isTeam(event.team_id)) return [];
+    const flank = flankOf(pitchPosition(location, event.team_id, homeId).y);
+    const own = (type: ZoneType): ZoneEntry => ({ owner: event.team_id!, type, third: thirdOf(location.x), flank });
+    if (event.type === "pass") return [own("passes")];
+    if (event.type === "shot") return [own("shots")];
+    if (event.type === "pressure") return [own("pressures")];
+    if (!isRecovery(event)) return [];
+    const loser = event.from_team_id;
+    // Positions use the recovering team's coordinates: the losing team's third rotates x; the drawn flank is shared.
+    return loser && loser !== event.team_id && isTeam(loser) ? [own("recoveries"), { owner: loser, type: "turnovers", third: thirdOf(100 - location.x), flank }] : [own("recoveries")];
+}
+
+/** 15-minute blocks. An event exactly on the half-time or full-time boundary closes the block it ends. */
+function blockOf(event: MatchEvent, data: MatchData): number {
+    const t = event.match_time_seconds;
+    const closing = t > 0 && ((event.period === 1 && t === data.match.period_seconds) || t === data.match.duration_seconds);
+    return Math.floor((closing ? t - 1 : t) / BLOCK_SECONDS) + 1;
+}
+
+/** `evidence` lists every supporting reached event, oldest first. */
+export interface CatalogMetric { label: Bilingual; value: string; evidence: readonly string[]; from: number; to: number; teamId?: string; playerId?: string }
+export interface PacketEvent {
+    event_id: string; time: string; period: 1 | 2; type: string;
+    team_id: string | null; player_id: string | null; player: string | null;
+    result: string | null; zone: string | null;
+    recipient?: string; target?: string; from_team_id?: string;
+}
+export interface PacketContext { elapsed: number; status: MatchStatus; secondHalf: boolean; preferences?: Preferences }
+/** `facts` is the only part the model sees. Labels, evidence and validation sets stay on the server. */
+export interface MatchPacket {
+    facts: Record<string, unknown>;
+    catalog: ReadonlyMap<string, CatalogMetric>;
+    describe: (event: MatchEvent) => PacketEvent;
+    /** Reached event ID → prefix index; anything absent is unknown or in the future. */
+    order: ReadonlyMap<string, number>;
+    names: readonly string[];
+    teams: ReadonlyMap<string, string>;
+    playerTeams: ReadonlyMap<string, string>;
+    elapsed: number; cursor: number; status: MatchStatus;
+}
+
+class Tally {
+    readonly ids: string[] = [];
+    add(id: string): void { this.ids.push(id); }
+}
+
+/**
+ * Deterministic features over the processed prefix only. Values reuse the statistics reducer (addEvent),
+ * so every AI-cited number matches the Stats tab. No possession share, durations, distances, speeds or
+ * synthetic estimates are derived. Each event is visited once: O(n + metrics).
+ */
+export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[], context: PacketContext): MatchPacket {
+    const { elapsed } = context;
+    const homeId = data.match.home_team_id;
+    const teams = new Map(data.teams.map(team => [team.team_id, team.name]));
+    const players = new Map(data.players.map(player => [player.player_id, player]));
+    const playerName = (id: string | null | undefined): string | null => id ? players.get(id)?.name ?? id : null;
+    const tallies = new Map<string, Tally>();
+    const tally = (key: string): Tally => {
+        let found = tallies.get(key);
+        if (!found) tallies.set(key, found = new Tally());
+        return found;
+    };
+    const ids = (key: string): string[] => tallies.get(key)?.ids ?? [];
+    let blockCount = Math.ceil(elapsed / BLOCK_SECONDS);
+
+    for (const event of events) {
+        const teamId = event.team_id;
+        if (teamId === null || !teams.has(teamId)) continue;
+        const id = event.event_id;
+        const block = blockOf(event, data);
+        blockCount = Math.max(blockCount, block);
+        const player = event.player_id !== null && players.has(event.player_id) ? event.player_id : null;
+        const delta = emptyMetrics();
+        addEvent(delta, event);
+        for (const metric of COUNTED) {
+            if (!delta[metric]) continue;
+            if (metric !== "actions") {
+                tally(`${teamId}.total.${metric}`).add(id);
+                tally(`${teamId}.b${block}.${metric}`).add(id);
+            }
+            if (player) tally(`${player}.total.${metric}`).add(id);
+        }
+        if (event.type === "pressure" && event.intensity === "high") tally(`${teamId}.total.high_pressure`).add(id);
+        const loser = isRecovery(event) && event.from_team_id && event.from_team_id !== teamId && teams.has(event.from_team_id) ? event.from_team_id : null;
+        if (isRecovery(event)) {
+            tally(`${teamId}.total.recoveries`).add(id);
+            tally(`${teamId}.b${block}.recoveries`).add(id);
+            if (player) tally(`${player}.total.recoveries`).add(id);
+        }
+        if (loser) {
+            tally(`${loser}.total.turnovers`).add(id);
+            tally(`${loser}.b${block}.turnovers`).add(id);
+        }
+        for (const zone of zonesOf(event, homeId, team => teams.has(team))) {
+            tally(`${zone.owner}.zone.${zone.type}.${zone.third}`).add(id);
+            tally(`${zone.owner}.zone.${zone.type}.${zone.flank}`).add(id);
+        }
+    }
+
+    const catalog = new Map<string, CatalogMetric>();
+    const named = (label: Bilingual, owner: string, suffix?: string | Bilingual): Bilingual => {
+        const tail = (language: keyof Bilingual) => suffix === undefined ? "" : `, ${typeof suffix === "string" ? suffix : suffix[language]}`;
+        return { en: `${label.en}${tail("en")} (${owner})`, fil: `${label.fil}${tail("fil")} (${owner})` };
+    };
+    const emit = (key: string, label: Bilingual, value: string, evidence: string[], from: number, to: number, owner: { teamId?: string; playerId?: string }) => {
+        catalog.set(key, { label, value, evidence, from, to, ...owner });
+    };
+    const emitMetric = (prefix: string, metric: MetricName, label: Bilingual, from: number, to: number, owner: { teamId?: string; playerId?: string }) => {
+        if (metric === "pass_accuracy") {
+            const attempted = ids(`${prefix}.passes_attempted`);
+            const rate = accuracy({ ...emptyMetrics(), passes_attempted: attempted.length, passes_completed: ids(`${prefix}.passes_completed`).length });
+            emit(`${prefix}.${metric}`, label, `${rate.toFixed(1)}%`, attempted, from, to, owner);
+        } else emit(`${prefix}.${metric}`, label, String(ids(`${prefix}.${metric}`).length), ids(`${prefix}.${metric}`), from, to, owner);
+    };
+    for (const team of data.teams) {
+        const owner = { teamId: team.team_id };
+        for (const metric of TEAM_TOTALS) emitMetric(`${team.team_id}.total`, metric, named(LABELS[metric], team.name), 0, elapsed, owner);
+        for (let block = 1; block <= blockCount; block++) {
+            const from = (block - 1) * BLOCK_SECONDS, to = Math.max(from, Math.min(block * BLOCK_SECONDS, elapsed));
+            const window = `${formatTime(from)}–${formatTime(to)}`;
+            for (const metric of BLOCK_METRICS) emitMetric(`${team.team_id}.b${block}`, metric, named(LABELS[metric], team.name, window), from, to, owner);
+        }
+        for (const type of ZONE_TYPES) {
+            for (const third of THIRDS) {
+                const key = `${team.team_id}.zone.${type}.${third}`;
+                emit(key, named(b(`${ZONE_LABELS[type].en} in the ${THIRD_LABELS[third].en}`, `${ZONE_LABELS[type].fil} sa ${THIRD_LABELS[third].fil}`), team.name), String(ids(key).length), ids(key), 0, elapsed, owner);
+            }
+            for (const flank of FLANKS) {
+                const key = `${team.team_id}.zone.${type}.${flank}`;
+                emit(key, named(b(`${ZONE_LABELS[type].en} on the ${FLANK_LABELS[flank].en}`, `${ZONE_LABELS[type].fil} sa ${FLANK_LABELS[flank].fil}`), team.name), String(ids(key).length), ids(key), 0, elapsed, owner);
+            }
+        }
+    }
+    for (const player of data.players) {
+        if (!tallies.has(`${player.player_id}.total.actions`)) continue;
+        const owner = { teamId: player.team_id, playerId: player.player_id };
+        for (const metric of PLAYER_TOTALS) emitMetric(`${player.player_id}.total`, metric, named(LABELS[metric], player.name), 0, elapsed, owner);
+    }
+
+    const describe = (event: MatchEvent): PacketEvent => {
+        const location = locationOf(event);
+        return {
+            event_id: event.event_id, time: formatTime(event.match_time_seconds), period: event.period, type: event.type,
+            team_id: event.team_id, player_id: event.player_id, player: playerName(event.player_id),
+            result: event.outcome ?? event.reason ?? event.intensity ?? null,
+            zone: location && event.team_id ? `${THIRD_LABELS[thirdOf(location.x)].en}, ${FLANK_LABELS[flankOf(pitchPosition(location, event.team_id, homeId).y)].en}` : null,
+            ...(event.recipient_player_id ? { recipient: playerName(event.recipient_player_id)! } : {}),
+            ...(event.target_player_id ? { target: playerName(event.target_player_id)! } : {}),
+            ...(event.from_team_id ? { from_team_id: event.from_team_id } : {}),
+        };
+    };
+    const moments = events.filter(isKeyMoment);
+    const goals = moments.filter(event => event.outcome === "goal");
+    const keyMoments = [...goals, ...moments.filter(event => event.outcome !== "goal").slice(-KEY_MOMENT_LIMIT)].sort((left, right) => left.sequence - right.sequence);
+    const recent: MatchEvent[] = [];
+    for (let index = events.length - 1; index >= 0 && recent.length < RECENT_LIMIT; index--) {
+        if (events[index].team_id !== null && isMeaningful(events[index])) recent.unshift(events[index]);
+    }
+    const latestRules = new Map<string, Insight>();
+    for (const insight of ruleBasedProvider.generate(data, events, elapsed)) latestRules.set(`${insight.rule}:${insight.teamId}:${insight.playerId ?? ""}`, insight);
+    const ruleInsights = [...latestRules.values()].sort((left, right) => right.at - left.at).slice(0, RULE_INSIGHT_LIMIT);
+    const score = Object.fromEntries(data.teams.map(team => [team.team_id, ids(`${team.team_id}.total.goals`).length]));
+
+    const facts: Record<string, unknown> = {
+        match: {
+            synthetic: data.synthetic === true,
+            fictional_roster: data.players.some(player => player.fictional === true),
+            half_time_at: formatTime(data.match.period_seconds),
+            full_time_at: formatTime(data.match.duration_seconds),
+        },
+        clock: { elapsed: formatTime(elapsed), period: context.secondHalf ? 2 : 1, status: context.status, reached_events: events.length },
+        teams: data.teams.map(team => ({ team_id: team.team_id, name: team.name, side: team.team_id === homeId ? "home" : "away" })),
+        score,
+        roster: data.players.map(player => ({ player_id: player.player_id, name: player.name, team_id: player.team_id, ...(player.position ? { position: player.position } : {}) })),
+        // Labels give the model plain words for each number, so keys stay out of its prose.
+        metrics: Object.fromEntries([...catalog].map(([key, metric]) => [key, { label: metric.label.en, value: metric.value }])),
+        metric_glossary: {
+            key_format: "<team_id or player_id>.<scope>.<metric>; keys are for metric_keys only, and text uses the label wording",
+            total: "from kick-off to the current clock",
+            blocks: "b1, b2, … are 15-minute blocks (b1 is 00:00–15:00); the latest block ends at the current clock",
+            zones: "<team_id>.zone.<type>.<area> counts that team's events with a recorded location in that area",
+            areas: "defensive, middle and attacking third are relative to the team's own attacking direction; top flank, centre channel and bottom flank are as drawn on the studio pitch",
+            recoveries: "possession won by interception or tackle; turnovers are the same events counted for the team that lost the ball",
+            pass_accuracy: "passes completed divided by passes attempted, already formatted",
+        },
+        key_moments: keyMoments.map(describe),
+        recent_events: recent.map(describe),
+        rule_insights: ruleInsights.map(insight => ({
+            rule: insight.rule, team_id: insight.teamId, player_id: insight.playerId ?? null,
+            window: `${formatTime(insight.from)}–${formatTime(insight.at)}`,
+            headline: insight.headline.en, observed: insight.explanation.en, interpretation: insight.interpretation.en,
+            event_ids: insight.eventIds.slice(-RULE_EVIDENCE_LIMIT),
+        })),
+        ...(context.preferences ? { viewer: { mode: context.preferences.mode, favourite_team_id: context.preferences.team, focus_player_id: context.preferences.player || null } } : {}),
+    };
+
+    return {
+        facts, catalog, describe,
+        order: new Map(events.map((event, index) => [event.event_id, index])),
+        names: [...data.teams.map(team => team.name), ...data.players.map(player => player.name)],
+        teams,
+        playerTeams: new Map(data.players.map(player => [player.player_id, player.team_id])),
+        elapsed, cursor: events.length, status: context.status,
+    };
+}

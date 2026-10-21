@@ -5235,3 +5235,348 @@ button:disabled {
     padding: 6px 10px;
   }
 }
+/* Microsoft Foundry agents: always labeled AI and kept visually apart from the local rules. */
+:root,
+.dark {
+  --ai-accent: #b9a7ff;
+  --ai-surface: #221f33;
+}
+
+.ai-badge,
+.ai-tag {
+  padding: 3px 7px;
+  border: 1px solid #4a4370;
+  border-radius: 6px;
+  color: var(--ai-accent);
+  background: var(--ai-surface);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  white-space: nowrap;
+}
+
+.ai-tag {
+  margin-right: 6px;
+  padding: 1px 5px;
+  font-size: 9px;
+}
+
+.agent-panel {
+  border-top: 1px solid var(--border);
+}
+
+.agent-panel .heading-icon>svg,
+.insight-icon.agent {
+  color: var(--ai-accent);
+}
+
+.insight-icon.agent {
+  background: var(--ai-surface);
+}
+
+.insight-card.ai {
+  border-left: 2px solid var(--ai-accent);
+}
+
+.agent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 0 16px 12px;
+}
+
+.agent-status,
+.agent-note {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.agent-status:empty {
+  display: none;
+}
+
+.agent-note {
+  padding: 0 16px 16px;
+}
+
+.agent-optin {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0 16px 16px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.agent-optin p {
+  margin: 0;
+}
+
+.agent-recap-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.agent-recap-body h3,
+.agent-team-note h3 {
+  margin: 0;
+  color: #bdc9c2;
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.agent-story,
+.agent-team-note p,
+.agent-watch {
+  margin: 0;
+  color: #ccd6d0;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.agent-watch b {
+  color: var(--ai-accent);
+  font-weight: 500;
+}
+
+.agent-points {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-points li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.agent-points time {
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-points button {
+  grid-column: 2;
+  justify-self: start;
+  color: var(--primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.agent-team-note {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--ai-accent);
+  border-radius: 8px;
+  background: var(--surface-inset);
+}
+
+.agent-team-note .insight-metrics {
+  margin: 0;
+}
+
+.ask-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0 16px 12px;
+  list-style: none;
+}
+
+.ask-thread:empty {
+  display: none;
+}
+
+.ask-thread li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.ask-thread p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.ask-user {
+  background: #202529;
+}
+
+.ask-assistant {
+  border-left: 2px solid var(--ai-accent);
+  background: var(--surface-inset);
+}
+
+.ask-meta {
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+
+.ask-meta time {
+  font-family: var(--font-mono);
+}
+
+.ask-caveat {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.ask-error {
+  color: #dbc69c;
+}
+
+.ask-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 12px;
+}
+
+.ask-suggestions button {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: #ccd6d0;
+  background: #202529;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ask-suggestions button:hover {
+  border-color: #4a4370;
+  color: var(--ai-accent);
+}
+
+.ask-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.ask-form label {
+  color: #bdd2c2;
+  font-size: 11px;
+}
+
+.ask-form textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid #425047;
+  border-radius: 5px;
+  background: #171e1a;
+  color: #e0e7e2;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.ask-form button {
+  align-self: flex-start;
+}
+
+.commentary-narrate {
+  padding-top: 0;
+}
+
+.commentary-ai {
+  margin: 4px 0 0;
+  color: #d9d2ff;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.ai-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 4px 0 12px;
+  cursor: pointer;
+}
+
+.ai-toggle input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--ai-accent);
+}
+
+.ai-toggle input:disabled {
+  cursor: not-allowed;
+}
+
+.ai-toggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-toggle b {
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.ai-toggle small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.studio-shell .ai-toggle input:focus-visible,
+.studio-shell .ask-suggestions button:focus-visible,
+.studio-shell .agent-points button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+/* Desktop panes scroll independently, so the question box stays pinned; phones keep the playback dock clear. */
+@media (min-width: 901px) {
+  .ask-form {
+    position: sticky;
+    bottom: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    background: #1a1e21;
+  }
+
+  /* scrollIntoView ignores sticky overlays; leave room for the pinned form. */
+  .ask-thread>li:last-child {
+    scroll-margin-bottom: 220px;
+  }
+}
+
+@media (max-width: 900px) {
+  .agent-actions button,
+  .ask-form button,
+  .ask-suggestions button,
+  .agent-points button {
+    min-height: 44px;
+  }
+}

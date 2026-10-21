@@ -1,8 +1,8 @@
 # PitchPulse
 
-A working event-driven football simulator using Next.js, TypeScript, Tailwind, shadcn/ui, Lucide, and self-hosted Inter and JetBrains Mono. No continuous tracking, AI connection, or credentials are involved.
+A working event-driven football simulator using Next.js, TypeScript, Tailwind, shadcn/ui, Lucide, and self-hosted Inter and JetBrains Mono. No continuous tracking is involved. Optional [Microsoft Foundry analysis agents](#optional-microsoft-foundry-agents) are off by default; without them, no AI connection or credentials are involved.
 
-The visual specification is maintained in [DESIGN.md](DESIGN.md): a charcoal match library and an editor-style analysis studio with green accents and red/blue team identity. The shipped insights are local and rule-based.
+The visual specification is maintained in [DESIGN.md](DESIGN.md): a charcoal match library and an editor-style analysis studio with green accents and red/blue team identity. The built-in insights are local and rule-based; the optional agents add separately labeled AI analysis.
 
 ## Library and studio guide
 
@@ -10,7 +10,7 @@ The visual specification is maintained in [DESIGN.md](DESIGN.md): a charcoal mat
 - Imported games, playback checkpoints, notes, and bookmarks are saved in IndexedDB in the current browser. There are no accounts or cloud synchronization. Clearing browser/site data removes the local library. Imports in different browsers are separate.
 - Each match opens at `/studio/[id]`. Reopening restores the exact last saved event cursor and clock, paused; ready, half-time, and full-time retain their boundary states. Unknown IDs offer a return to the library.
 - Desktop gives the pitch most of the workspace, with the event/library browser collapsed initially, a narrow inspector, and compact playback/timeline controls. **Browser** reopens the event list; **View** in the pitch header opens visualization, fit/detail, and name settings. Narrow screens stack analysis below the pitch and retain one playback dock with safe-area spacing.
-- The inspector provides event details, statistics, local insights/commentary, and notes. Half/full-time recaps appear there. New games default to Analyst; Casual Fan and Player Focus remain available under Details and Stats.
+- The inspector provides event details, statistics, local insights/commentary, and notes. Half/full-time recaps appear there. New games default to Analyst; Casual Fan and Player Focus remain available under Details and Stats. When AI analysis is on, an **Ask** tab appears as well.
 - Play/pause, restart, step one event, choose 1×/5×/10×/30× speed, or scrub the timeline. Arrow keys, Home, and End work on the native scrubber. Fit/2×/4×/8× timeline zoom changes horizontal scale without changing playback.
 - Timeline team tracks show only processed events. Crowded timestamps form selectable groups, with paged event lists. The notes track shows saved user annotations, including moments beyond a rewound playhead.
 - Half-time pauses before period-two events sharing 45:00. **Start second half** explicitly resumes. Full-time stops automatically. Seeking beyond half-time is allowed.
@@ -42,7 +42,12 @@ The default source is [public/arsenal-vs-chelsea-match.json](public/arsenal-vs-c
 | Studio composition | [components/match/simulator.tsx](components/match/simulator.tsx) |
 | Library validation / timeline grouping | [lib/match/library.ts](lib/match/library.ts) |
 | IndexedDB / serialized session store | [lib/match/library-storage.ts](lib/match/library-storage.ts), [lib/match/use-library.ts](lib/match/use-library.ts) |
-| Tests | [lib/match/simulator.test.ts](lib/match/simulator.test.ts) |
+| Agent contracts / prefix-only match packet | [lib/agents/contracts.ts](lib/agents/contracts.ts), [lib/agents/packet.ts](lib/agents/packet.ts) |
+| Agent output guards / Ask tools / instructions | [lib/agents/guards.ts](lib/agents/guards.ts), [lib/agents/tools.ts](lib/agents/tools.ts), [lib/agents/definitions.ts](lib/agents/definitions.ts) |
+| Agent request pipeline / route | [lib/agents/handle.ts](lib/agents/handle.ts), [app/api/agents/[agent]/route.ts](app/api/agents/[agent]/route.ts) |
+| Foundry runner / server-only client | [lib/foundry/run-agent.ts](lib/foundry/run-agent.ts), [lib/foundry/client.ts](lib/foundry/client.ts) |
+| Studio AI state / Foundry insight provider | [lib/match/use-agents.ts](lib/match/use-agents.ts) |
+| Tests | [lib/match/simulator.test.ts](lib/match/simulator.test.ts), [lib/agents/](lib/agents/) |
 
 Playback stores elapsed time **and an event cursor** to preserve sequence at equal timestamps. Forward playback folds new events into cloned statistics; backward seeks rebuild the prefix. Statistics never use final summaries.
 
@@ -50,7 +55,48 @@ The movement timeline is built exclusively from the processed prefix, never futu
 
 Insights use 300-second windows, 180-second per-rule/team/player cooldowns, and a bounded 200-card history. Live cards expire after 600 seconds and deduplicate by rule/team/player. Comparison evidence includes both windows. Early comparisons disclose partial windows. Player rules require four actions or a goal. Facts are separate from cautious interpretations.
 
-`InsightProvider` is the future Microsoft Foundry replacement boundary. The current `ruleBasedProvider` is local and deterministic. A future adapter should run server-side, keep credentials private, accept only processed events, return typed evidence, and keep the local provider as an offline fallback. No Foundry API is called.
+`InsightProvider` is the Microsoft Foundry boundary. `ruleBasedProvider` is local, deterministic and always on. `foundryInsightProvider` is the remote implementation. It calls a server route that keeps credentials private, accepts only processed events and returns typed, verified evidence. Foundry is called only when AI analysis is configured, switched on, and a button is pressed.
+
+## Optional Microsoft Foundry agents
+
+Four Foundry Agent Service prompt agents add AI analysis. Each runs only on demand and pauses playback first:
+
+| Agent | Where | What it adds |
+| --- | --- | --- |
+| Tactical Analyst (`pitchpulse-analyst`) | Insights → **Analyze this moment** | One to four insight cards: pressing, build-up, turnovers, flank preference, momentum, player involvement |
+| Recap Writer (`pitchpulse-recap`) | Half/full-time recap → **Write AI recap** | A narrative story, evidence-linked turning points, per-team notes and, at half-time only, questions for the second half |
+| Ask the Analyst (`pitchpulse-ask`) | **Ask** tab, and **Draft with AI** in the note editor | Answers about the reached match. The agent calls PitchPulse function tools, which see only the processed prefix |
+| Live Commentator (`pitchpulse-commentator`) | Live commentary → **Narrate with AI** | One casual line per recent meaningful event, shown under the unchanged templated row |
+
+How the agents stay honest:
+- The model chooses what to say and writes the text; PitchPulse code supplies every number.
+- Requests carry only the processed prefix. The server re-validates the payload like an upload and asserts that it ends at the playhead.
+- [lib/agents/packet.ts](lib/agents/packet.ts) derives the metrics with the same reducer as the Stats tab: totals, 15-minute blocks, team-relative thirds, and flanks as drawn. It derives no possession share, distances, speeds or synthetic estimates.
+- [lib/agents/guards.ts](lib/agents/guards.ts) removes any card, note or line with any of the following:
+  - unknown or future evidence;
+  - numbers or mm:ss times the model was never shown;
+  - possession percentages, distances, speeds, xG, probabilities or betting language;
+  - internal metric keys, block codes or dataset IDs in the prose.
+- Card metrics and evidence come from the packet catalog. When the list of supporting events is capped, the card states the full count.
+- AI output is always labeled **AI · Microsoft Foundry**, and is hidden after a rewind past the moment it describes. Ask history from a later playhead is never sent back.
+- No web grounding is enabled.
+
+Setup (requires Node 22 or later, for example via `nvm use`):
+
+1. Create a Foundry project and deploy an agent-supported model (the default is `gpt-5-mini`).
+2. Grant your account **Foundry User** (formerly Azure AI User) on the project. A deployed server identity only needs **Foundry Agent Consumer**. Agent Service uses Microsoft Entra ID, not API keys: `DefaultAzureCredential` uses `az login` locally, a managed identity on Azure, or `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` elsewhere.
+3. Copy [.env.example](.env.example) to `.env.local` and set `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_MODEL_DEPLOYMENT` and `PITCHPULSE_AI=on`.
+4. Run `npm run agents:provision`. It creates or versions the four agents and prints optional `FOUNDRY_AGENT_VERSION_*` pins.
+5. Optionally run `npm run agents:evaluate`. It calls each agent on the bundled demo at fixed moments and reports how many generated items the guards removed, and why. Add `-- --verbose` to print the verified output, and agent names (for example `-- --verbose ask`) to run only those agents.
+
+When a recap or answer fails verification, or every card or line is removed, the agent gets one corrective retry that names the failed checks. The server logs removal reasons as `[agents/<name>] removed by verification: …`. With `gpt-5-mini`, a turn takes roughly 15–45 seconds; the route allows up to 115 seconds.
+
+Data and limits:
+- AI analysis is opt-in per session, under Preferences or in the Insights tab.
+- When used, the match's reached events, your question and earlier visible answers are sent to your Foundry project, where responses are stored. Note text is never sent.
+- AI results live in session memory only.
+- The route accepts same-origin requests up to 10 MB, with a best-effort per-instance rate limit.
+- Claude models in Foundry are served through the Anthropic Messages API rather than prompt agents, so using them would require a hosted agent.
 
 ## Compatible uploads and integrity
 
@@ -72,13 +118,21 @@ Supported event types: `match_start`, `kickoff`, `pass`, `shot`, `tackle`, `pres
 
 ## Verification and advisory
 
-Use `npm test`, `npm run lint`, and `npm run build`. Replay tests cover score rollback, period boundaries, validation, coordinates, and evidence. Movement tests cover all-player coverage, continuity, mirrored formations, equal timestamps, backward sampling, missing fields, and independence from future events. Component markup regressions in [components/match/presentation.test.tsx](components/match/presentation.test.tsx) cover pitch defaults, bilingual inspection controls, playback boundaries, transport labels, and header personalization. [components/match/summary-panels.test.tsx](components/match/summary-panels.test.tsx) verifies statistics comparisons, absence of possession estimates, bounded commentary, linked evidence, empty rosters, and exclusion of future goals and equal-time second-half events. Studio regressions cover exact checkpoint restoration, same-time and period boundaries, annotation anchors, invalid persisted records, library cards, bilingual note controls, and bounded 50,000-event timeline rendering. Browser checks cover multiple imports, invalid input preservation, notes/bookmarks, reload persistence, navigation, removal, storage failure/retry, timeline zoom, playback boundaries, mobile layout, keyboard controls, and reduced motion.
+Use `npm test`, `npm run lint`, and `npm run build`. Agent tests run without Azure, using fake runners. They cover:
+- prefix-only packets and parity with the statistics reducer;
+- zone mirroring;
+- grounding and banned claims in English and Filipino;
+- the local tool loop;
+- request rejection and error classification;
+- markup for the labeled AI panels.
+
+Replay tests cover score rollback, period boundaries, validation, coordinates, and evidence. Movement tests cover all-player coverage, continuity, mirrored formations, equal timestamps, backward sampling, missing fields, and independence from future events. Component markup regressions in [components/match/presentation.test.tsx](components/match/presentation.test.tsx) cover pitch defaults, bilingual inspection controls, playback boundaries, transport labels, and header personalization. [components/match/summary-panels.test.tsx](components/match/summary-panels.test.tsx) verifies statistics comparisons, absence of possession estimates, bounded commentary, linked evidence, empty rosters, and exclusion of future goals and equal-time second-half events. Studio regressions cover exact checkpoint restoration, same-time and period boundaries, annotation anchors, invalid persisted records, library cards, bilingual note controls, and bounded 50,000-event timeline rendering. Browser checks cover multiple imports, invalid input preservation, notes/bookmarks, reload persistence, navigation, removal, storage failure/retry, timeline zoom, playback boundaries, mobile layout, keyboard controls, and reduced motion.
 
 The current audit reports nine high-severity dependency paths rooted in `braces@3.0.3` ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)). The registry's latest release remains 3.0.3; suggested fixes downgrade shadcn/Next ESLint across major versions. These were not force-applied. Recheck upstream patches before deployment. Uploaded JSON never enters those glob-pattern tooling packages.
 
 ## Getting Started
 
-First, run the development server:
+Use Node 22 or later (`nvm use` reads [.nvmrc](.nvmrc)), then run the development server:
 
 ```bash
 npm run dev

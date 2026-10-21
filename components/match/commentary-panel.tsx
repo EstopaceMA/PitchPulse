@@ -1,8 +1,10 @@
 "use client";
 
 import { useId } from "react";
-import { ArrowLeftRight, ArrowUpRight, Clock3, MessageSquareText, Target, Trophy, Zap } from "lucide-react";
+import { ArrowLeftRight, ArrowUpRight, Clock3, MessageSquareText, Sparkles, Target, Trophy, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Bilingual } from "@/lib/agents/contracts";
+import { isKeyMoment, isMeaningful } from "@/lib/match/commentary";
 import { formatTime } from "@/lib/match/playback";
 import { eventLabel, outcomeLabel, tr } from "@/lib/match/presentation";
 import type { Language, MatchData, MatchEvent, Preferences } from "@/lib/match/types";
@@ -13,18 +15,8 @@ export interface CommentaryPanelProps {
     events: readonly MatchEvent[];
     preferences: Preferences;
     onEvidence: (id: string) => void;
-}
-
-function isMeaningful(event: MatchEvent): boolean {
-    // Keep milestones, shots, challenges and turnovers without routine-action noise.
-    if (event.type === "pass") return event.outcome === "intercepted" || event.outcome === "incomplete";
-    if (event.type === "pressure") return event.intensity === "high";
-    if (event.type === "possession_change") return event.reason !== "shot_end";
-    return true;
-}
-
-function isKeyMoment(event: MatchEvent): boolean {
-    return event.type === "shot" && (event.outcome === "goal" || event.outcome === "saved" || event.outcome === "on_target");
+    /** Present only when the Live Commentator agent is enabled; rows keep their templated facts either way. */
+    narration?: { lines: ReadonlyMap<string, Bilingual>; pending: number; loading: boolean; errorText?: string; onNarrate: () => void };
 }
 
 function EventIcon({ event }: { event: MatchEvent }) {
@@ -39,7 +31,7 @@ function EventIcon({ event }: { event: MatchEvent }) {
     }
 }
 
-function CommentaryItem({ data, event, language, onEvidence }: { data: MatchData; event: MatchEvent; language: Language; onEvidence: (id: string) => void }) {
+function CommentaryItem({ data, event, language, onEvidence, line }: { data: MatchData; event: MatchEvent; language: Language; onEvidence: (id: string) => void; line?: Bilingual }) {
     const player = data.players.find(candidate => candidate.player_id === event.player_id);
     const team = data.teams.find(candidate => candidate.team_id === event.team_id);
     const side = event.team_id === data.match.home_team_id ? "home" : event.team_id === data.match.away_team_id ? "away" : "neutral";
@@ -57,6 +49,7 @@ function CommentaryItem({ data, event, language, onEvidence }: { data: MatchData
                     <span className="commentary-team">{team?.name ?? event.team_id ?? tr(language, "Neutral", "Walang koponan")}</span>
                     {" · "}{label}{" · "}<span className="commentary-outcome">{outcomeLabel(event, language)}</span>
                 </p>
+                {line && <p className="commentary-ai"><span className="ai-tag">AI</span>{line[language]}</p>}
                 <Button
                     type="button"
                     variant="ghost"
@@ -72,7 +65,7 @@ function CommentaryItem({ data, event, language, onEvidence }: { data: MatchData
     );
 }
 
-export function CommentaryPanel({ data, events, preferences, onEvidence }: CommentaryPanelProps) {
+export function CommentaryPanel({ data, events, preferences, onEvidence, narration }: CommentaryPanelProps) {
     const id = useId();
     const { language } = preferences;
     const recent: MatchEvent[] = [];
@@ -92,9 +85,13 @@ export function CommentaryPanel({ data, events, preferences, onEvidence }: Comme
                 <span className="micro-label">{tr(language, "Simulated · event-based", "Simulado · batay sa pangyayari")}</span>
             </div>
             <p className="data-note">{tr(language, "Latest first. Only events reached in playback are shown.", "Pinakabago muna. Mga pangyayaring naabot lamang sa pag-play ang ipinapakita.")}</p>
+            {narration && <div className="agent-actions commentary-narrate">
+                <Button size="sm" variant="outline" onClick={narration.onNarrate} disabled={narration.loading || narration.pending === 0}><Sparkles size={14} aria-hidden="true" />{tr(language, "Narrate with AI", "Isalaysay gamit ang AI")}</Button>
+                <p className="agent-status" role="status" aria-live="polite">{narration.loading ? tr(language, "Writing commentary…", "Isinusulat ang komentaryo…") : narration.errorText ?? (narration.pending === 0 ? tr(language, "Every reached moment is narrated.", "Naisalaysay na ang bawat naabot na sandali.") : tr(language, `Pauses playback and narrates up to ${narration.pending} recent moments.`, `Ihihinto ang laro at isasalaysay ang hanggang ${narration.pending} kamakailang sandali.`))}</p>
+            </div>}
             {recent.length ? (
                 <ol className="commentary-list" aria-label={tr(language, "Recent commentary, latest first", "Kamakailang komentaryo, pinakabago muna")}>
-                    {recent.map(event => <CommentaryItem key={event.event_id} data={data} event={event} language={language} onEvidence={onEvidence} />)}
+                    {recent.map(event => <CommentaryItem key={event.event_id} data={data} event={event} language={language} onEvidence={onEvidence} line={narration?.lines.get(event.event_id)} />)}
                 </ol>
             ) : (
                 <p className="commentary-empty data-note">{tr(language, "No meaningful events reached yet. Play or step through the match to reveal commentary.", "Wala pang naabot na mahalagang pangyayari. I-play o isa-isang isulong ang laban upang makita ang komentaryo.")}</p>
@@ -103,7 +100,7 @@ export function CommentaryPanel({ data, events, preferences, onEvidence }: Comme
                 <h3 id={`${id}-moments-heading`}>{tr(language, "Key moments", "Mahahalagang sandali")}</h3>
                 {moments.length ? (
                     <ol className="key-moments-list" aria-label={tr(language, "Goals and shots on target, latest first", "Mga gol at tirang sa target, pinakabago muna")}>
-                        {moments.map(event => <CommentaryItem key={event.event_id} data={data} event={event} language={language} onEvidence={onEvidence} />)}
+                        {moments.map(event => <CommentaryItem key={event.event_id} data={data} event={event} language={language} onEvidence={onEvidence} line={narration?.lines.get(event.event_id)} />)}
                     </ol>
                 ) : (
                     <p className="key-moments-empty data-note">{tr(language, "No goals or shots on target reached yet.", "Wala pang naabot na gol o tirang sa target.")}</p>
