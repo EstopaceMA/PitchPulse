@@ -19,6 +19,8 @@ import { CommentaryPanel } from "./commentary-panel";
 import { Recap } from "./recap";
 import { PreferencesMenu, perspectiveLabel } from "./view-controls";
 import { ImportMatch, StorageStatus, StudioBrand } from "./match-library";
+import { StudioSplitter } from "./studio-splitter";
+import { useStudioLayout } from "./use-studio-layout";
 import { StudioTimeline } from "./studio-timeline";
 import { StudioNotes } from "./studio-notes";
 import { AgentInsights, agentErrorText } from "./agent-insights";
@@ -37,6 +39,7 @@ export default function Studio({ id, aiAvailable = false }: { id: string; aiAvai
 function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailable: boolean }) {
     const data = record.data;
     const panelId = useId();
+    const bodyRef = useRef<HTMLDivElement>(null);
     const viewerRef = useRef<HTMLElement>(null);
     const inspectorRef = useRef<HTMLElement>(null);
     const library = useLibrary();
@@ -47,6 +50,7 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
     const [inspector, setInspector] = useState<"details" | "statistics" | "insights" | "ask" | "notes">("statistics");
     const [leftOpen, setLeftOpen] = useState(false);
     const [rightOpen, setRightOpen] = useState(true);
+    const layout = useStudioLayout(bodyRef, leftOpen, rightOpen);
     const [annotations, setAnnotations] = useState(record.annotations);
     const [draft, setDraft] = useState<MatchAnnotation | null>(null);
     const [selectedNote, setSelectedNote] = useState<string | null>(null);
@@ -138,16 +142,18 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
             <div className="studio-topbar-actions"><StorageStatus language={l} /><PreferencesMenu data={data} preferences={preferences} onChange={update} compact ai={{ available: aiAvailable, enabled: aiEnabled, onChange: setAi }} /></div>
         </header>
 
-        <div className="studio-body">
+        <div ref={bodyRef} className="studio-body" style={layout.style}>
             <aside id={`${panelId}-browser`} className="studio-browser" hidden={!leftOpen} aria-label={tr(l, "Match browser", "Browser ng laban")}>
                 <div className="studio-tabs" role="group" aria-label={tr(l, "Browser panels", "Mga panel ng browser")}><button type="button" aria-pressed={leftTab === "events"} onClick={() => setLeftTab("events")}><ListFilter size={14} />{tr(l, "Events", "Mga aksiyon")}</button><button type="button" aria-pressed={leftTab === "library"} onClick={() => setLeftTab("library")}><FolderOpen size={14} />{tr(l, "Library", "Library")}</button></div>
                 <div className="studio-pane-scroll">{leftTab === "events" ? <EventFeed key={preferences.mode === "player" ? `player:${preferences.player}` : "match"} data={data} events={events} preferences={preferences} selectedId={selected?.event_id ?? null} onSelect={event => inspect(event.event_id)} hideDetails /> : <div className="studio-library-list"><div className="inspector-heading"><h2>{tr(l, "Your matches", "Iyong mga laban")}</h2><span>{library.matches.length}</span></div>{library.matches.map(match => <Link key={match.id} href={`/studio/${match.id}`} aria-current={match.id === record.id ? "page" : undefined}><span className="mini-match-icon"><FolderOpen size={18} /></span><span><strong>{match.data.teams.map(team => team.name).join(" vs ")}</strong><small>{formatTime(match.checkpoint.elapsed)} · {match.annotations.length} {tr(l, "saved", "naka-save")}</small></span><ArrowUpRight size={14} /></Link>)}<ImportMatch language={l} onBeforeImport={pause} /><p className="data-note">{tr(l, "Imports are added to your library. Open a match above to switch.", "Nadadagdag sa library ang mga import. Pumili ng laban sa itaas upang lumipat.")}</p></div>}</div>
             </aside>
+            {layout.desktop && leftOpen && <StudioSplitter {...layout.browser} panelId={`${panelId}-browser`} language={l} cancelKey={layout.cancelKey} />}
             <main ref={viewerRef} id={`${panelId}-viewer`} className="studio-viewer">
 
                 <div className="viewer-content"><Pitch compact panelActions={<><Button size="sm" variant="ghost" aria-expanded={leftOpen} aria-controls={`${panelId}-browser`} onClick={() => setLeftOpen(value => !value)}><ListFilter size={14} />{tr(l, "Browser", "Browser")}{leftOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}</Button><Button size="sm" variant="ghost" aria-expanded={rightOpen} aria-controls={`${panelId}-inspector`} onClick={() => setRightOpen(value => !value)}><FilePenLine size={14} />{tr(l, "Inspector", "Tagasuri")}{rightOpen ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}</Button></>} actions={<><Button size="sm" variant="ghost" onClick={() => createAnnotation("note")}><FilePenLine size={14} />{tr(l, "Note", "Tala")}</Button><Button size="sm" variant="ghost" onClick={() => createAnnotation("bookmark")}><Bookmark size={14} />{tr(l, "Bookmark", "Bookmark")}</Button></>} data={data} events={events} elapsed={state.elapsed} event={selected ?? events.at(-1)} pinned={!!selected} language={l} onLive={() => setSelectedId(null)} />{data.events.length === 0 && <p className="workspace-notice">{tr(l, "This match has no recorded events. Import another dataset to replay a game.", "Walang naitalang pangyayari sa laban. Mag-import ng ibang dataset upang mag-replay.")}</p>}</div>
 
             </main>
+            {layout.desktop && rightOpen && <StudioSplitter {...layout.inspector} panelId={`${panelId}-inspector`} language={l} cancelKey={layout.cancelKey} />}
             <aside ref={inspectorRef} id={`${panelId}-inspector`} className="studio-inspector" hidden={!rightOpen} aria-label={tr(l, "Analysis inspector", "Tagasuri ng laban")}>
                 <div className="studio-tabs inspector-tabs" role="group" aria-label={tr(l, "Analysis panels", "Mga panel ng pagsusuri")}>{([
                     ["details", tr(l, "Details", "Detalye")], ["statistics", tr(l, "Stats", "Datos")], ["insights", tr(l, "Insights", "Pagsusuri")], ...(aiOn ? [["ask", tr(l, "Ask", "Magtanong")] as const] : []), ["notes", tr(l, "Notes", "Mga tala")],
