@@ -1074,6 +1074,7 @@ button:disabled {
   color: var(--muted-foreground);
   font-size: 12px;
 }
+
 .transport>button:not(.play-button):hover {
   color: var(--foreground);
   background: var(--hover);
@@ -1140,11 +1141,13 @@ button:disabled {
 .timeline-labels>span:nth-child(2) {
   text-align: center;
 }
+
 .pitch-view-controls button[aria-pressed="true"] {
   color: var(--accent);
   background: var(--selected-surface);
   box-shadow: inset 0 0 0 1px #A3E63540;
 }
+
 .pitch-view-controls button:hover {
   color: var(--foreground);
   background: var(--hover);
@@ -1321,9 +1324,23 @@ button:disabled {
   background: var(--surface-inset);
 }
 
-.action-copy { flex: 1; min-width: 0; }
-.action-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.action-heading strong { font-size: 14px; font-weight: 600; }
+.action-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-heading strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .action-outcome {
   padding: 2px 7px;
   border: 1px solid var(--border);
@@ -1332,12 +1349,14 @@ button:disabled {
   font-size: 11px;
   line-height: 1.4;
 }
+
 .current-action p {
   margin: 3px 0 0;
   color: var(--muted-foreground);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
 .action-time {
   flex-shrink: 0;
   padding: 4px 8px;
@@ -1346,6 +1365,7 @@ button:disabled {
   background: var(--background);
   font: 12px var(--font-mono);
 }
+
 .action-symbol {
   display: grid;
   flex-shrink: 0;
@@ -1363,6 +1383,7 @@ button:disabled {
   gap: 10px;
   margin-top: 10px;
 }
+
 .pitch-about,
 .pitch-roster {
   min-width: 0;
@@ -1370,6 +1391,7 @@ button:disabled {
   border-radius: 8px;
   background: var(--surface-inset);
 }
+
 .pitch-info-summary {
   display: flex;
   align-items: center;
@@ -1381,21 +1403,77 @@ button:disabled {
   color: var(--muted-foreground);
   font-size: 12px;
 }
-.pitch-info-summary::-webkit-details-marker { display: none; }
-.pitch-info-summary:hover { color: var(--foreground); background: var(--hover); border-radius: 8px; }
-.pitch-info-summary:focus-visible { outline-offset: -3px; border-radius: 8px; }
-.pitch-info-summary > svg { flex-shrink: 0; }
-.pitch-info-title { flex: 1; min-width: 0; color: var(--foreground); font-weight: 500; }
-.lineup-count { color: var(--muted-foreground); font: 11px var(--font-mono); white-space: nowrap; }
-.disclosure-chevron { transition: transform .16s ease; }
-details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180deg); }
+
+.pitch-info-summary::-webkit-details-marker {
+  display: none;
+}
+
+.pitch-info-summary:hover {
+  color: var(--foreground);
+  background: var(--hover);
+  border-radius: 8px;
+}
+
+.pitch-info-summary:focus-visible {
+  outline-offset: -3px;
+  border-radius: 8px;
+}
+
+.pitch-info-summary>svg {
+  flex-shrink: 0;
+}
+
+.pitch-info-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.lineup-count {
+  color: var(--muted-foreground);
+  font: 11px var(--font-mono);
+  white-space: nowrap;
+}
+
+.disclosure-chevron {
+  transition: transform .16s ease;
+}
+
+details[open]>.pitch-info-summary .disclosure-chevron {
+  transform: rotate(180deg);
+}
+
 .pitch-guide-content,
-.lineup-content { padding: 0 12px 12px; }
+.lineup-content {
+  padding: 0 12px 12px;
+}
+
 .pitch-guide-content p,
-.roster-note { color: var(--muted-foreground); font-size: 12px; line-height: 1.6; margin: 0; }
-.pitch-guide-content .data-note { display: flex; align-items: flex-start; gap: 8px; padding: 0; }
-.studio-viewer .pitch-guide-content .data-note { font-size: 12px; line-height: 1.6; }
-.pitch-guide-content .data-note svg { flex-shrink: 0; margin-top: 4px; }
+.roster-note {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.pitch-guide-content .data-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0;
+}
+
+.studio-viewer .pitch-guide-content .data-note {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.pitch-guide-content .data-note svg {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
 .pitch-legend {
   display: flex;
   flex-wrap: wrap;
@@ -1404,7 +1482,8 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   color: var(--muted-foreground);
   font-size: 11px;
 }
-.pitch-legend > span {
+
+.pitch-legend>span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1412,8 +1491,16 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   border-radius: 5px;
   background: var(--background);
 }
-.legend-line { width: 16px; border-top: 2px solid var(--primary); }
-.legend-line.intercepted { border-top-style: dashed; border-color: var(--warning); }
+
+.legend-line {
+  width: 16px;
+  border-top: 2px solid var(--primary);
+}
+
+.legend-line.intercepted {
+  border-top-style: dashed;
+  border-color: var(--warning);
+}
 
 .pitch-player-selection {
   display: flex;
@@ -1437,7 +1524,9 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   font-size: 12px;
 }
 
-.evidence summary::-webkit-details-marker { display: none; }
+.evidence summary::-webkit-details-marker {
+  display: none;
+}
 
 .roster-teams {
   display: grid;
@@ -1508,7 +1597,9 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   font-size: 12px;
 }
 
-.roster-note { margin-top: 12px; }
+.roster-note {
+  margin-top: 12px;
+}
 
 /* Commentary and key moments share a readable, evidence-linked timeline. */
 .panel.commentary-panel .panel-heading {
@@ -2838,9 +2929,14 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
     padding: 0;
   }
 
-  .pitch-context { padding-inline: 10px; }
+  .pitch-context {
+    padding-inline: 10px;
+  }
 
-  .current-action { gap: 8px; padding: 10px; }
+  .current-action {
+    gap: 8px;
+    padding: 10px;
+  }
 
   .comparison-teams>.micro-label {
     order: 3;
@@ -3009,6 +3105,7 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   padding: 16px 5%;
   border-bottom: 1px solid var(--border);
 }
+
 .eyebrow {
   color: var(--muted-foreground);
   font-size: 10px;
@@ -3172,11 +3269,26 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   border-color: #57725e;
 }
 
-.game-link { display: block; }
-.game-link:focus-visible { outline-offset: -3px; }
-.game-card .game-title { padding-bottom: 0; }
-.game-card .game-metadata { padding-top: 0; }
-.game-title h2 { overflow-wrap: anywhere; }
+.game-link {
+  display: block;
+}
+
+.game-link:focus-visible {
+  outline-offset: -3px;
+}
+
+.game-card .game-title {
+  padding-bottom: 0;
+}
+
+.game-card .game-metadata {
+  padding-top: 0;
+}
+
+.game-title h2 {
+  overflow-wrap: anywhere;
+}
+
 .game-card .game-remove {
   position: absolute;
   top: 10px;
@@ -3330,7 +3442,15 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   margin: 0;
 }
 
-.game-title h2 span {
+.match-team-home {
+  color: var(--team-home);
+}
+
+.match-team-away {
+  color: var(--team-away);
+}
+
+.game-title .match-versus {
   color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 400;
@@ -3490,7 +3610,7 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   white-space: nowrap;
 }
 
-.studio-match-title h1 span {
+.studio-match-title .match-versus {
   color: #748086;
   font-weight: 400;
   font-size: 11px;
@@ -3587,7 +3707,9 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   grid-column: 5;
 }
 
-.studio-body > .studio-viewer { grid-column: 3; }
+.studio-body>.studio-viewer {
+  grid-column: 3;
+}
 
 .studio-splitter {
   position: relative;
@@ -3602,19 +3724,48 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   background: var(--background);
   border-inline: 1px solid var(--border);
 }
-.studio-splitter[data-side="browser"] { grid-column: 2; }
-.studio-splitter[data-side="inspector"] { grid-column: 4; }
-.splitter-grip { width: 2px; height: 32px; border-radius: 2px; background: var(--muted-foreground); }
+
+.studio-splitter[data-side="browser"] {
+  grid-column: 2;
+}
+
+.studio-splitter[data-side="inspector"] {
+  grid-column: 4;
+}
+
+.splitter-grip {
+  width: 2px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--muted-foreground);
+}
+
 .studio-splitter:hover,
-.studio-splitter[data-dragging="true"] { background: var(--selected-surface); }
+.studio-splitter[data-dragging="true"] {
+  background: var(--selected-surface);
+}
+
 .studio-splitter:hover .splitter-grip,
-.studio-splitter[data-dragging="true"] .splitter-grip { background: var(--primary); }
-.studio-splitter:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.studio-splitter[data-dragging="true"] .splitter-grip {
+  background: var(--primary);
+}
+
+.studio-splitter:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
 .studio-resizing,
-.studio-resizing * { cursor: col-resize !important; user-select: none !important; -webkit-user-select: none !important; }
+.studio-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
 
 @media (max-width: 900px) {
-  .studio-splitter { display: none; }
+  .studio-splitter {
+    display: none;
+  }
 }
 
 .studio-tabs {
@@ -4815,20 +4966,40 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
     padding: 6px 10px;
   }
 }
-/* Focused studio: controls wrap without competing with the pitch. */
-.studio-topbar { flex-wrap: wrap; }
-.studio-match-title { flex: 1; min-width: 120px; }
-.studio-match-title h1 { overflow-wrap: anywhere; }
-.studio-topbar-actions { flex-wrap: wrap; }
-.save-status { flex-wrap: wrap; }
-.save-status .tiny-dot { flex-shrink: 0; }
 
-.studio-viewer .pitch-panel > .panel-heading {
+/* Focused studio: controls wrap without competing with the pitch. */
+.studio-topbar {
+  flex-wrap: wrap;
+}
+
+.studio-match-title {
+  flex: 1;
+  min-width: 120px;
+}
+
+.studio-match-title h1 {
+  overflow-wrap: anywhere;
+}
+
+.studio-topbar-actions {
+  flex-wrap: wrap;
+}
+
+.save-status {
+  flex-wrap: wrap;
+}
+
+.save-status .tiny-dot {
+  flex-shrink: 0;
+}
+
+.studio-viewer .pitch-panel>.panel-heading {
   position: relative;
   flex-wrap: wrap;
   gap: 6px 12px;
   padding: 6px 12px;
 }
+
 .pitch-panel-actions,
 .pitch-header-tools,
 .playback-options {
@@ -4837,8 +5008,16 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   align-items: center;
   gap: 8px;
 }
-.pitch-panel-actions button { font-size: 12px; }
-.pitch-heading-status time { font: 12px var(--font-mono); color: var(--warning); }
+
+.pitch-panel-actions button {
+  font-size: 12px;
+}
+
+.pitch-heading-status time {
+  font: 12px var(--font-mono);
+  color: var(--warning);
+}
+
 .pitch-disclosure {
   margin: 0;
   padding: 5px 16px;
@@ -4846,6 +5025,7 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   font-size: 11px;
   line-height: 1.5;
 }
+
 .inspector-perspective {
   flex-shrink: 0;
   margin: 0;
@@ -4855,8 +5035,16 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   overflow-wrap: anywhere;
   border-bottom: 1px solid var(--border);
 }
-.inspector-perspective strong { color: var(--foreground); font-weight: 500; }
-.playback-options { gap: 16px; }
+
+.inspector-perspective strong {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.playback-options {
+  gap: 16px;
+}
+
 .speed-control,
 .timeline-zoom {
   display: flex;
@@ -4865,28 +5053,80 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
   color: var(--muted-foreground);
   font-size: 12px;
 }
-.playback-options .dropdown-trigger { width: 76px; min-height: 32px; font-size: 12px; padding: 5px 8px; }
-.playback-options .timeline-zoom .dropdown-trigger { width: 112px; }
-.studio-shell .playback-top { flex-wrap: wrap; }
-.studio-shell .transport { flex-wrap: wrap; }
-.studio-browser .event-feed > .panel-heading { flex-wrap: wrap; }
-.studio-browser .event-feed .micro-label { font-size: 10px; }
+
+.playback-options .dropdown-trigger {
+  width: 76px;
+  min-height: 32px;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.playback-options .timeline-zoom .dropdown-trigger {
+  width: 112px;
+}
+
+.studio-shell .playback-top {
+  flex-wrap: wrap;
+}
+
+.studio-shell .transport {
+  flex-wrap: wrap;
+}
+
+.studio-browser .event-feed>.panel-heading {
+  flex-wrap: wrap;
+}
+
+.studio-browser .event-feed .micro-label {
+  font-size: 10px;
+}
 
 @media (max-width: 900px) {
+
   .pitch-panel-actions button,
-  .playback-options .dropdown-trigger { min-height: 44px; }
-  .studio-shell .playback-options { margin-inline: auto; }
-  .studio-viewer .pitch-header-tools { margin-left: 0; }
+  .playback-options .dropdown-trigger {
+    min-height: 44px;
+  }
+
+  .studio-shell .playback-options {
+    margin-inline: auto;
+  }
+
+  .studio-viewer .pitch-header-tools {
+    margin-left: 0;
+  }
 }
 
 @media (max-width: 600px) {
-  .library-toolbar h1 { width: 100%; font-size: 22px; }
-  .library-search { flex: 1 1 100%; }
-  .library-import { flex-wrap: wrap; }
-  .library-import .import-error { left: 0; right: auto; }
-  .library-header { flex-wrap: wrap; }
-  .library-header-actions { min-width: 0; }
-  .studio-tabs { flex-wrap: wrap; }
+  .library-toolbar h1 {
+    width: 100%;
+    font-size: 22px;
+  }
+
+  .library-search {
+    flex: 1 1 100%;
+  }
+
+  .library-import {
+    flex-wrap: wrap;
+  }
+
+  .library-import .import-error {
+    left: 0;
+    right: auto;
+  }
+
+  .library-header {
+    flex-wrap: wrap;
+  }
+
+  .library-header-actions {
+    min-width: 0;
+  }
+
+  .studio-tabs {
+    flex-wrap: wrap;
+  }
 }
 
 /* Microsoft Foundry agents: always labeled AI and kept visually apart from the local rules. */
@@ -5227,6 +5467,7 @@ details[open] > .pitch-info-summary .disclosure-chevron { transform: rotate(180d
 }
 
 @media (max-width: 900px) {
+
   .agent-actions button,
   .ask-form button,
   .ask-suggestions button,

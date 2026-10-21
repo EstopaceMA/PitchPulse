@@ -136,7 +136,7 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
         <a className="skip-link" href={`#${panelId}-viewer`}>{tr(l, "Skip to match", "Lumaktaw sa laban")}</a>
         <header className="studio-topbar">
             <Link className="back-library" href="/" aria-label={tr(l, "Back to library", "Bumalik sa library")}><ArrowLeft size={17} /><span>{tr(l, "Library", "Library")}</span></Link>
-            <div className="studio-match-title"><h1>{home.name} <span>vs</span> {away.name}</h1></div>
+            <div className="studio-match-title"><h1><span className="match-team-home">{home.name}</span> <span className="match-versus">vs</span> <span className="match-team-away">{away.name}</span></h1></div>
             <div className="studio-score" aria-label={`${home.name} ${stats.teams[home.team_id].goals}, ${away.name} ${stats.teams[away.team_id].goals}`} data-testid="score"><span>{stats.teams[home.team_id].goals}</span><b>:</b><span>{stats.teams[away.team_id].goals}</span></div>
             <div className="studio-clock"><time data-testid="match-clock">{formatTime(state.elapsed)}</time><span>{statusText}</span></div>
             <div className="studio-topbar-actions"><StorageStatus language={l} /><PreferencesMenu data={data} preferences={preferences} onChange={update} compact ai={{ available: aiAvailable, enabled: aiEnabled, onChange: setAi }} /></div>

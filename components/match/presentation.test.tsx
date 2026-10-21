@@ -159,6 +159,17 @@ test("library cards show local progress and annotations without a final result",
     assert.doesNotMatch(html, /final_score|Full-time|data-testid="score"/);
 });
 
+test("match titles assign team colors by home/away identity and leave vs neutral", () => {
+    for (const language of ["en", "fil"] as const) {
+        for (const teams of [data.teams, [...data.teams].reverse()]) {
+            const match = createLibraryMatch("team-colors", { ...data, teams }, "review.json", "upload", 1);
+            const html = renderToStaticMarkup(<MatchCard match={match} language={language} />);
+            assert.match(html, /<h2><span class="match-team-home">Arsenal<\/span> <span class="match-versus">vs<\/span> <span class="match-team-away">Chelsea<\/span><\/h2>/);
+            assert.ok(html.includes(`${language === "en" ? "Open studio" : "Buksan ang studio"}: Arsenal vs Chelsea`));
+        }
+    }
+});
+
 test("studio timeline has one scrubber and never renders unprocessed markers", () => {
     const html = renderToStaticMarkup(<StudioTimeline data={data} events={[]} state={initialPlayback()} language="en" annotations={[]} selectedId={null} onAnnotation={noop} onEvent={noop} dispatch={noop} onSeek={noop} onRestart={noop} onStep={noop} statusText="Ready" />);
     assert.equal((html.match(/type="range"/g) ?? []).length, 1);

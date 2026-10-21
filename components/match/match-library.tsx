@@ -42,12 +42,12 @@ export function MatchCard({ match, language: l, onRemove }: { match: LibraryMatc
     return <article className="game-card">
         <Link className="game-link" href={`/studio/${match.id}`} aria-label={`${tr(l, "Open studio", "Buksan ang studio")}: ${home.name} vs ${away.name}`}>
             <div className="game-preview"><div className="preview-grid" aria-hidden="true"><div className="mini-pitch"><span /><i /><b /><em /></div></div>
-            <span className="source-badge">{match.kind === "demo" ? tr(l, "SYNTHETIC DEMO", "SINTETIKONG DEMO") : tr(l, "IMPORTED MATCH", "NA-IMPORT NA LABAN")}</span>
-            <div className="preview-teams" aria-hidden="true"><span>{initials(home.team_id)}</span><small>vs</small><span>{initials(away.team_id)}</span></div>
-            <span className="preview-duration">{Math.round(match.data.match.duration_seconds / 60)} {tr(l, "MIN", "MINUTO")}</span>
-            <span className="preview-open"><ArrowUpRight size={18} /></span>
+                <span className="source-badge">{match.kind === "demo" ? tr(l, "SYNTHETIC DEMO", "SINTETIKONG DEMO") : tr(l, "IMPORTED MATCH", "NA-IMPORT NA LABAN")}</span>
+                <div className="preview-teams" aria-hidden="true"><span>{initials(home.team_id)}</span><small>vs</small><span>{initials(away.team_id)}</span></div>
+                <span className="preview-duration">{Math.round(match.data.match.duration_seconds / 60)} {tr(l, "MIN", "MINUTO")}</span>
+                <span className="preview-open"><ArrowUpRight size={18} /></span>
             </div>
-            <div className="game-card-content game-title"><h2>{home.name} <span>vs</span> {away.name}</h2></div>
+            <div className="game-card-content game-title"><h2><span className="match-team-home">{home.name}</span> <span className="match-versus">vs</span> <span className="match-team-away">{away.name}</span></h2></div>
         </Link>
         {onRemove && <Button className="game-remove" size="icon" variant="ghost" aria-label={`${tr(l, "Remove imported match", "Alisin ang na-import na laban")}: ${home.name} vs ${away.name}`} onClick={onRemove}><Trash2 size={14} /></Button>}
         <div className="game-card-content game-metadata">

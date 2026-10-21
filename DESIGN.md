@@ -10,7 +10,7 @@ The library begins with the one bundled synthetic demo. Additional games come fr
 
 - Charcoal background `#111315`, surfaces `#1a1d20`, inset panels `#15191c`, borders `#30363a`.
 - Green `#32D74B` for playback, actions, and active indicators; lime `#A3E635` for focus. Keep accents restrained.
-- Home red `#FF6276` and away blue `#669CFF` consistently identify teams on the pitch, timeline, and comparisons. Use labels and distinct solid/dashed marks as well as color.
+- Home red `#FF6276` and away blue `#669CFF` consistently identify teams in library/studio match titles, on the pitch, timeline, and comparisons. Keep “vs” neutral. Use labels and distinct solid/dashed marks as well as color.
 - Violet `#b9a7ff` (`--ai-accent`) marks Microsoft Foundry AI output only: the **AI · Microsoft Foundry** badge, AI tags, and the left rule on AI cards. It always appears with a text label, never color alone.
 - Inter for interface text, JetBrains Mono for clock/data values. Both remain self-hosted.
 - Library cards use rounded corners and generous spacing. Studio panels use shared edges, compact headers, and independent scrolling. Extend the existing tokens in `app/globals.css`; reuse the Base UI button/select components.
