@@ -1,6 +1,6 @@
 "use client";
 
-import { Users } from "lucide-react";
+import { ChevronDown, Users } from "lucide-react";
 import type { MotionFrame } from "@/lib/match/movement";
 import { teamColor, tr } from "@/lib/match/presentation";
 import type { Language, MatchData, Position } from "@/lib/match/types";
@@ -74,10 +74,11 @@ export function TeamMotion({ data, frame, names, selectedPlayer, onSelect, langu
 
 export function PlayerRoster({ data, language, selectedPlayer, onSelect, activeIds }: { data: MatchData; language: Language; selectedPlayer: string | null; onSelect: (id: string) => void; activeIds: ReadonlySet<string> }) {
     return <div className="pitch-roster">
-        <details><summary><Users size={14} />{tr(language, "Player names & lineups", "Mga pangalan at lineup")}<span>{data.players.length} {tr(language, "players", "manlalaro")}</span></summary><div className="roster-teams">{[data.match.home_team_id, data.match.away_team_id].map(teamId => <section key={teamId} aria-label={`${data.teams.find(t => t.team_id === teamId)?.name} ${tr(language, "lineup", "lineup")}`}>
+        <details><summary className="pitch-info-summary"><Users size={16} aria-hidden="true" /><span className="pitch-info-title">{tr(language, "Player names & lineups", "Mga pangalan at lineup")}</span><span className="lineup-count">{data.players.length} {tr(language, "players", "manlalaro")}</span><ChevronDown className="disclosure-chevron" size={16} aria-hidden="true" /></summary><div className="lineup-content"><div className="roster-teams">{[data.match.home_team_id, data.match.away_team_id].map(teamId => <section key={teamId} aria-label={`${data.teams.find(t => t.team_id === teamId)?.name} ${tr(language, "lineup", "lineup")}`}>
             <h3 style={{ color: teamColor(teamId, data.match.home_team_id) }}>{data.teams.find(t => t.team_id === teamId)?.name}</h3>
             <ul>{data.players.filter(p => p.team_id === teamId).map(player => <li key={player.player_id}><button type="button" className={player.player_id === selectedPlayer ? "selected" : ""} aria-pressed={player.player_id === selectedPlayer} onClick={() => onSelect(player.player_id)}><span className="roster-number" style={{ color: teamColor(teamId, data.match.home_team_id) }}>{player.shirt_number ?? "•"}</span><span className="roster-name">{player.name}</span><span className="roster-position">{player.position ?? "—"}</span>{activeIds.has(player.player_id) && <i className="tiny-dot green" title={tr(language, "Current participant", "Kasalukuyang kasali")} />}</button></li>)}</ul>
-        </section>)}</div></details>
-        <p>{tr(language, "Names come directly from the dataset. Demo player labels are fictional.", "Mula mismo sa dataset ang mga pangalan. Kathang-isip ang mga demo na manlalaro.")}</p>
+        </section>)}</div>
+            <p className="roster-note">{tr(language, "Names come directly from the dataset. Demo player labels are fictional.", "Mula mismo sa dataset ang mga pangalan. Kathang-isip ang mga demo na manlalaro.")}</p>
+        </div></details>
     </div>;
 }

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { Pause, Play, RotateCcw, SkipForward } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { formatTime, type PlaybackAction, type PlaybackState } from "@/lib/match/playback";
 import { tr } from "@/lib/match/presentation";
 import type { Language, MatchData } from "@/lib/match/types";
 
-export function PlaybackControls({ data, state, language, statusText, dispatch, onRestart, onSeek, onStep, showTimeline = true }: {
+export function PlaybackControls({ data, state, language, statusText, dispatch, onRestart, onSeek, onStep, showTimeline = true, timelineControls }: {
     data: MatchData;
     state: PlaybackState;
     language: Language;
@@ -17,6 +18,7 @@ export function PlaybackControls({ data, state, language, statusText, dispatch, 
     onSeek: (elapsed: number) => void;
     onStep: () => void;
     showTimeline?: boolean;
+    timelineControls?: ReactNode;
 }) {
     const ref = useRef<HTMLElement>(null);
     const halftime = state.status === "half-time", complete = state.status === "full-time";
@@ -48,11 +50,9 @@ export function PlaybackControls({ data, state, language, statusText, dispatch, 
                 <Button size="icon" variant="ghost" aria-label={tr(l, "Step to next event", "Susunod na aksiyon")} disabled={halftime || complete || data.events.length === 0} onClick={onStep}><SkipForward size={17} /></Button>
                 <span className="playback-time"><b>{formatTime(state.elapsed)}</b><span>/ {formatTime(data.match.duration_seconds)}</span></span>
             </div>
-            <div className="speed-control">
-                <span>{tr(l, "Playback speed", "Bilis ng replay")}</span>
-                <div role="group" aria-label={tr(l, "Playback speed", "Bilis ng replay")}>
-                    {[1, 5, 10, 30].map(speed => <button key={speed} type="button" aria-pressed={speed === state.speed} className={speed === state.speed ? "active" : ""} onClick={() => dispatch({ type: "speed", speed })}>{speed}×</button>)}
-                </div>
+            <div className="playback-options">
+                <label className="speed-control"><span>{tr(l, "Speed", "Bilis")}</span><Select label={tr(l, "Playback speed", "Bilis ng replay")} value={String(state.speed)} options={[1, 5, 10, 30].map(speed => ({ value: String(speed), label: `${speed}×` }))} onValueChange={value => dispatch({ type: "speed", speed: Number(value) as PlaybackState["speed"] })} /></label>
+                {timelineControls}
             </div>
         </div>
         {showTimeline && <div className="timeline-wrap">

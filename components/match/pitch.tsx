@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Crosshair, Info, Radio, Settings2, UserRound, Users, X } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Crosshair, Info, Radio, Settings2, UserRound, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatTime, pitchPosition } from "@/lib/match/playback";
 import { buildMovementTimeline, sampleMovement } from "@/lib/match/movement";
@@ -17,7 +17,7 @@ function subscribeMotion(callback: () => void) {
 const motionPreference = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const serverMotionPreference = () => false;
 
-export function Pitch({ data, events, elapsed, event, pinned, language, onLive, compact = false, actions }: { data: MatchData; events: readonly MatchEvent[]; elapsed: number; event?: MatchEvent; pinned: boolean; language: Language; onLive: () => void; compact?: boolean; actions?: ReactNode }) {
+export function Pitch({ data, events, elapsed, event, pinned, language, onLive, compact = false, actions, panelActions }: { data: MatchData; events: readonly MatchEvent[]; elapsed: number; event?: MatchEvent; pinned: boolean; language: Language; onLive: () => void; compact?: boolean; actions?: ReactNode; panelActions?: ReactNode }) {
     const [view, setView] = useState<"simulation" | "events">("simulation");
     const [sizing, setSizing] = useState<"fit" | "detailed">("fit");
     const [names, setNames] = useState(true);
@@ -37,6 +37,7 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
     const selectPlayer = (id: string) => setSelectedPlayer(previous => previous === id ? null : id);
     const home = data.match.home_team_id;
     const color = teamColor(event?.team_id ?? null, home);
+    const ActionIcon = event?.type === "pass" || event?.type === "kickoff" ? ArrowUpRight : event?.type === "pressure" ? Radio : event?.type === "shot" ? Crosshair : Activity;
     const actor = data.players.find(p => p.player_id === event?.player_id);
     const recipient = data.players.find(p => p.player_id === event?.recipient_player_id);
     const selected = data.players.find(p => p.player_id === selectedPlayer);
@@ -63,10 +64,12 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
     return (
         <section className={`panel pitch-panel${compact ? " pitch-compact" : ""}`} id="pitch" aria-labelledby="pitch-heading">
             <div className="panel-heading">
-                <div className="heading-icon"><Crosshair size={17} /><h2 id="pitch-heading">{tr(language, "The pitch", "Ang pitch")}</h2><span className="subtle-label">2D</span></div>
+                {panelActions && <div className="pitch-panel-actions">{panelActions}</div>}
+                <div className={compact ? "sr-only" : "heading-icon"}><Crosshair size={17} /><h2 id="pitch-heading">{tr(language, "The pitch", "Ang pitch")}</h2><span className="subtle-label">2D</span></div>
                 <div className="pitch-header-tools">
                     <div className="pitch-heading-status">
                         <span className="micro-label"><span className={`tiny-dot ${pinned ? "amber" : "green"}`} />{pinned ? tr(language, "REVIEWING EVENT", "SINUSURI ANG PANGYAYARI") : simulation ? tr(language, "SIMULATED MOVEMENT", "SIMULADONG GALAW") : tr(language, "EVENT VIEW", "TANAW NG PANGYAYARI")}</span>
+                        {pinned && event && <time>{formatTime(event.match_time_seconds)}</time>}
                         {pinned && <Button type="button" size="sm" variant="outline" onClick={onLive}><X size={13} aria-hidden="true" />{tr(language, "Follow live", "Sundan ang laro")}</Button>}
                     </div>
                     {compact && <details className="pitch-settings" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.open = false; }} onKeyDown={e => { if (e.key === "Escape") { e.currentTarget.open = false; e.currentTarget.querySelector("summary")?.focus(); e.stopPropagation(); } }}>
@@ -78,6 +81,7 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
             </div>
             {!compact && viewControls}
             <div className="pitch-toolbar"><span style={{ color: teamColor(data.match.away_team_id, home) }}><ArrowLeft size={13} />{awayName}</span><span>{tr(language, "Fixed attacking directions", "Nakapirming direksiyon")}</span><span style={{ color: teamColor(home, home) }}>{homeName}<ArrowRight size={13} /></span></div>
+            <p className="pitch-disclosure">{simulation ? tr(language, "Illustrative movement · Demo players are fictional", "Halimbawang galaw · Kathang-isip ang mga demo na manlalaro") : tr(language, "Recorded positions only · Demo players are fictional", "Naitalang posisyon lamang · Kathang-isip ang mga demo na manlalaro")}</p>
             <div id="pitch-stage" className={`pitch-stage${simulation ? ` full-team-stage pitch-${sizing}` : ""}`} tabIndex={simulation ? 0 : undefined} role={simulation ? "region" : undefined} aria-label={simulation ? sizing === "fit" ? tr(language, "Full-team pitch. Fit pitch view.", "Pitch ng lahat. Nakaangkop na tanaw ng pitch.") : tr(language, "Full-team pitch. Scroll horizontally on small screens.", "Pitch ng lahat. Mag-scroll pahalang sa maliit na screen.") : undefined}>
                 <svg viewBox="0 0 760 510" role={simulation ? "group" : "img"} aria-label={simulation ? tr(language, `${frame.players.length} players with illustrative movement and dataset names.`, `${frame.players.length} manlalaro na may halimbawang galaw at mga pangalan mula sa dataset.`) : event ? `${formatTime(event.match_time_seconds)} ${actor?.name ?? ""} ${eventLabel(event, language)}. ${tr(language, "Only recorded event positions are shown.", "Mga naitalang posisyon lamang ang ipinapakita.")}` : tr(language, "Empty pitch. Start playback to see recorded actions.", "Walang aksiyon. Simulan ang laro.")}>
                     <defs>
@@ -109,13 +113,29 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
                     {simulation && <TeamMotion data={data} frame={frame} names={names} selectedPlayer={selectedPlayer} onSelect={selectPlayer} language={language} />}
                 </svg>
             </div>
-            {simulation && sizing === "detailed" && <p className="pitch-scroll-hint">{tr(language, "Scroll the pitch sideways to see every player on smaller screens.", "Mag-scroll pahalang sa pitch upang makita ang lahat sa maliit na screen.")}</p>}
-            {simulation && sizing === "fit" && <p className="pitch-fit-hint">{tr(language, "Tap a player for their name. Detailed view shows every label.", "Piliin ang manlalaro para sa pangalan. Makikita ang lahat sa detalyadong tanaw.")}</p>}
-            <div className="pitch-legend"><span><i className="legend-line" />{tr(language, "Completed pass", "Kumpletong pasa")}</span><span><i className="legend-line intercepted" />{tr(language, "Incomplete / intercepted", "Hindi kumpleto / naagaw")}</span><span><Crosshair size={12} />{tr(language, "Shot", "Tira")}</span><span><Radio size={12} />{tr(language, "Pressure", "Pagdiin")}</span></div>
-            <div className="current-action"><div className="action-symbol" style={{ color }}><Crosshair size={18} /></div><div><strong>{event ? `${eventLabel(event, language)} ${event.outcome ? `· ${outcomeLabel(event, language)}` : ""}` : tr(language, "Ready when you are", "Handa na")}</strong><p>{event ? `${formatTime(event.match_time_seconds)} · ${actor?.name ?? tr(language, "Match event", "Pangyayari sa laban")} · ${event.event_id}` : tr(language, "Synthetic events. A different way to see the game.", "Sintetikong aksiyon. Bagong paraan ng pagtingin sa laro.")}</p></div></div>
-            {simulation && selected && <div className="pitch-player-selection" role="status" aria-atomic="true"><UserRound size={16} aria-hidden="true" /><strong>{selected.name}</strong><span>{selected.position ?? tr(language, "Player", "Manlalaro")}{selected.shirt_number !== undefined ? ` · #${selected.shirt_number}` : ""}</span></div>}
-            <p className="data-note"><Info size={12} />{simulation ? tr(language, "All player paths and ball-flight timing are illustrative. Pausing or reviewing an event freezes this view. Recorded events alone drive statistics.", "Halimbawa lamang ang mga galaw at oras ng paglipad ng bola. Humihinto ang tanaw kapag naka-pause o sinusuri ang aksiyon. Naitalang aksiyon lamang ang batayan ng estadistika.") : tr(language, "Event locations only. No continuous tracking or inferred player movement.", "Mga lokasyon ng aksiyon lamang. Walang tuloy-tuloy na pagsubaybay o inimbentong galaw.")}</p>
-            {simulation && <PlayerRoster data={data} language={language} selectedPlayer={selectedPlayer} onSelect={selectPlayer} activeIds={activeIds} />}
+            <div className="pitch-context">
+                <div className="current-action">
+                    <div className="action-symbol" style={{ color }}><ActionIcon size={20} aria-hidden="true" /></div>
+                    <div className="action-copy">
+                        <div className="action-heading"><strong>{event ? eventLabel(event, language) : tr(language, "Ready when you are", "Handa na")}</strong>{event?.outcome && <span className="action-outcome">{outcomeLabel(event, language)}</span>}</div>
+                        <p>{event ? actor?.name ?? tr(language, "Match event", "Pangyayari sa laban") : tr(language, "Press play to follow the match.", "Pindutin ang play upang sundan ang laban.")}</p>
+                    </div>
+                    {event && <time className="action-time" aria-label={tr(language, "Event time", "Oras ng pangyayari")}>{formatTime(event.match_time_seconds)}</time>}
+                </div>
+                {simulation && selected && <div className="pitch-player-selection" role="status" aria-atomic="true"><UserRound size={16} aria-hidden="true" /><strong>{selected.name}</strong><span>{selected.position ?? tr(language, "Player", "Manlalaro")}{selected.shirt_number !== undefined ? ` · #${selected.shirt_number}` : ""}</span></div>}
+
+                <div className="pitch-info-grid">
+                    <details className="pitch-about"><summary className="pitch-info-summary"><Info size={16} aria-hidden="true" /><span className="pitch-info-title">{tr(language, "About this view", "Tungkol sa tanaw na ito")}</span><ChevronDown className="disclosure-chevron" size={16} aria-hidden="true" /></summary>
+                        <div className="pitch-guide-content">
+                            {simulation && sizing === "detailed" && <p className="pitch-scroll-hint">{tr(language, "Scroll the pitch sideways to see every player on smaller screens.", "Mag-scroll pahalang sa pitch upang makita ang lahat sa maliit na screen.")}</p>}
+                            {simulation && sizing === "fit" && <p className="pitch-fit-hint">{tr(language, "Tap a player for their name. Detailed view shows every label.", "Piliin ang manlalaro para sa pangalan. Makikita ang lahat sa detalyadong tanaw.")}</p>}
+                            <div className="pitch-legend"><span><i className="legend-line" />{tr(language, "Completed pass", "Kumpletong pasa")}</span><span><i className="legend-line intercepted" />{tr(language, "Incomplete / intercepted", "Hindi kumpleto / naagaw")}</span><span><Crosshair size={12} />{tr(language, "Shot", "Tira")}</span><span><Radio size={12} />{tr(language, "Pressure", "Pagdiin")}</span></div>
+                            <p className="data-note"><Info size={12} />{simulation ? tr(language, "All player paths and ball-flight timing are illustrative. Pausing or reviewing an event freezes this view. Recorded events alone drive statistics.", "Halimbawa lamang ang mga galaw at oras ng paglipad ng bola. Humihinto ang tanaw kapag naka-pause o sinusuri ang aksiyon. Naitalang aksiyon lamang ang batayan ng estadistika.") : tr(language, "Event locations only. No continuous tracking or inferred player movement.", "Mga lokasyon ng aksiyon lamang. Walang tuloy-tuloy na pagsubaybay o inimbentong galaw.")}</p>
+                        </div>
+                    </details>
+                    {simulation && <PlayerRoster data={data} language={language} selectedPlayer={selectedPlayer} onSelect={selectPlayer} activeIds={activeIds} />}
+                </div>
+            </div>
         </section>
     );
 }

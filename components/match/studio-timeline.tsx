@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState, type CSSProperties } from "react";
-import { Bookmark, Layers3, X } from "lucide-react";
+import { Bookmark, X } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { groupTimelineEvents } from "@/lib/match/library";
 import { formatTime, type PlaybackAction, type PlaybackState } from "@/lib/match/playback";
@@ -23,8 +24,8 @@ export function StudioTimeline({ data, events, state, language: l, annotations, 
     const lanes = useMemo(() => data.teams.map(team => ({ ...team, groups: groupTimelineEvents(events.filter(e => e.team_id === team.team_id), duration, buckets) })), [data.teams, events, duration, buckets]);
     const activeGroup = lanes.find(lane => lane.team_id === group?.lane)?.groups.find(g => g.bucket === group?.bucket);
     return <section className="studio-timeline" aria-label={tr(l, "Analysis timeline", "Timeline ng pagsusuri")}>
-        <PlaybackControls data={data} state={state} language={l} statusText={statusText} dispatch={dispatch} onRestart={onRestart} onSeek={onSeek} onStep={onStep} showTimeline={false} />
-        <div className="timeline-toolbar"><span><Layers3 size={14} />{tr(l, "MATCH TIMELINE", "TIMELINE NG LABAN")}</span><small>{tr(l, "Recorded events appear as playback reaches them", "Lumilitaw ang mga pangyayari kapag naabot sa replay")}</small><div role="group" aria-label={tr(l, "Timeline zoom", "Pag-zoom sa timeline")}>{[1, 2, 4, 8].map(value => <button key={value} type="button" aria-pressed={zoom === value} onClick={() => { setZoom(value); setGroup(null); requestAnimationFrame(() => { if (viewport.current) viewport.current.scrollLeft = state.elapsed / duration * viewport.current.clientWidth * value - viewport.current.clientWidth / 2; }); }}>{value === 1 ? tr(l, "Fit", "Iangkop") : `${value}×`}</button>)}</div></div>
+        <PlaybackControls data={data} state={state} language={l} statusText={statusText} dispatch={dispatch} onRestart={onRestart} onSeek={onSeek} onStep={onStep} showTimeline={false} timelineControls={<label className="timeline-zoom"><span>{tr(l, "Zoom", "Zoom")}</span><Select label={tr(l, "Timeline zoom", "Pag-zoom sa timeline")} value={String(zoom)} options={[1, 2, 4, 8].map(value => ({ value: String(value), label: value === 1 ? tr(l, "Fit", "Iangkop") : `${value}×` }))} onValueChange={value => { const next = Number(value); setZoom(next); setGroup(null); requestAnimationFrame(() => { if (viewport.current) viewport.current.scrollLeft = state.elapsed / duration * viewport.current.clientWidth * next - viewport.current.clientWidth / 2; }); }} /></label>} />
+
         <div ref={viewport} className="timeline-scroll" tabIndex={0} aria-label={tr(l, "Timeline tracks. Scroll horizontally when zoomed.", "Mga track ng timeline. Mag-scroll pahalang kapag naka-zoom.")}>
             <div className="timeline-canvas" style={{ width: `${zoom * 100}%` }}>
                 <div className="timeline-ruler"><span>00:00</span>{[.25, .5, .75].filter(fraction => Math.abs(fraction - data.match.period_seconds / duration) > .08).map(fraction => <span key={fraction} style={{ left: `${fraction * 100}%` }}>{formatTime(duration * fraction)}</span>)}<span className="half-time-label" style={{ left: `${data.match.period_seconds / duration * 100}%` }}>{tr(l, "HT", "PAHINGA")} · {formatTime(data.match.period_seconds)}</span><span>{formatTime(duration)}</span></div>

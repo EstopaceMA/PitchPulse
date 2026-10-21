@@ -6,7 +6,7 @@ import { initialPlayback, type PlaybackState } from "@/lib/match/playback";
 import { validateMatch } from "@/lib/match/validation";
 import { Pitch } from "./pitch";
 import { PlaybackControls } from "./playback-controls";
-import { PreferencesMenu, ViewControls } from "./view-controls";
+import { PreferencesMenu, PerspectiveSelect } from "./view-controls";
 import { DashboardHeader } from "./dashboard-header";
 import { Select } from "@/components/ui/select";
 import type { Preferences } from "@/lib/match/types";
@@ -47,7 +47,10 @@ test("one playback control set exposes a labeled native timeline and supported s
     assert.equal((html.match(/id="playback-controls"/g) ?? []).length, 1);
     assert.equal((html.match(/type="range"/g) ?? []).length, 1);
     assert.match(html, /aria-label="Match timeline"/);
-    for (const speed of [1, 5, 10, 30]) assert.ok(html.includes(`>${speed}×</button>`));
+    assert.match(html, /role="combobox"[^>]*aria-label="Playback speed"/);
+    for (const speed of [1, 5, 10, 30] as const) {
+        assert.match(controls({ ...initialPlayback(), speed }), new RegExp(`class="dropdown-value">${speed}×</span>`));
+    }
 });
 
 test("half-time exposes the explicit transition and disables stepping", () => {
@@ -65,42 +68,20 @@ test("full-time and empty uploads cannot play; restart remains available", () =>
 
 const preferences: Preferences = { mode: "casual", language: "en", team: data.match.home_team_id, player: data.players[0].player_id };
 
-test("viewing controls group personalization and three modes in one named card", () => {
-    const html = renderToStaticMarkup(<ViewControls data={data} preferences={preferences} onChange={noop} />);
-    assert.match(html, /<section class="panel analysis-controls" aria-labelledby=/);
-    assert.match(html, /Your perspective<\/h2>/);
-    assert.ok(html.indexOf("Make it yours") < html.indexOf('class="view-modes"'));
-    assert.equal((html.match(/aria-pressed="/g) ?? []).length, 3);
-    assert.equal((html.match(/aria-pressed="true"/g) ?? []).length, 1);
-    assert.match(html, /aria-expanded="false"/);
-    assert.match(html, /aria-describedby="[^"]+-description"/);
-    assert.match(html, /The story, simply told/);
-    assert.ok(!html.includes('class="focus-bar"'));
+test("perspective selector exposes each selected mode with bilingual labels", () => {
+    for (const [mode, en, fil] of [["casual", "Casual Fan", "Tagahanga"], ["analyst", "Analyst", "Analista"], ["player", "Player Focus", "Pokus sa Manlalaro"]] as const) {
+        for (const language of ["en", "fil"] as const) {
+            const html = renderToStaticMarkup(<PerspectiveSelect preferences={{ ...preferences, mode, language }} onChange={noop} />);
+            assert.match(html, new RegExp(`role="combobox"[^>]*aria-label="${language === "en" ? "Perspective" : "Pananaw"}"`));
+            assert.ok(html.includes(`class="dropdown-value">${language === "en" ? en : fil}</span>`));
+        }
+    }
 });
 
-test("viewing controls expose the selected mode and its bilingual description", () => {
-    const analyst = renderToStaticMarkup(<ViewControls data={data} preferences={{ ...preferences, mode: "analyst" }} onChange={noop} />);
-    assert.match(analyst, /Every detail. All the evidence./);
-    const html = renderToStaticMarkup(<ViewControls data={data} preferences={{ ...preferences, language: "fil", mode: "player" }} onChange={noop} />);
-    for (const label of ["Iyong pananaw", "Iayon sa iyo", "Tagahanga", "Analista", "Pokus sa Manlalaro", "Sinusundan", "Sundan ang ambag ng manlalaro"]) assert.ok(html.includes(label));
-    assert.match(html, /class="focus-bar"/);
-    assert.match(html, /<label for="[^"]+-player">Sinusundan<\/label>/);
-    assert.match(html, /<button[^>]*id="[^"]+-player"[^>]*role="combobox"[^>]*aria-label="Sinusundan"/);
-});
-
-test("player focus remains usable with an empty roster", () => {
-    const html = renderToStaticMarkup(<ViewControls data={{ ...data, players: [] }} preferences={{ ...preferences, mode: "player", player: "" }} onChange={noop} />);
-    assert.match(html, /<button[^>]*disabled=""[^>]*role="combobox"[^>]*aria-label="Following"/);
-    assert.match(html, /class="dropdown-value">No players<\/span>/);
-});
-
-test("header personalization is reusable without duplicating the sidebar menu", () => {
-    const header = renderToStaticMarkup(<PreferencesMenu data={data} preferences={preferences} onChange={noop} />);
-    const sidebar = renderToStaticMarkup(<ViewControls data={data} preferences={preferences} onChange={noop} showPreferences={false} />);
-    assert.match(header, /Make it yours/);
-    assert.match(header, /aria-expanded="false"/);
-    assert.doesNotMatch(sidebar, /Make it yours|preferences-anchor/);
-    assert.equal((sidebar.match(/aria-pressed="/g) ?? []).length, 3);
+test("preferences remain collapsed until requested", () => {
+    const html = renderToStaticMarkup(<PreferencesMenu data={data} preferences={preferences} onChange={noop} compact />);
+    assert.match(html, /aria-label="Preferences"[^>]*aria-expanded="false"/);
+    assert.doesNotMatch(html, /role="combobox"/);
 });
 
 test("event simulator transport shows Start, Pause, Resume and Reset labels", () => {
@@ -166,7 +147,12 @@ import { createLibraryMatch } from "@/lib/match/library";
 test("library cards show local progress and annotations without a final result", () => {
     const match = createLibraryMatch("local-1", data, "review.json", "upload", 1);
     const html = renderToStaticMarkup(<MatchCard match={match} language="en" onRemove={noop} />);
-    assert.match(html, /href="\/studio\/local-1"/);
+    assert.equal((html.match(/href="\/studio\/local-1"/g) ?? []).length, 1);
+    const link = html.slice(html.indexOf('<a '), html.indexOf('</a>'));
+    assert.match(link, /class="game-preview"/);
+    assert.match(link, /<h2>/);
+    assert.doesNotMatch(link, /<button/);
+    assert.doesNotMatch(html, /class="open-studio"/);
     assert.match(html, /Ready to analyze/);
     assert.match(html, /Remove imported match/);
     assert.match(html, /review.json/);
@@ -177,7 +163,9 @@ test("studio timeline has one scrubber and never renders unprocessed markers", (
     const html = renderToStaticMarkup(<StudioTimeline data={data} events={[]} state={initialPlayback()} language="en" annotations={[]} selectedId={null} onAnnotation={noop} onEvent={noop} dispatch={noop} onSeek={noop} onRestart={noop} onStep={noop} statusText="Ready" />);
     assert.equal((html.match(/type="range"/g) ?? []).length, 1);
     assert.match(html, /Analysis timeline/);
-    assert.match(html, /Timeline zoom/);
+    assert.match(html, /role="combobox"[^>]*aria-label="Timeline zoom"/);
+    assert.equal((html.match(/role="combobox"/g) ?? []).length, 2);
+    assert.doesNotMatch(html, /MATCH TIMELINE|Recorded events appear as playback reaches them/);
     assert.match(html, /Saved annotations/);
     assert.doesNotMatch(html, /class="event-marker/);
 });
@@ -199,4 +187,20 @@ test("notes expose bilingual empty states and explicit moment navigation", () =>
     assert.match(selected, /Pumunta sa sandali/);
     assert.match(selected, /&lt;script&gt;/);
     assert.doesNotMatch(selected, /<script>test/);
+});
+
+
+test("pitch keeps disclosures visible, help collapsed and event IDs in details only", () => {
+    for (const language of ["en", "fil"] as const) {
+        const event = data.events[0];
+        const html = renderToStaticMarkup(<Pitch compact data={data} events={[event]} elapsed={0} event={event} pinned language={language} onLive={noop} />);
+        assert.match(html, /<details class="pitch-about">/);
+        assert.ok(html.includes(language === "en" ? "About this view" : "Tungkol sa tanaw na ito"));
+        const disclosure = html.slice(html.indexOf('class="pitch-disclosure"'), html.indexOf('id="pitch-stage"'));
+        assert.ok(disclosure.includes(language === "en" ? "Illustrative movement" : "Halimbawang galaw"));
+        assert.ok(disclosure.includes(language === "en" ? "Demo players are fictional" : "Kathang-isip"));
+        assert.match(html, /<time>00:00<\/time>/);
+        const action = html.slice(html.indexOf('class="current-action"'), html.indexOf('class="pitch-about"'));
+        assert.ok(!action.includes(event.event_id));
+    }
 });

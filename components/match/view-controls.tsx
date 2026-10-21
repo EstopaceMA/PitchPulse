@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { Activity, Check, ChevronDown, Settings2, UserRound } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ComponentProps } from "react";
+import { Check, ChevronDown, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { tr } from "@/lib/match/presentation";
@@ -42,18 +42,19 @@ export function PreferencesMenu({ data, preferences, onChange, compact = false, 
     }, [settings]);
 
     return <div ref={settingsRef} className="preferences-anchor">
-        <Button ref={triggerRef} variant="ghost" className="personalize-button" aria-label={compact ? tr(l, "Preferences", "Mga setting") : undefined} title={compact ? tr(l, "Team, player and language preferences", "Mga setting ng koponan, manlalaro at wika") : undefined} aria-expanded={settings} aria-controls={`${id}-preferences`} onClick={() => setSettings(open => !open)}>
+        <Button ref={triggerRef} variant="ghost" className="personalize-button" aria-label={compact ? tr(l, "Preferences", "Mga setting") : undefined} title={compact ? tr(l, "Perspective, team, player and language preferences", "Mga setting ng pananaw, koponan, manlalaro at wika") : undefined} aria-expanded={settings} aria-controls={`${id}-preferences`} onClick={() => setSettings(open => !open)}>
             <Settings2 size={14} aria-hidden="true" /><span>{compact ? tr(l, "Preferences", "Mga setting") : tr(l, "Make it yours", "Iayon sa iyo")}</span><ChevronDown size={12} aria-hidden="true" />
         </Button>
         {settings && <div className="preferences-popover" id={`${id}-preferences`}>
-            <h3>{tr(l, "Your match. Your perspective.", "Iyong laban. Iyong pananaw.")}</h3>
+            <h3>{tr(l, "Preferences", "Mga setting")}</h3>
+            <PerspectiveSelect preferences={preferences} onChange={onChange} portalContainer={settingsRef} />
             <label className="select-field">
                 <span>{tr(l, "Favorite team", "Paboritong koponan")}</span>
                 <Select label={tr(l, "Favorite team", "Paboritong koponan")} value={preferences.team} onValueChange={value => onChange("team", value)} options={data.teams.map(team => ({ value: team.team_id, label: team.name }))} portalContainer={settingsRef} />
             </label>
             <label className="select-field">
-                <span>{tr(l, "Favorite player", "Paboritong manlalaro")}</span>
-                <Select label={tr(l, "Favorite player", "Paboritong manlalaro")} value={preferences.player} onValueChange={value => onChange("player", value)} disabled={data.players.length === 0} portalContainer={settingsRef} options={data.players.length === 0
+                <span>{preferences.mode === "player" ? tr(l, "Following player", "Sinusundang manlalaro") : tr(l, "Favorite player", "Paboritong manlalaro")}</span>
+                <Select label={preferences.mode === "player" ? tr(l, "Following player", "Sinusundang manlalaro") : tr(l, "Favorite player", "Paboritong manlalaro")} value={preferences.player} onValueChange={value => onChange("player", value)} disabled={data.players.length === 0} portalContainer={settingsRef} options={data.players.length === 0
                     ? [{ value: "", label: tr(l, "No players", "Walang manlalaro") }]
                     : data.teams.flatMap(team => data.players.filter(player => player.team_id === team.team_id).map(player => ({ value: player.player_id, label: player.name, group: team.name })))} />
             </label>
@@ -73,34 +74,12 @@ export function PreferencesMenu({ data, preferences, onChange, compact = false, 
     </div>;
 }
 
-export function ViewControls({ data, preferences, onChange, showPreferences = true }: ViewControlsProps & { showPreferences?: boolean }) {
-    const id = useId();
-    const l = preferences.language;
-    const modes: { id: ViewMode; title: string; description: string }[] = [
-        { id: "casual", title: tr(l, "Casual Fan", "Tagahanga"), description: tr(l, "The story, simply told", "Simple at malinaw na kuwento") },
-        { id: "analyst", title: tr(l, "Analyst", "Analista"), description: tr(l, "Every detail. All the evidence.", "Bawat detalye at ebidensiya") },
-        { id: "player", title: tr(l, "Player Focus", "Pokus sa Manlalaro"), description: tr(l, "Follow one player's impact", "Sundan ang ambag ng manlalaro") },
-    ];
-    return <section className="panel analysis-controls" aria-labelledby={`${id}-heading`}>
-        <div className="view-toolbar">
-            <div className="view-toolbar-heading">
-                <h2 id={`${id}-heading`}>{tr(l, "Your perspective", "Iyong pananaw")}</h2>
-                {showPreferences && <PreferencesMenu data={data} preferences={preferences} onChange={onChange} />}
-            </div>
-            <div className="view-modes" role="group" aria-label={tr(l, "Viewing mode", "Paraan ng pagtingin")} aria-describedby={`${id}-description`}>
-                {modes.map(mode => <button key={mode.id} type="button" aria-pressed={preferences.mode === mode.id} className={preferences.mode === mode.id ? "active" : ""} onClick={() => onChange("mode", mode.id)}>
-                    {mode.id === "casual" ? <Activity size={14} aria-hidden="true" /> : mode.id === "analyst" ? <Settings2 size={14} aria-hidden="true" /> : <UserRound size={14} aria-hidden="true" />}
-                    <span>{mode.title}</span>
-                </button>)}
-            </div>
-            <p className="mode-description" id={`${id}-description`}>{modes.find(mode => mode.id === preferences.mode)?.description}</p>
-        </div>
-        {preferences.mode === "player" && <div className="focus-bar">
-            <UserRound size={17} aria-hidden="true" /><label htmlFor={`${id}-player`}>{tr(l, "Following", "Sinusundan")}</label>
-            <Select id={`${id}-player`} label={tr(l, "Following", "Sinusundan")} value={preferences.player} onValueChange={value => onChange("player", value)} disabled={data.players.length === 0} options={data.players.length === 0
-                ? [{ value: "", label: tr(l, "No players", "Walang manlalaro") }]
-                : data.teams.flatMap(team => data.players.filter(player => player.team_id === team.team_id).map(player => ({ value: player.player_id, label: player.name, group: team.name })))} />
-            <span>{tr(l, "Player actions, accumulated stats, and personal insights", "Mga aksiyon, kabuuang estadistika, at personal na pagsusuri")}</span>
-        </div>}
-    </section>;
+export function perspectiveLabel(mode: ViewMode, language: Language) {
+    return { casual: tr(language, "Casual Fan", "Tagahanga"), analyst: tr(language, "Analyst", "Analista"), player: tr(language, "Player Focus", "Pokus sa Manlalaro") }[mode];
+}
+
+export function PerspectiveSelect({ preferences, onChange, portalContainer }: Pick<ViewControlsProps, "preferences" | "onChange"> & { portalContainer?: ComponentProps<typeof Select>["portalContainer"] }) {
+    return <label className="select-field"><span>{tr(preferences.language, "Perspective", "Pananaw")}</span>
+        <Select label={tr(preferences.language, "Perspective", "Pananaw")} value={preferences.mode} onValueChange={value => onChange("mode", value as ViewMode)} options={(["casual", "analyst", "player"] as const).map(value => ({ value, label: perspectiveLabel(value, preferences.language) }))} portalContainer={portalContainer} />
+    </label>;
 }
