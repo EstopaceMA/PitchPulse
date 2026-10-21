@@ -12,7 +12,7 @@ import { Select } from "@/components/ui/select";
 import type { Preferences } from "@/lib/match/types";
 
 const data = validateMatch(JSON.parse(readFileSync(new URL("../../public/arsenal-vs-chelsea-match.json", import.meta.url), "utf8")));
-const noop = () => {};
+const noop = () => { };
 
 test("full-team pitch defaults to fit while retaining every player and enabled names", () => {
     const html = renderToStaticMarkup(<Pitch data={data} events={[]} elapsed={0} pinned={false} language="en" onLive={noop} />);

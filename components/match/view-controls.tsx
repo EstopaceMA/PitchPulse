@@ -39,29 +39,29 @@ export function PreferencesMenu({ data, preferences, onChange, compact = false }
     }, [settings]);
 
     return <div ref={settingsRef} className="preferences-anchor">
-                    <Button ref={triggerRef} variant="ghost" className="personalize-button" aria-label={compact ? tr(l, "Preferences", "Mga setting") : undefined} title={compact ? tr(l, "Team, player and language preferences", "Mga setting ng koponan, manlalaro at wika") : undefined} aria-expanded={settings} aria-controls={`${id}-preferences`} onClick={() => setSettings(open => !open)}>
-                        <Settings2 size={14} aria-hidden="true" /><span>{compact ? tr(l, "Preferences", "Mga setting") : tr(l, "Make it yours", "Iayon sa iyo")}</span><ChevronDown size={12} aria-hidden="true" />
-                    </Button>
-                    {settings && <div className="preferences-popover" id={`${id}-preferences`}>
-                        <h3>{tr(l, "Your match. Your perspective.", "Iyong laban. Iyong pananaw.")}</h3>
-                        <label className="select-field">
-                            <span>{tr(l, "Favorite team", "Paboritong koponan")}</span>
-                            <Select label={tr(l, "Favorite team", "Paboritong koponan")} value={preferences.team} onValueChange={value => onChange("team", value)} options={data.teams.map(team => ({ value: team.team_id, label: team.name }))} portalContainer={settingsRef} />
-                        </label>
-                        <label className="select-field">
-                            <span>{tr(l, "Favorite player", "Paboritong manlalaro")}</span>
-                            <Select label={tr(l, "Favorite player", "Paboritong manlalaro")} value={preferences.player} onValueChange={value => onChange("player", value)} disabled={data.players.length === 0} portalContainer={settingsRef} options={data.players.length === 0
-                                ? [{ value: "", label: tr(l, "No players", "Walang manlalaro") }]
-                                : data.teams.flatMap(team => data.players.filter(player => player.team_id === team.team_id).map(player => ({ value: player.player_id, label: player.name, group: team.name })))} />
-                        </label>
-                        <label className="select-field">
-                            <span>{tr(l, "Language", "Wika")}</span>
-                            <Select label={tr(l, "Language", "Wika")} value={l} onValueChange={value => onChange("language", value as Language)} options={[{ value: "en", label: "English" }, { value: "fil", label: "Filipino" }]} portalContainer={settingsRef} />
-                        </label>
-                        <p>{tr(l, "Preferences update instantly. Your match keeps its place.", "Agad na magbabago ang pananaw. Hindi magsisimulang muli ang laban.")}</p>
-                        <Button variant="secondary" onClick={() => { setSettings(false); triggerRef.current?.focus(); }}><Check size={14} aria-hidden="true" />{tr(l, "Done", "Tapos")}</Button>
-                    </div>}
-                </div>;
+        <Button ref={triggerRef} variant="ghost" className="personalize-button" aria-label={compact ? tr(l, "Preferences", "Mga setting") : undefined} title={compact ? tr(l, "Team, player and language preferences", "Mga setting ng koponan, manlalaro at wika") : undefined} aria-expanded={settings} aria-controls={`${id}-preferences`} onClick={() => setSettings(open => !open)}>
+            <Settings2 size={14} aria-hidden="true" /><span>{compact ? tr(l, "Preferences", "Mga setting") : tr(l, "Make it yours", "Iayon sa iyo")}</span><ChevronDown size={12} aria-hidden="true" />
+        </Button>
+        {settings && <div className="preferences-popover" id={`${id}-preferences`}>
+            <h3>{tr(l, "Your match. Your perspective.", "Iyong laban. Iyong pananaw.")}</h3>
+            <label className="select-field">
+                <span>{tr(l, "Favorite team", "Paboritong koponan")}</span>
+                <Select label={tr(l, "Favorite team", "Paboritong koponan")} value={preferences.team} onValueChange={value => onChange("team", value)} options={data.teams.map(team => ({ value: team.team_id, label: team.name }))} portalContainer={settingsRef} />
+            </label>
+            <label className="select-field">
+                <span>{tr(l, "Favorite player", "Paboritong manlalaro")}</span>
+                <Select label={tr(l, "Favorite player", "Paboritong manlalaro")} value={preferences.player} onValueChange={value => onChange("player", value)} disabled={data.players.length === 0} portalContainer={settingsRef} options={data.players.length === 0
+                    ? [{ value: "", label: tr(l, "No players", "Walang manlalaro") }]
+                    : data.teams.flatMap(team => data.players.filter(player => player.team_id === team.team_id).map(player => ({ value: player.player_id, label: player.name, group: team.name })))} />
+            </label>
+            <label className="select-field">
+                <span>{tr(l, "Language", "Wika")}</span>
+                <Select label={tr(l, "Language", "Wika")} value={l} onValueChange={value => onChange("language", value as Language)} options={[{ value: "en", label: "English" }, { value: "fil", label: "Filipino" }]} portalContainer={settingsRef} />
+            </label>
+            <p>{tr(l, "Preferences update instantly. Your match keeps its place.", "Agad na magbabago ang pananaw. Hindi magsisimulang muli ang laban.")}</p>
+            <Button variant="secondary" onClick={() => { setSettings(false); triggerRef.current?.focus(); }}><Check size={14} aria-hidden="true" />{tr(l, "Done", "Tapos")}</Button>
+        </div>}
+    </div>;
 }
 
 export function ViewControls({ data, preferences, onChange, showPreferences = true }: ViewControlsProps & { showPreferences?: boolean }) {

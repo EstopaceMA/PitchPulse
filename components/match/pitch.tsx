@@ -50,25 +50,25 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
     const homeName = data.teams.find(t => t.team_id === home)?.name;
     const viewControls = (
         <div className="pitch-view-controls">
-                <div role="group" aria-label={tr(language, "Pitch view", "Tanaw ng pitch")}><button type="button" aria-pressed={simulation} onClick={() => setView("simulation")}><Users size={13} />{tr(language, "Full-team simulation", "Simulasyon ng lahat")}</button><button type="button" aria-pressed={!simulation} onClick={() => setView("events")}><Crosshair size={13} />{tr(language, "Recorded events", "Naitalang aksiyon")}</button></div>
-                {simulation && <>
-                    <div className="pitch-sizing-controls" role="group" aria-label={tr(language, "Pitch size", "Laki ng pitch")}>
-                        <Button type="button" size="sm" variant="ghost" aria-pressed={sizing === "fit"} aria-controls="pitch-stage" onClick={() => setSizing("fit")}>{tr(language, "Fit pitch", "Iangkop ang pitch")}</Button>
-                        <Button type="button" size="sm" variant="ghost" aria-pressed={sizing === "detailed"} aria-controls="pitch-stage" onClick={() => setSizing("detailed")}>{tr(language, "Detailed view", "Detalyadong tanaw")}</Button>
-                    </div>
-                    <label><input type="checkbox" checked={names} onChange={e => setNames(e.target.checked)} />{tr(language, "Player names", "Mga pangalan")}</label>
-                </>}
-            </div>
+            <div role="group" aria-label={tr(language, "Pitch view", "Tanaw ng pitch")}><button type="button" aria-pressed={simulation} onClick={() => setView("simulation")}><Users size={13} />{tr(language, "Full-team simulation", "Simulasyon ng lahat")}</button><button type="button" aria-pressed={!simulation} onClick={() => setView("events")}><Crosshair size={13} />{tr(language, "Recorded events", "Naitalang aksiyon")}</button></div>
+            {simulation && <>
+                <div className="pitch-sizing-controls" role="group" aria-label={tr(language, "Pitch size", "Laki ng pitch")}>
+                    <Button type="button" size="sm" variant="ghost" aria-pressed={sizing === "fit"} aria-controls="pitch-stage" onClick={() => setSizing("fit")}>{tr(language, "Fit pitch", "Iangkop ang pitch")}</Button>
+                    <Button type="button" size="sm" variant="ghost" aria-pressed={sizing === "detailed"} aria-controls="pitch-stage" onClick={() => setSizing("detailed")}>{tr(language, "Detailed view", "Detalyadong tanaw")}</Button>
+                </div>
+                <label><input type="checkbox" checked={names} onChange={e => setNames(e.target.checked)} />{tr(language, "Player names", "Mga pangalan")}</label>
+            </>}
+        </div>
     );
     return (
         <section className={`panel pitch-panel${compact ? " pitch-compact" : ""}`} id="pitch" aria-labelledby="pitch-heading">
             <div className="panel-heading">
                 <div className="heading-icon"><Crosshair size={17} /><h2 id="pitch-heading">{tr(language, "The pitch", "Ang pitch")}</h2><span className="subtle-label">2D</span></div>
                 <div className="pitch-header-tools">
-                <div className="pitch-heading-status">
-                    <span className="micro-label"><span className={`tiny-dot ${pinned ? "amber" : "green"}`} />{pinned ? tr(language, "REVIEWING EVENT", "SINUSURI ANG PANGYAYARI") : simulation ? tr(language, "SIMULATED MOVEMENT", "SIMULADONG GALAW") : tr(language, "EVENT VIEW", "TANAW NG PANGYAYARI")}</span>
-                    {pinned && <Button type="button" size="sm" variant="outline" onClick={onLive}><X size={13} aria-hidden="true" />{tr(language, "Follow live", "Sundan ang laro")}</Button>}
-                </div>
+                    <div className="pitch-heading-status">
+                        <span className="micro-label"><span className={`tiny-dot ${pinned ? "amber" : "green"}`} />{pinned ? tr(language, "REVIEWING EVENT", "SINUSURI ANG PANGYAYARI") : simulation ? tr(language, "SIMULATED MOVEMENT", "SIMULADONG GALAW") : tr(language, "EVENT VIEW", "TANAW NG PANGYAYARI")}</span>
+                        {pinned && <Button type="button" size="sm" variant="outline" onClick={onLive}><X size={13} aria-hidden="true" />{tr(language, "Follow live", "Sundan ang laro")}</Button>}
+                    </div>
                     {compact && <details className="pitch-settings" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.open = false; }} onKeyDown={e => { if (e.key === "Escape") { e.currentTarget.open = false; e.currentTarget.querySelector("summary")?.focus(); e.stopPropagation(); } }}>
                         <summary aria-label={tr(language, "Pitch view settings", "Mga setting ng tanaw ng pitch")}><Settings2 size={14} aria-hidden="true" />{tr(language, "View", "Tanaw")}</summary>
                         {viewControls}
