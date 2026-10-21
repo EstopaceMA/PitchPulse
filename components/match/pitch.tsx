@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
-import { ArrowLeft, ArrowRight, Crosshair, Info, Radio, UserRound, Users, X } from "lucide-react";
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { ArrowLeft, ArrowRight, Crosshair, Info, Radio, Settings2, UserRound, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatTime, pitchPosition } from "@/lib/match/playback";
 import { buildMovementTimeline, sampleMovement } from "@/lib/match/movement";
@@ -17,7 +17,7 @@ function subscribeMotion(callback: () => void) {
 const motionPreference = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const serverMotionPreference = () => false;
 
-export function Pitch({ data, events, elapsed, event, pinned, language, onLive }: { data: MatchData; events: readonly MatchEvent[]; elapsed: number; event?: MatchEvent; pinned: boolean; language: Language; onLive: () => void }) {
+export function Pitch({ data, events, elapsed, event, pinned, language, onLive, compact = false, actions }: { data: MatchData; events: readonly MatchEvent[]; elapsed: number; event?: MatchEvent; pinned: boolean; language: Language; onLive: () => void; compact?: boolean; actions?: ReactNode }) {
     const [view, setView] = useState<"simulation" | "events">("simulation");
     const [sizing, setSizing] = useState<"fit" | "detailed">("fit");
     const [names, setNames] = useState(true);
@@ -48,16 +48,8 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive }
     const failed = event?.type === "pass" && event.outcome !== "complete";
     const awayName = data.teams.find(t => t.team_id === data.match.away_team_id)?.name;
     const homeName = data.teams.find(t => t.team_id === home)?.name;
-    return (
-        <section className="panel pitch-panel" id="pitch" aria-labelledby="pitch-heading">
-            <div className="panel-heading">
-                <div className="heading-icon"><Crosshair size={17} /><h2 id="pitch-heading">{tr(language, "The pitch", "Ang pitch")}</h2><span className="subtle-label">2D</span></div>
-                <div className="pitch-heading-status">
-                    <span className="micro-label"><span className={`tiny-dot ${pinned ? "amber" : "green"}`} />{pinned ? tr(language, "REVIEWING EVENT", "SINUSURI ANG PANGYAYARI") : simulation ? tr(language, "SIMULATED MOVEMENT", "SIMULADONG GALAW") : tr(language, "EVENT VIEW", "TANAW NG PANGYAYARI")}</span>
-                    {pinned && <Button type="button" size="sm" variant="outline" onClick={onLive}><X size={13} aria-hidden="true" />{tr(language, "Follow live", "Sundan ang laro")}</Button>}
-                </div>
-            </div>
-            <div className="pitch-view-controls">
+    const viewControls = (
+        <div className="pitch-view-controls">
                 <div role="group" aria-label={tr(language, "Pitch view", "Tanaw ng pitch")}><button type="button" aria-pressed={simulation} onClick={() => setView("simulation")}><Users size={13} />{tr(language, "Full-team simulation", "Simulasyon ng lahat")}</button><button type="button" aria-pressed={!simulation} onClick={() => setView("events")}><Crosshair size={13} />{tr(language, "Recorded events", "Naitalang aksiyon")}</button></div>
                 {simulation && <>
                     <div className="pitch-sizing-controls" role="group" aria-label={tr(language, "Pitch size", "Laki ng pitch")}>
@@ -67,6 +59,24 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive }
                     <label><input type="checkbox" checked={names} onChange={e => setNames(e.target.checked)} />{tr(language, "Player names", "Mga pangalan")}</label>
                 </>}
             </div>
+    );
+    return (
+        <section className={`panel pitch-panel${compact ? " pitch-compact" : ""}`} id="pitch" aria-labelledby="pitch-heading">
+            <div className="panel-heading">
+                <div className="heading-icon"><Crosshair size={17} /><h2 id="pitch-heading">{tr(language, "The pitch", "Ang pitch")}</h2><span className="subtle-label">2D</span></div>
+                <div className="pitch-header-tools">
+                <div className="pitch-heading-status">
+                    <span className="micro-label"><span className={`tiny-dot ${pinned ? "amber" : "green"}`} />{pinned ? tr(language, "REVIEWING EVENT", "SINUSURI ANG PANGYAYARI") : simulation ? tr(language, "SIMULATED MOVEMENT", "SIMULADONG GALAW") : tr(language, "EVENT VIEW", "TANAW NG PANGYAYARI")}</span>
+                    {pinned && <Button type="button" size="sm" variant="outline" onClick={onLive}><X size={13} aria-hidden="true" />{tr(language, "Follow live", "Sundan ang laro")}</Button>}
+                </div>
+                    {compact && <details className="pitch-settings" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.open = false; }} onKeyDown={e => { if (e.key === "Escape") { e.currentTarget.open = false; e.currentTarget.querySelector("summary")?.focus(); e.stopPropagation(); } }}>
+                        <summary aria-label={tr(language, "Pitch view settings", "Mga setting ng tanaw ng pitch")}><Settings2 size={14} aria-hidden="true" />{tr(language, "View", "Tanaw")}</summary>
+                        {viewControls}
+                    </details>}
+                    {actions && <div className="pitch-header-actions">{actions}</div>}
+                </div>
+            </div>
+            {!compact && viewControls}
             <div className="pitch-toolbar"><span style={{ color: teamColor(data.match.away_team_id, home) }}><ArrowLeft size={13} />{awayName}</span><span>{tr(language, "Fixed attacking directions", "Nakapirming direksiyon")}</span><span style={{ color: teamColor(home, home) }}>{homeName}<ArrowRight size={13} /></span></div>
             <div id="pitch-stage" className={`pitch-stage${simulation ? ` full-team-stage pitch-${sizing}` : ""}`} tabIndex={simulation ? 0 : undefined} role={simulation ? "region" : undefined} aria-label={simulation ? sizing === "fit" ? tr(language, "Full-team pitch. Fit pitch view.", "Pitch ng lahat. Nakaangkop na tanaw ng pitch.") : tr(language, "Full-team pitch. Scroll horizontally on small screens.", "Pitch ng lahat. Mag-scroll pahalang sa maliit na screen.") : undefined}>
                 <svg viewBox="0 0 760 510" role={simulation ? "group" : "img"} aria-label={simulation ? tr(language, `${frame.players.length} players with illustrative movement and dataset names.`, `${frame.players.length} manlalaro na may halimbawang galaw at mga pangalan mula sa dataset.`) : event ? `${formatTime(event.match_time_seconds)} ${actor?.name ?? ""} ${eventLabel(event, language)}. ${tr(language, "Only recorded event positions are shown.", "Mga naitalang posisyon lamang ang ipinapakita.")}` : tr(language, "Empty pitch. Start playback to see recorded actions.", "Walang aksiyon. Simulan ang laro.")}>

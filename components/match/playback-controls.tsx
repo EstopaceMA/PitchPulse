@@ -7,7 +7,7 @@ import { formatTime, type PlaybackAction, type PlaybackState } from "@/lib/match
 import { tr } from "@/lib/match/presentation";
 import type { Language, MatchData } from "@/lib/match/types";
 
-export function PlaybackControls({ data, state, language, statusText, dispatch, onRestart, onSeek, onStep }: {
+export function PlaybackControls({ data, state, language, statusText, dispatch, onRestart, onSeek, onStep, showTimeline = true }: {
     data: MatchData;
     state: PlaybackState;
     language: Language;
@@ -16,6 +16,7 @@ export function PlaybackControls({ data, state, language, statusText, dispatch, 
     onRestart: () => void;
     onSeek: (elapsed: number) => void;
     onStep: () => void;
+    showTimeline?: boolean;
 }) {
     const ref = useRef<HTMLElement>(null);
     const halftime = state.status === "half-time", complete = state.status === "full-time";
@@ -54,10 +55,10 @@ export function PlaybackControls({ data, state, language, statusText, dispatch, 
                 </div>
             </div>
         </div>
-        <div className="timeline-wrap">
+        {showTimeline && <div className="timeline-wrap">
             <div className="timeline-marker" style={{ left: `${data.match.period_seconds / data.match.duration_seconds * 100}%` }} />
             <input className="timeline" type="range" min="0" max={data.match.duration_seconds} step="1" value={state.elapsed} aria-label={tr(l, "Match timeline", "Timeline ng laban")} aria-valuetext={`${formatTime(state.elapsed)} ${statusText}`} style={{ "--progress": `${state.elapsed / data.match.duration_seconds * 100}%` } as CSSProperties} onChange={e => onSeek(Number(e.target.value))} />
             <div className="timeline-labels"><span>00:00</span><span>{tr(l, "HALF-TIME", "PAHINGA")} · {formatTime(data.match.period_seconds)}</span><span>{formatTime(data.match.duration_seconds)}</span></div>
-        </div>
+        </div>}
     </section>;
 }

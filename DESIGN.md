@@ -1,76 +1,41 @@
-# DESIGN.md - "PitchPulse" Football Match Intelligence
+# PitchPulse — Match Analysis Studio
 
-## 1. Visual Theme & Atmosphere
-The design should convey **live match energy**, **analytical clarity**, and **control**. The interface should feel like a professional football analytics dashboard, with clear insights that fans and broadcasters can understand.
+## Experience
 
-PitchPulse uses **synthetic football events** to simulate live matches, surface key moments, generate commentary, and produce automated match recaps. The experience should work well on laptops and tablets.
+The home page is a game library. Opening a card enters a focused analysis studio modeled on an editing application's layout. The pitch is the primary viewer, with an event/library browser on the left, an analysis inspector on the right, and a transport/timeline below. This is structured-event replay; there is no actual video, clip export, or recorded player tracking.
 
-## 2. Color Palette
+The library begins with the one bundled synthetic demo. Additional games come from validated JSON imports. Never fabricate fixtures, dates, team crests, footage thumbnails, or final-result previews to fill the grid. Card previews use CSS pitch markings and team initials.
 
-- **Primary Background:** `#101411` (Deep dark green for visual comfort).
-- **Card Surface:** `#19211B`.
-- **Primary Accent (Data):** `#32D74B` (Vibrant Green) for charts, key statistics, and action buttons.
-- **Highlight Accent:** `#A3E635` (Lime) for key moments and selected states.
-- **Alert Accent:** `#FF453A` (Red) for red cards, errors, and critical alerts.
-- **Caution Accent:** `#FFCC00` (Yellow) for yellow cards and warnings.
-- **Primary Text:** `#FFFFFF`.
-- **Secondary Text:** `#9BA89E` (Muted gray-green for labels).
-- **Borders and Grid Lines:** `#2A362D`.
+## Visual language
 
-## 3. Component Styling
+- Charcoal background `#111315`, surfaces `#1a1d20`, inset panels `#15191c`, borders `#30363a`.
+- Green `#32D74B` for playback, actions, and active indicators; lime `#A3E635` for focus. Keep accents restrained.
+- Home red `#FF6276` and away blue `#669CFF` consistently identify teams on the pitch, timeline, and comparisons. Use labels and distinct solid/dashed marks as well as color.
+- Inter for interface text, JetBrains Mono for clock/data values. Both remain self-hosted.
+- Library cards use rounded corners and generous spacing. Studio panels use shared edges, compact headers, and independent scrolling. Extend the existing tokens in `app/globals.css`; reuse the Base UI button/select components.
 
-- **Cards:** `border-radius: 16px`. Background: `#19211B`. Internal padding: `20px`. Subtle border: `1px solid #2A362D`.
-- **Scoreboard:** Prominent team names, scores, match clock, and match phase. Include a visible **“Simulated Match”** label.
-- **Charts:** Grid lines in `#2A362D`. Team comparisons use the same red home (`#FF6276`) and blue away (`#669CFF`) colors as the pitch, with distinct line styles and labels. Reserve green for non-team data and actions.
-- **Pitch Visualization:** Muted green pitch with thin markings. Display event positions, passes, and shots using clear markers and restrained animations.
-- **Event Feed:** Timestamped rows with event icons, team names, and short descriptions. Hover background: `#223026`.
-- **Insight Cards:** Pair each AI-generated insight with supporting statistics or linked match events.
-- **Alerts:** Background: `#3A1C1C`. Text: `#FF453A`. Left border: `4px solid #FF453A`.
-- **Simulator Controls:** Clear Start, Pause, and Reset buttons, alongside playback speed and scenario selection.
-- **Dropdowns:** Shared Base UI selects with inset dark triggers, visible chevrons, lime focus/selection states, and selected-item checkmarks. Group players by team in scrollable, viewport-bounded menus; preserve 44px targets, keyboard/type-ahead navigation, and reduced-motion support.
+## Layout and navigation
 
-## 4. Typography
+- Library: branding, language, browser save status, introduction/import action, search, responsive card grid, quiet footer. Cards show teams, duration, source, saved progress, and annotation count.
+- Studio: the pitch dominates the workspace. The event browser starts collapsed, the inspector stays narrow, and the top bars and bottom timeline remain compact. Pitch view options open from the **View** menu; note/bookmark actions share the pitch header.
+- Browser tabs: reached events with team/player/type filters, or saved library entries with import.
+- Inspector tabs: Details, Stats, Insights, Notes. Retain viewing modes, player focus, rule-based disclosures, commentary, evidence links, and boundary recaps.
+- Desktop side panels collapse independently. Tablet/mobile stack the pitch, inspector, and browser; retain a single accessible playback dock with safe-area space. Zoomed tracks scroll inside their own viewport.
 
-- **Headings:** Inter, Semi Bold, 24px.
-- **Scoreboard:** Inter, Bold, 40px.
-- **Match Clock:** JetBrains Mono or Fira Code, Bold, 32px. Use tabular numbers to prevent shifting.
-- **Body and Commentary:** Inter Regular, 14px.
-- **Labels and Timestamps:** Inter Medium, 12px.
+## Timeline and analysis
 
-## 5. Layout Principles
+- Provide one native scrubber, a time ruler, playhead, half-time boundary, home/away event tracks, and saved annotation track. Fit/2×/4×/8× zoom changes scale only.
+- Render only reached events. Group crowded markers and page their event lists; do not render 50,000 interactive markers.
+- Selecting a reached event inspects its historical pitch snapshot without moving live playback or statistics. Keep a clear reviewing status and **Follow live** action.
+- Notes capture the playhead or inspected event; bookmarks save the same exact anchor immediately. Both pause playback. Saved annotations remain accessible after rewinding. Selecting a note shows its text; **Go to moment** deliberately restores its saved prefix.
+- Persist match JSON, annotations, and exact checkpoints in this browser. Communicate saved/saving/unsaved status accurately; storage failure must leave session analysis usable. There is no cloud account or cross-device sync.
 
-- **Grid:** 12 columns.
-- **Spacing:** Multiples of 8px (8px, 16px, 24px, 32px).
-- **Header:** PitchPulse branding, match selection, simulation status, and personalization settings.
-- **Scoreboard:** Full-width match summary with teams, score, clock, and simulator controls.
-- **Statistics:** Keep shots, shots on target, and pass accuracy in the Match statistics panel. Do not duplicate them in a separate KPI row between the scoreboard and pitch.
-- **Main Area:** Pitch visualization and match statistics spanning 8 columns. Live commentary and key moments spanning 4 columns on the right.
-- **Lower Area:** Event timeline, explainable AI insights, and match recap.
-- **Tablet Layout:** Stack panels in reading order while keeping the scoreboard and simulator controls easy to access.
+## Accessibility and integrity
 
-## 6. Do’s and Don’ts
+- Every visible label and accessible control supports English/Filipino through `tr`. Keep keyboard focus, skip links, accessible dropdowns, SVG descriptions, native scrubber keyboard navigation, and reduced-motion snapshots.
+- Retain all playback invariants: elapsed time plus event cursor, explicit second-half transition, full-time stop, deterministic seeking/restart, and one shared movement clock. Reopening restores playback paused.
+- Derive scores, statistics, insights, recaps, and event tracks only from the processed prefix. Strip embedded final summaries at validation. Only user-authored annotations can remain visible beyond a rewound playhead.
+- Movement remains explicitly illustrative. Recorded-event view uses supplied positions only; no invented missing shot endpoints, possession percentages, player distances, tracking measurements, or calibrated probabilities.
+- Insight facts and cautious interpretations remain separate, supported by reached evidence IDs. Local rules are not labeled AI.
 
-- ✅ **Do:** Use green as the primary accent with restrained gradients.
-- ✅ **Do:** Clearly label synthetic data and simulated live playback.
-- ✅ **Do:** Ground commentary and recaps in events that have already occurred.
-- ✅ **Do:** Show why a key moment matters using supporting events and statistics.
-- ✅ **Do:** Allow users to choose a favorite team, commentary language, and detail level.
-- ✅ **Do:** Use text and icons alongside colors to distinguish teams and event types.
-- ❌ **Don’t:** Present synthetic matches as real fixtures or live results.
-- ❌ **Don’t:** Invent player actions, statistics, or explanations unsupported by the event data.
-- ❌ **Don’t:** Reveal future events or the final result before playback reaches them.
-- ❌ **Don’t:** Overload the dashboard with animations, neon effects, or decorative graphics.
-- ❌ **Don’t:** Include video playback controls; the simulator is driven by structured match events.
-
-## 7. Current implementation and data boundaries
-
-- Possession is **unavailable** and is not shown as a metric: the event dataset does not record possession durations. Never estimate a percentage from event counts or timestamps.
-- Commentary, key moments, statistics, and recaps receive only processed events or statistics reduced from that prefix. Seeking backward removes later contributions.
-- Insights are currently **local, rule-based**, not AI-generated. Keep that visible disclosure and supporting evidence; `InsightProvider` remains the future AI adapter boundary.
-- Scenario selection offers the bundled synthetic demonstration and validated JSON uploads. No invented scenarios, disciplinary events, or future-result previews are added.
-- Keep the header uncluttered: branding/navigation/preferences occupy the primary row; match selection, one upload action, and a compact status badge occupy a separate contextual row. Language is inside Preferences, not duplicated in the header. On small screens the labeled settings icon opens the same preferences.
-- Inter and JetBrains Mono are self-hosted. Mobile retains one accessible playback dock and analysis switching; tablet panels stack without hiding primary controls.
-- Team identity on the pitch and in Match statistics uses the shared red/blue team colors. Comparison labels, values, and bars use red for home and blue for away, including recap comparisons. Preserve solid home and dashed/striped away marks; colors are never the sole identifier.
-- Panel headings use 24px; compact card labels and timestamps use 12px. Cards use a 20px content inset, with layout gaps on the 8px scale.
-
-See [AGENTS.md](AGENTS.md) for implementation invariants and [README.md](README.md) for the upload contract and verification workflow.
+See [README.md](README.md) for the user workflow and upload contract, and [AGENTS.md](AGENTS.md) for development and verification requirements.

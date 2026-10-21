@@ -158,3 +158,45 @@ test("shared dropdown preserves and safely renders custom labels without firing 
     assert.match(html, /class="dropdown-value">&lt;Player&gt; &amp; Team<\/span>/);
     assert.equal(changes, 0);
 });
+import { MatchCard } from "./match-library";
+import { StudioNotes } from "./studio-notes";
+import { StudioTimeline } from "./studio-timeline";
+import { createLibraryMatch } from "@/lib/match/library";
+
+test("library cards show local progress and annotations without a final result", () => {
+    const match = createLibraryMatch("local-1", data, "review.json", "upload", 1);
+    const html = renderToStaticMarkup(<MatchCard match={match} language="en" onRemove={noop} />);
+    assert.match(html, /href="\/studio\/local-1"/);
+    assert.match(html, /Ready to analyze/);
+    assert.match(html, /Remove imported match/);
+    assert.match(html, /review.json/);
+    assert.doesNotMatch(html, /final_score|Full-time|data-testid="score"/);
+});
+
+test("studio timeline has one scrubber and never renders unprocessed markers", () => {
+    const html = renderToStaticMarkup(<StudioTimeline data={data} events={[]} state={initialPlayback()} language="en" annotations={[]} selectedId={null} onAnnotation={noop} onEvent={noop} dispatch={noop} onSeek={noop} onRestart={noop} onStep={noop} statusText="Ready" />);
+    assert.equal((html.match(/type="range"/g) ?? []).length, 1);
+    assert.match(html, /Analysis timeline/);
+    assert.match(html, /Timeline zoom/);
+    assert.match(html, /Saved annotations/);
+    assert.doesNotMatch(html, /class="event-marker/);
+});
+
+test("studio timeline remains bounded with 50,000 processed events", () => {
+    const events = Array.from({ length: 50000 }, (_, i) => ({ ...data.events[0], event_id: `e${i}`, team_id: data.match.home_team_id, match_time_seconds: i / 50000 * data.match.duration_seconds }));
+    const html = renderToStaticMarkup(<StudioTimeline data={data} events={events} state={initialPlayback()} language="en" annotations={[]} selectedId={null} onAnnotation={noop} onEvent={noop} dispatch={noop} onSeek={noop} onRestart={noop} onStep={noop} statusText="Paused" />);
+    assert.ok((html.match(/class="event-marker/g) ?? []).length <= 40);
+    assert.ok(html.length < 50000);
+});
+
+test("notes expose bilingual empty states and explicit moment navigation", () => {
+    const props = { annotations: [], language: "fil" as const, selectedId: null, draft: null, onSelect: noop, onDraft: noop, onCreate: noop, onSave: noop, onDelete: noop, onGo: noop };
+    const empty = renderToStaticMarkup(<StudioNotes {...props} />);
+    assert.match(empty, /Magdagdag ng tala/);
+    assert.match(empty, /Gawing iyo ang pagsusuri/);
+    const note = { id: "n1", kind: "note" as const, text: "<script>test</script>", anchor: initialPlayback(), createdAt: 1 };
+    const selected = renderToStaticMarkup(<StudioNotes {...props} annotations={[note]} selectedId="n1" />);
+    assert.match(selected, /Pumunta sa sandali/);
+    assert.match(selected, /&lt;script&gt;/);
+    assert.doesNotMatch(selected, /<script>test/);
+});

@@ -1,5 +1,5 @@
-import Simulator from "@/components/match/simulator";
+import MatchLibrary from "@/components/match/match-library";
 
 export default function Home() {
-  return <Simulator />;
+    return <MatchLibrary />;
 }

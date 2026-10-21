@@ -46,6 +46,31 @@ export interface Metrics {
 }
 export interface Statistics { teams: Record<string, Metrics>; players: Record<string, Metrics> }
 export interface Preferences { mode: ViewMode; language: Language; team: string; player: string }
+export interface PlaybackCheckpoint {
+    elapsed: number;
+    cursor: number;
+    secondHalf: boolean;
+    status: "ready" | "playing" | "paused" | "half-time" | "full-time";
+    speed: number;
+}
+export interface MatchAnnotation {
+    id: string;
+    kind: "note" | "bookmark";
+    text: string;
+    anchor: PlaybackCheckpoint;
+    eventId?: string;
+    createdAt: number;
+}
+export interface LibraryMatch {
+    id: string;
+    data: MatchData;
+    source: string;
+    kind: "demo" | "upload";
+    createdAt: number;
+    updatedAt: number;
+    checkpoint: PlaybackCheckpoint;
+    annotations: MatchAnnotation[];
+}
 export interface Insight {
     id: string; rule: "recoveries" | "shots" | "passing" | "player";
     teamId: string; playerId?: string; at: number; from: number;

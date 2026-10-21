@@ -708,3 +708,72 @@ describe("rule-based insight provider", () => {
     assert.equal(player.metrics.find((metric) => metric.label.en === "Goals")?.value, "1");
   });
 });
+// Studio checkpoints must preserve cursor identity, not just the displayed clock.
+import { annotationAnchor, restorePlayback, validCheckpoint } from "./playback";
+import { createLibraryMatch, groupTimelineEvents, validateAnnotations, validateLibraryMatch } from "./library";
+
+describe("studio persistence and annotation anchors", () => {
+  test("restores stepped equal-time events exactly and never resumes automatically", () => {
+    const first = playbackReducer(data, initialPlayback(), { type: "step" });
+    assert.equal(first.cursor, 1);
+    assert.equal(first.elapsed, 0);
+    assert.deepEqual(restorePlayback(data, first), first);
+    assert.equal(restorePlayback(data, { ...first, status: "playing" }).status, "paused");
+    assert.equal(restorePlayback(data, { ...first, status: "playing" }).cursor, 1);
+  });
+  test("keeps opposite sides of the half-time boundary distinct", () => {
+    const halfState = playbackReducer(data, initialPlayback(), { type: "seek", elapsed: half });
+    const secondHalf = playbackReducer(data, halfState, { type: "toggle" });
+    assert.equal(restorePlayback(data, halfState).status, "half-time");
+    assert.equal(restorePlayback(data, secondHalf).secondHalf, true);
+    assert.equal(restorePlayback(data, secondHalf).status, "paused");
+    assert.ok(secondHalf.cursor > halfState.cursor);
+    assert.equal(restorePlayback(data, secondHalf).cursor, secondHalf.cursor);
+  });
+  test("invalid stored checkpoints reset safely", () => {
+    for (const value of [null, {}, { ...initialPlayback(), elapsed: NaN }, { ...initialPlayback(), cursor: 999999 }, { ...initialPlayback(), elapsed: 100 }, { ...initialPlayback(), secondHalf: true }, { ...initialPlayback(), status: "full-time" }]) {
+      assert.equal(validCheckpoint(data, value), false);
+      assert.deepEqual(restorePlayback(data, value), initialPlayback());
+    }
+  });
+  test("full-time restores completed and restart still clears the prefix", () => {
+    const completed = playbackReducer(data, initialPlayback(), { type: "seek", elapsed: end });
+    assert.equal(restorePlayback(data, completed).status, "full-time");
+    assert.deepEqual(playbackReducer(data, completed, { type: "restart" }), initialPlayback());
+  });
+  test("inspection annotation anchors end at the selected event without changing live state", () => {
+    const live = playbackReducer(data, initialPlayback(), { type: "seek", elapsed: end });
+    const before = { ...live };
+    const anchor = annotationAnchor(data, live, data.events[0].event_id);
+    assert.equal(anchor.cursor, 1);
+    assert.equal(anchor.elapsed, 0);
+    assert.deepEqual(live, before);
+    const restored = playbackReducer(data, live, { type: "restore", checkpoint: anchor });
+    assert.equal(aggregate(data, data.events.slice(0, restored.cursor)).teams[data.match.home_team_id].goals, 0);
+    assert.equal(aggregate(data, data.events.slice(0, restored.cursor)).teams[data.match.away_team_id].goals, 0);
+  });
+  test("annotation references must be within their saved prefix", () => {
+    const note = { id: "note", kind: "note", text: "Look at the shape", anchor: annotationAnchor(data, initialPlayback()), createdAt: 1 };
+    assert.equal(validateAnnotations(data, [note]).length, 1);
+    assert.equal(validateAnnotations(data, [{ ...note, eventId: data.events[0].event_id }]).length, 0);
+    assert.equal(validateAnnotations(data, [note, note]).length, 1);
+    assert.equal(validateAnnotations(data, [{ ...note, text: "x".repeat(4001) }]).length, 0);
+  });
+  test("library validation strips final summaries and resets only invalid review data", () => {
+    const match = createLibraryMatch("independent-id", data, "test.json", "upload", 1);
+    const stored = validateLibraryMatch({ ...match, data: fixture }, { checkpoint: { elapsed: -1 }, annotations: [] });
+    assert.equal(stored.id, "independent-id");
+    assert.equal("final_score" in stored.data.match, false);
+    assert.deepEqual(stored.checkpoint, initialPlayback());
+    assert.throws(() => validateLibraryMatch({ ...match, data: {} }));
+  });
+  test("50,000 events produce a bounded set of timeline groups with no lost events", () => {
+    const large = Array.from({ length: 50000 }, (_, i) => ({ ...data.events[0], event_id: `large-${i}`, sequence: i, match_time_seconds: i / 49999 * end }));
+    for (const buckets of [40, 80, 160, 320]) {
+      const groups = groupTimelineEvents(large, end, buckets);
+      assert.ok(groups.length <= buckets);
+      assert.equal(groups.reduce((n, group) => n + group.events.length, 0), 50000);
+    }
+    assert.equal(groupTimelineEvents([], end, 40).length, 0);
+  });
+});

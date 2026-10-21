@@ -2,24 +2,26 @@
 
 A working event-driven football simulator using Next.js, TypeScript, Tailwind, shadcn/ui, Lucide, and self-hosted Inter and JetBrains Mono. No continuous tracking, AI connection, or credentials are involved.
 
-The visual specification is maintained in [DESIGN.md](DESIGN.md): dark-green surfaces, green/lime data accents, 16px cards, and a responsive 12-column dashboard. Unsupported possession metrics are not shown; local rule-based insights are never mislabeled as AI output.
+The visual specification is maintained in [DESIGN.md](DESIGN.md): a charcoal match library and an editor-style analysis studio with green accents and red/blue team identity. The shipped insights are local and rule-based.
 
-## Simulator guide
+## Library and studio guide
 
-- Play/pause, restart, step one event, select 1×/5×/10×/30× speed, or scrub the timeline. Arrow keys, Home, and End work on the native scrubber.
-- Half-time pauses before period-two events sharing 45:00. **Start second half** resumes. Full-time stops automatically. Seeking beyond half-time is allowed.
-- Clicking a feed event or insight evidence ID inspects that processed event on the pitch. **Follow live**, beside the reviewing status in the pitch header, restores the current event. Inspection does not change the shared clock or statistics.
-- Casual Fan uses shorter explanations. Analyst exposes comparisons and interpretations. Player Focus shows the selected player's feed, insights, and accumulated metrics. Changing focus resets feed filters only.
-- **Preferences** (the settings icon on mobile) changes favorite team (insight priority), player, and English/Filipino language without restarting. Preferences are session-only.
-- **Load match** pauses playback and validates JSON locally. Invalid files preserve the current match; valid files reset it. Limits: 10 MB and 50,000 events. Empty datasets have a dedicated state.
-- Half/full-time recaps use only processed events for goals, statistics, player contributions, and supporting patterns.
-- The pitch opens in **Full-team simulation** with **Fit pitch** selected: every roster player has a marker, role-based formation, and deterministic illustrative movement driven by the same match clock. On narrow screens, fit mode shows active/selected names; select a marker or lineup entry to see player details below the field. **Detailed view** keeps all enabled names readable with horizontal scrolling. **Player names** toggles labels in either size mode.
-- Desktop opens with a full-width match summary and simulator controls, followed directly by the main 8/4 grid: the pitch and statistics beside viewing modes, factual commentary, and key moments. Shots, shots on target, and pass accuracy remain in Match statistics, without a separate KPI card row. Event history, evidence-linked insights, and half/full-time recaps follow below. Expanded lineups cannot stretch the sidebar controls.
-- The header separates branding, navigation, and **Preferences** from a quieter match-selection row with one **Load match** action and a compact status badge. Language lives inside Preferences instead of a duplicate header selector. Commentary and its evidence links show only reached events; goals and on-target shots form the key moments, never a future-result preview.
-- Match selection, preferences, player focus, and event filters share styled, accessible dropdowns with selected-item checks and grouped player lists. Use arrow keys or type a name to navigate, Enter to select, and Escape to close. Escape closes an open dropdown before its containing Preferences panel; selections never restart playback except when loading a different match.
-- On tablets the panels stack in reading order. On mobile, a persistent playback bar reserves space at the bottom, including device safe areas. **Events / Insights / Statistics** switches the visible analysis panel without resetting playback or feed filters.
-- **Recorded events** preserves the original event-only view. Simulated player paths and ball-flight timing are explicitly illustrative, not recorded tracking. Names are used exactly as supplied; the demo uses fictional labels, not actual club rosters.
-- Pausing, half-time, and full-time freeze movement; restart restores the formation; seeking reconstructs the same positions. Inspecting a historical event freezes its processed-prefix formation. Reduced-motion preferences replace continuous movement with event snapshots.
+- `/` opens a searchable game grid. The bundled Arsenal vs Chelsea synthetic demo is the first game; **Import match** adds compatible JSON as independent library entries. Cards show duration, saved progress, source, and annotation count without revealing final results.
+- Imported games, playback checkpoints, notes, and bookmarks are saved in IndexedDB in the current browser. There are no accounts or cloud synchronization. Clearing browser/site data removes the local library. Imports in different browsers are separate.
+- Each match opens at `/studio/[id]`. Reopening restores the exact last saved event cursor and clock, paused; ready, half-time, and full-time retain their boundary states. Unknown IDs offer a return to the library.
+- Desktop gives the pitch most of the workspace, with the event/library browser collapsed initially, a narrow inspector, and compact playback/timeline controls. **Browser** reopens the event list; **View** in the pitch header opens visualization, fit/detail, and name settings. Narrow screens stack analysis below the pitch and retain one playback dock with safe-area spacing.
+- The inspector provides event details, statistics, local insights/commentary, and notes. Half/full-time recaps appear there. New games default to Analyst; Casual Fan and Player Focus remain available under Details and Stats.
+- Play/pause, restart, step one event, choose 1×/5×/10×/30× speed, or scrub the timeline. Arrow keys, Home, and End work on the native scrubber. Fit/2×/4×/8× timeline zoom changes horizontal scale without changing playback.
+- Timeline team tracks show only processed events. Crowded timestamps form selectable groups, with paged event lists. The notes track shows saved user annotations, including moments beyond a rewound playhead.
+- Half-time pauses before period-two events sharing 45:00. **Start second half** explicitly resumes. Full-time stops automatically. Seeking beyond half-time is allowed.
+- Selecting an event or insight evidence inspects its processed-prefix pitch snapshot without changing the live clock or statistics. **Follow live** returns to the playhead. Scrubbing deliberately changes playback and rebuilds the prefix when moving backward.
+- **Note** pauses playback and opens a text editor anchored to the playhead or inspected event. **Bookmark** saves that moment immediately. Notes and bookmarks can be edited or deleted. Selecting an annotation opens its text; **Go to moment** explicitly restores its precise saved prefix, paused. Notes are plain text, up to 4,000 characters.
+- **Preferences** changes favorite team, player, and English/Filipino language without restarting. Preferences remain session-only. Player Focus resets feed filters when the focus changes.
+- Imports validate before rendering: 10 MB maximum and 50,000 events. Invalid uploads leave the current match and library unchanged. Imports from within the studio pause playback and add a library entry; select it in the Library tab to switch. Empty datasets have a dedicated state.
+- Checkpoints save every two seconds during playback and immediately on pause, seek, and studio navigation. Annotation changes save immediately. Abrupt browser/process termination may lose the latest unsaved interval. **Unsaved · this session only** indicates blocked/unavailable storage; **Retry** attempts persistence without discarding in-memory analysis. Corrupted stored match records are skipped with a recovery message; invalid checkpoints reset safely.
+- Imported games can be removed from their card after confirmation; this also removes their notes and bookmarks. The bundled demo remains available.
+- The pitch starts in **Full-team simulation**, **Fit pitch**, with player names enabled. **Detailed view** supports horizontal scrolling; selecting a player or lineup entry shows their details. All movement is deterministic and illustrative, driven by the shared replay clock.
+- **Recorded events** displays only supplied positions. Missing shot endpoints are never invented. Pause/boundary states freeze movement; reduced motion uses event snapshots. Demo player labels are fictional and are never presented as actual club rosters.
 
 ## Data and architecture
 
@@ -36,7 +38,10 @@ The default source is [public/arsenal-vs-chelsea-match.json](public/arsenal-vs-c
 | Named player markers and roster | [components/match/team-motion.tsx](components/match/team-motion.tsx) |
 | Deterministic bilingual rules | [lib/match/insights.ts](lib/match/insights.ts) |
 | Dataset API | [app/api/match/route.ts](app/api/match/route.ts) |
-| UI composition | [components/match/simulator.tsx](components/match/simulator.tsx) |
+| Game library | [components/match/match-library.tsx](components/match/match-library.tsx) |
+| Studio composition | [components/match/simulator.tsx](components/match/simulator.tsx) |
+| Library validation / timeline grouping | [lib/match/library.ts](lib/match/library.ts) |
+| IndexedDB / serialized session store | [lib/match/library-storage.ts](lib/match/library-storage.ts), [lib/match/use-library.ts](lib/match/use-library.ts) |
 | Tests | [lib/match/simulator.test.ts](lib/match/simulator.test.ts) |
 
 Playback stores elapsed time **and an event cursor** to preserve sequence at equal timestamps. Forward playback folds new events into cloned statistics; backward seeks rebuild the prefix. Statistics never use final summaries.
@@ -67,7 +72,7 @@ Supported event types: `match_start`, `kickoff`, `pass`, `shot`, `tackle`, `pres
 
 ## Verification and advisory
 
-Use `npm test`, `npm run lint`, and `npm run build`. Replay tests cover score rollback, period boundaries, validation, coordinates, and evidence. Movement tests cover all-player coverage, continuity, mirrored formations, equal timestamps, backward sampling, missing fields, and independence from future events. Component markup regressions in [components/match/presentation.test.tsx](components/match/presentation.test.tsx) cover pitch defaults, bilingual inspection controls, playback boundaries, transport labels, and header personalization. [components/match/summary-panels.test.tsx](components/match/summary-panels.test.tsx) verifies statistics comparisons, absence of possession estimates, bounded commentary, linked evidence, empty rosters, and exclusion of future goals and equal-time second-half events. Browser checks also cover responsive layout, the mobile playback dock, analysis switching, names/roster selection, motion freezing, seeking, uploads, scenario selection, and reduced motion.
+Use `npm test`, `npm run lint`, and `npm run build`. Replay tests cover score rollback, period boundaries, validation, coordinates, and evidence. Movement tests cover all-player coverage, continuity, mirrored formations, equal timestamps, backward sampling, missing fields, and independence from future events. Component markup regressions in [components/match/presentation.test.tsx](components/match/presentation.test.tsx) cover pitch defaults, bilingual inspection controls, playback boundaries, transport labels, and header personalization. [components/match/summary-panels.test.tsx](components/match/summary-panels.test.tsx) verifies statistics comparisons, absence of possession estimates, bounded commentary, linked evidence, empty rosters, and exclusion of future goals and equal-time second-half events. Studio regressions cover exact checkpoint restoration, same-time and period boundaries, annotation anchors, invalid persisted records, library cards, bilingual note controls, and bounded 50,000-event timeline rendering. Browser checks cover multiple imports, invalid input preservation, notes/bookmarks, reload persistence, navigation, removal, storage failure/retry, timeline zoom, playback boundaries, mobile layout, keyboard controls, and reduced motion.
 
 The current audit reports nine high-severity dependency paths rooted in `braces@3.0.3` ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)). The registry's latest release remains 3.0.3; suggested fixes downgrade shadcn/Next ESLint across major versions. These were not force-applied. Recheck upstream patches before deployment. Uploaded JSON never enters those glob-pattern tooling packages.
 

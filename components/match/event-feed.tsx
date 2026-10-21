@@ -14,6 +14,7 @@ export interface EventFeedProps {
     preferences: Preferences;
     selectedId: string | null;
     onSelect: (event: MatchEvent) => void;
+    hideDetails?: boolean;
 }
 
 type TeamFilter = "all" | "home" | "away";
@@ -58,7 +59,7 @@ function intensityLabel(intensity: string, language: Language): string {
     }
 }
 
-function EventDetails({ data, event, language, id }: { data: MatchData; event: MatchEvent; language: Language; id: string }) {
+export function EventDetails({ data, event, language, id }: { data: MatchData; event: MatchEvent; language: Language; id: string }) {
     const playerName = (playerId: string) => data.players.find(player => player.player_id === playerId)?.name ?? playerId;
     const intendedRecipient = event.outcome === "intercepted" || event.outcome === "incomplete";
 
@@ -120,7 +121,7 @@ function EventDetails({ data, event, language, id }: { data: MatchData; event: M
     );
 }
 
-export function EventFeed({ data, events, preferences, selectedId, onSelect }: EventFeedProps) {
+export function EventFeed({ data, events, preferences, selectedId, onSelect, hideDetails = false }: EventFeedProps) {
     const id = useId();
     const { language, mode } = preferences;
     const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
@@ -217,7 +218,7 @@ export function EventFeed({ data, events, preferences, selectedId, onSelect }: E
                                         type="button"
                                         className={`event-card${selected ? " selected" : ""}${goal ? " goal" : ""}${favorite ? " favorite" : ""}`}
                                         aria-pressed={selected}
-                                        aria-controls={selected ? detailsId : undefined}
+                                        aria-controls={selected && !hideDetails ? detailsId : undefined}
                                         onClick={() => onSelect(event)}
                                     >
                                         <time className="event-time">{formatTime(event.match_time_seconds)}</time>
@@ -246,11 +247,11 @@ export function EventFeed({ data, events, preferences, selectedId, onSelect }: E
                 </>
             )}
 
-            {selectedEvent ? (
+            {!hideDetails && (selectedEvent ? (
                 <EventDetails data={data} event={selectedEvent} language={language} id={detailsId} />
             ) : (
                 <p className="data-note">{tr(language, "Select an event to inspect its recorded details and highlight it on the pitch.", "Pumili ng pangyayari upang suriin ang naitalang detalye at itampok ito sa pitch.")}</p>
-            )}
+            ))}
         </section>
     );
 }

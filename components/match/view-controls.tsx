@@ -42,7 +42,7 @@ export function PreferencesMenu({ data, preferences, onChange, compact = false }
                     <Button ref={triggerRef} variant="ghost" className="personalize-button" aria-label={compact ? tr(l, "Preferences", "Mga setting") : undefined} title={compact ? tr(l, "Team, player and language preferences", "Mga setting ng koponan, manlalaro at wika") : undefined} aria-expanded={settings} aria-controls={`${id}-preferences`} onClick={() => setSettings(open => !open)}>
                         <Settings2 size={14} aria-hidden="true" /><span>{compact ? tr(l, "Preferences", "Mga setting") : tr(l, "Make it yours", "Iayon sa iyo")}</span><ChevronDown size={12} aria-hidden="true" />
                     </Button>
-                    {settings && <div className="preferences-popover panel" id={`${id}-preferences`}>
+                    {settings && <div className="preferences-popover" id={`${id}-preferences`}>
                         <h3>{tr(l, "Your match. Your perspective.", "Iyong laban. Iyong pananaw.")}</h3>
                         <label className="select-field">
                             <span>{tr(l, "Favorite team", "Paboritong koponan")}</span>

@@ -1,9 +1,40 @@
-import type { MatchData, MatchEvent, Position } from "./types";
+import type { MatchData, MatchEvent, Position, PlaybackCheckpoint } from "./types";
 
 export type MatchStatus = "ready" | "playing" | "paused" | "half-time" | "full-time";
 export interface PlaybackState { elapsed: number; cursor: number; status: MatchStatus; speed: number; secondHalf: boolean }
-export type PlaybackAction = { type: "toggle" } | { type: "restart" } | { type: "speed"; speed: number } | { type: "tick"; seconds: number } | { type: "seek"; elapsed: number } | { type: "step" };
+export type PlaybackAction = { type: "toggle" } | { type: "restart" } | { type: "restore"; checkpoint: PlaybackCheckpoint } | { type: "speed"; speed: number } | { type: "tick"; seconds: number } | { type: "seek"; elapsed: number } | { type: "step" };
 export const initialPlayback = (): PlaybackState => ({ elapsed: 0, cursor: 0, status: "ready", speed: 5, secondHalf: false });
+
+/** Validate exact prefixes, including partially stepped groups at an equal timestamp. */
+export function validCheckpoint(data: MatchData, value: unknown): value is PlaybackCheckpoint {
+    if (!value || typeof value !== "object") return false;
+    const p = value as PlaybackCheckpoint;
+    const half = data.match.period_seconds, end = data.match.duration_seconds;
+    if (!Number.isFinite(p.elapsed) || p.elapsed < 0 || p.elapsed > end || !Number.isInteger(p.cursor) || p.cursor < 0 || p.cursor > data.events.length || typeof p.secondHalf !== "boolean" || ![1, 5, 10, 30].includes(p.speed) || !["ready", "playing", "paused", "half-time", "full-time"].includes(p.status)) return false;
+    if (p.secondHalf ? p.elapsed < half : p.elapsed > half) return false;
+    const previous = data.events[p.cursor - 1], next = data.events[p.cursor];
+    if (previous && (previous.match_time_seconds > p.elapsed || (!p.secondHalf && previous.period === 2))) return false;
+    if (next && next.match_time_seconds < p.elapsed && (p.secondHalf || next.period === 1)) return false;
+    if (p.status === "ready" && (p.elapsed !== 0 || p.cursor !== 0 || p.secondHalf)) return false;
+    if (p.status === "half-time" && (p.elapsed !== half || p.secondHalf || p.cursor !== countReached(data.events, half, false))) return false;
+    if (p.status === "full-time" && (p.elapsed !== end || !p.secondHalf || p.cursor !== data.events.length)) return false;
+    return true;
+}
+
+export function restorePlayback(data: MatchData, value: unknown): PlaybackState {
+    if (!validCheckpoint(data, value)) return initialPlayback();
+    const p = { ...value, status: value.status === "playing" ? "paused" as const : value.status };
+    if (p.elapsed === data.match.period_seconds && !p.secondHalf && p.cursor === countReached(data.events, p.elapsed, false)) p.status = "half-time";
+    if (p.elapsed === data.match.duration_seconds && p.cursor === data.events.length) p.status = "full-time";
+    return p;
+}
+
+export function annotationAnchor(data: MatchData, state: PlaybackState, eventId?: string): PlaybackCheckpoint {
+    const index = eventId ? data.events.slice(0, state.cursor).findIndex(event => event.event_id === eventId) : -1;
+    if (index < 0) return restorePlayback(data, state);
+    const event = data.events[index];
+    return restorePlayback(data, { ...state, elapsed: event.match_time_seconds, cursor: index + 1, secondHalf: event.period === 2, status: "paused" });
+}
 
 export function countReached(events: readonly MatchEvent[], elapsed: number, secondHalf: boolean): number {
     let low = 0, high = events.length;
@@ -12,6 +43,7 @@ export function countReached(events: readonly MatchEvent[], elapsed: number, sec
 }
 export function playbackReducer(data: MatchData, state: PlaybackState, action: PlaybackAction): PlaybackState {
     const half = data.match.period_seconds, end = data.match.duration_seconds;
+    if (action.type === "restore") return restorePlayback(data, action.checkpoint);
     if (action.type === "restart") return { ...initialPlayback(), speed: state.speed };
     if (action.type === "speed") return [1, 5, 10, 30].includes(action.speed) ? { ...state, speed: action.speed } : state;
     if (action.type === "toggle") {

@@ -5,8 +5,8 @@ import "@fontsource/jetbrains-mono/700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PitchPulse — Every moment. More meaning.",
-  description: "An interactive, event-driven football match simulator. Follow the action, explore the evidence, and see the game differently. Synthetic match demonstration.",
+  title: "PitchPulse — Match Analysis Studio",
+  description: "A football match analysis workspace. Build a local match library, replay events, inspect the evidence, and save notes and bookmarks. Includes a synthetic demonstration.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
