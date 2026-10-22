@@ -154,7 +154,6 @@ export function EventFeed({ data, events, preferences, selectedId, onSelect, hid
                 <div className="heading-icon"><ListFilter size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(language, "Event feed", "Mga pangyayari")}</h2></div>
                 <span className="micro-label">{filteredEvents.length} {tr(language, "matching", "tugma")} · {events.length} {tr(language, "reached", "naabot")}</span>
             </div>
-            <p className="data-note">{tr(language, "Latest first. Only events reached in playback are shown.", "Pinakabago muna. Mga pangyayaring naabot lamang sa pag-play ang ipinapakita.")}</p>
             <div className="feed-filters">
                 <label className="select-field" htmlFor={`${id}-team`}>
                     <span>{tr(language, "Team", "Koponan")}</span>

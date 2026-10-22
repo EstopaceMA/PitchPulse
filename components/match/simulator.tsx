@@ -18,7 +18,7 @@ import { InsightsPanel } from "./insights-panel";
 import { CommentaryPanel } from "./commentary-panel";
 import { Recap } from "./recap";
 import { PreferencesMenu, perspectiveLabel } from "./view-controls";
-import { ImportMatch, StorageStatus, StudioBrand } from "./match-library";
+import { StorageStatus, StudioBrand } from "./match-library";
 import { StudioSplitter } from "./studio-splitter";
 import { useStudioLayout } from "./use-studio-layout";
 import { StudioTimeline } from "./studio-timeline";
@@ -46,7 +46,6 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
     const { state, dispatch, events, stats } = useSimulation(data, record.checkpoint);
     const [preferences, setPreferences] = useState<Preferences>({ mode: "analyst", language: library.language, team: data.match.home_team_id, player: data.players.find(p => p.team_id === data.match.home_team_id && p.position !== "GK")?.player_id ?? data.players[0]?.player_id ?? "" });
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [leftTab, setLeftTab] = useState<"events" | "library">("events");
     const [inspector, setInspector] = useState<"details" | "statistics" | "insights" | "ask" | "notes">("statistics");
     const [leftOpen, setLeftOpen] = useState(false);
     const [rightOpen, setRightOpen] = useState(true);
@@ -144,8 +143,7 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
 
         <div ref={bodyRef} className="studio-body" style={layout.style}>
             <aside id={`${panelId}-browser`} className="studio-browser" hidden={!leftOpen} aria-label={tr(l, "Match browser", "Browser ng laban")}>
-                <div className="studio-tabs" role="group" aria-label={tr(l, "Browser panels", "Mga panel ng browser")}><button type="button" aria-pressed={leftTab === "events"} onClick={() => setLeftTab("events")}><ListFilter size={14} />{tr(l, "Events", "Mga aksiyon")}</button><button type="button" aria-pressed={leftTab === "library"} onClick={() => setLeftTab("library")}><FolderOpen size={14} />{tr(l, "Library", "Library")}</button></div>
-                <div className="studio-pane-scroll">{leftTab === "events" ? <EventFeed key={preferences.mode === "player" ? `player:${preferences.player}` : "match"} data={data} events={events} preferences={preferences} selectedId={selected?.event_id ?? null} onSelect={event => inspect(event.event_id)} hideDetails /> : <div className="studio-library-list"><div className="inspector-heading"><h2>{tr(l, "Your matches", "Iyong mga laban")}</h2><span>{library.matches.length}</span></div>{library.matches.map(match => <Link key={match.id} href={`/studio/${match.id}`} aria-current={match.id === record.id ? "page" : undefined}><span className="mini-match-icon"><FolderOpen size={18} /></span><span><strong>{match.data.teams.map(team => team.name).join(" vs ")}</strong><small>{formatTime(match.checkpoint.elapsed)} · {match.annotations.length} {tr(l, "saved", "naka-save")}</small></span><ArrowUpRight size={14} /></Link>)}<ImportMatch language={l} onBeforeImport={pause} /><p className="data-note">{tr(l, "Imports are added to your library. Open a match above to switch.", "Nadadagdag sa library ang mga import. Pumili ng laban sa itaas upang lumipat.")}</p></div>}</div>
+                <div className="studio-pane-scroll"><EventFeed key={preferences.mode === "player" ? `player:${preferences.player}` : "match"} data={data} events={events} preferences={preferences} selectedId={selected?.event_id ?? null} onSelect={event => inspect(event.event_id)} hideDetails /></div>
             </aside>
             {layout.desktop && leftOpen && <StudioSplitter {...layout.browser} panelId={`${panelId}-browser`} language={l} cancelKey={layout.cancelKey} />}
             <main ref={viewerRef} id={`${panelId}-viewer`} className="studio-viewer">

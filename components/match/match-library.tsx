@@ -19,7 +19,7 @@ export function StorageStatus({ language: l }: { language: Language }) {
         {library.storageError && <button type="button" onClick={() => void retryLibrary()}>{tr(l, "Retry", "Subukan muli")}</button>}
     </div>;
 }
-export function ImportMatch({ language: l, onBeforeImport }: { language: Language; onBeforeImport?: () => void }) {
+export function ImportMatch({ language: l }: { language: Language }) {
     const input = useRef<HTMLInputElement>(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export function ImportMatch({ language: l, onBeforeImport }: { language: Languag
             try { await importMatch(file); } catch (err) { setError(err instanceof Error ? err.message : "Unable to import file."); }
             finally { setBusy(false); if (input.current) input.current.value = ""; }
         }} />
-        <Button disabled={busy} onClick={() => { onBeforeImport?.(); input.current?.click(); }}><Upload size={15} />{busy ? tr(l, "Importing…", "Ini-import…") : tr(l, "Import match", "Mag-import ng laban")}</Button>
+        <Button disabled={busy} onClick={() => input.current?.click()}><Upload size={15} />{busy ? tr(l, "Importing…", "Ini-import…") : tr(l, "Import match", "Mag-import ng laban")}</Button>
         {error && <div className="import-error" role="alert"><strong>{tr(l, "Couldn’t import this match", "Hindi ma-import ang laban")}</strong><p>{error}</p><p>{tr(l, "Your library is unchanged. Use compatible match JSON, up to 10 MB.", "Hindi nabago ang library. Gumamit ng tugmang match JSON, hanggang 10 MB.")}</p><Button size="sm" variant="ghost" onClick={() => setError(null)}><X size={14} />{tr(l, "Dismiss", "Isara")}</Button></div>}
     </div>;
 }

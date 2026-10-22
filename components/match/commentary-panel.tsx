@@ -84,7 +84,6 @@ export function CommentaryPanel({ data, events, preferences, onEvidence, narrati
                 <div className="heading-icon"><MessageSquareText size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(language, "Live commentary", "Live na komentaryo")}</h2></div>
                 <span className="micro-label">{tr(language, "Simulated · event-based", "Simulado · batay sa pangyayari")}</span>
             </div>
-            <p className="data-note">{tr(language, "Latest first. Only events reached in playback are shown.", "Pinakabago muna. Mga pangyayaring naabot lamang sa pag-play ang ipinapakita.")}</p>
             {narration && <div className="agent-actions commentary-narrate">
                 <Button size="sm" variant="outline" onClick={narration.onNarrate} disabled={narration.loading || narration.pending === 0}><Sparkles size={14} aria-hidden="true" />{tr(language, "Narrate with AI", "Isalaysay gamit ang AI")}</Button>
                 <p className="agent-status" role="status" aria-live="polite">{narration.loading ? tr(language, "Writing commentary…", "Isinusulat ang komentaryo…") : narration.errorText ?? (narration.pending === 0 ? tr(language, "Every reached moment is narrated.", "Naisalaysay na ang bawat naabot na sandali.") : tr(language, `Pauses playback and narrates up to ${narration.pending} recent moments.`, `Ihihinto ang laro at isasalaysay ang hanggang ${narration.pending} kamakailang sandali.`))}</p>

@@ -90,6 +90,7 @@
   --sidebar-border: #2A362D;
   --sidebar-ring: #A3E635;
   --radius: 16px;
+  --radius-control: calc(var(--radius) * .5);
   --panel-padding: 20px;
 }
 
@@ -152,6 +153,7 @@ select {
 }
 
 button {
+  border-radius: var(--radius-control);
   transition: background-color .16s, border-color .16s, color .16s;
 }
 
@@ -170,7 +172,6 @@ button:disabled {
   min-height: 44px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
   color: var(--foreground);
   background: var(--surface-inset);
   box-shadow: 0 1px 2px #0002;
@@ -1028,7 +1029,6 @@ button:disabled {
 .primary-action {
   gap: 8px;
   padding: 10px 14px;
-  border-radius: 8px;
   color: var(--primary-foreground);
   background: var(--primary);
   font-size: 14px;
@@ -1206,7 +1206,6 @@ button:disabled {
   gap: 6px;
   min-width: 0;
   padding: 8px 10px;
-  border-radius: 6px;
   color: var(--muted-foreground);
   font-size: 12px;
   line-height: 1.4;
@@ -1556,7 +1555,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   gap: 8px;
   width: 100%;
   padding: 8px 4px;
-  border-radius: 6px;
   text-align: left;
 }
 
@@ -1945,7 +1943,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   width: 100%;
   padding: 16px 8px;
   border-left: 3px solid transparent;
-  border-radius: 8px;
   text-align: left;
 }
 
@@ -2282,7 +2279,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 .evidence-ids button {
   max-width: 100%;
   padding: 8px;
-  border-radius: 6px;
   color: var(--primary);
   background: var(--hover);
   font-family: var(--font-mono);
@@ -2778,7 +2774,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
     flex: 1;
     min-width: 0;
     padding: 10px 6px;
-    border-radius: 8px;
     color: var(--muted-foreground);
     font-size: 12px;
     line-height: 1.5;
@@ -2801,7 +2796,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   .pitch-fit .sim-player-name:not(.is-highlighted) {
     display: none;
   }
-
 
   .pitch-panel .panel-heading,
   .pitch-heading-status {
@@ -3168,7 +3162,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 }
 
 .import-control>button {
-  border-radius: 7px;
   font-size: 12px;
   padding: 12px 16px;
   min-height: 40px;
@@ -3600,7 +3593,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   min-width: 0;
 }
 
-
 .studio-match-title h1 {
   font-size: 14px;
   font-weight: 550;
@@ -3876,7 +3868,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   grid-template-columns: 38px 20px minmax(0, 1fr);
   padding: 12px 4px;
   gap: 7px;
-  border-radius: 5px;
 }
 
 .studio-browser .event-time {
@@ -3927,10 +3918,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   font-size: 11px;
 }
 
-.studio-library-list {
-  padding: 14px;
-}
-
 .inspector-heading {
   display: flex;
   justify-content: space-between;
@@ -3942,57 +3929,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 .inspector-heading>span {
   color: var(--muted-foreground);
   font: 10px var(--font-mono);
-}
-
-.studio-library-list>a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  margin-bottom: 10px;
-}
-
-.studio-library-list>a[aria-current="page"] {
-  border-color: #52745b;
-  background: #26362b;
-}
-
-.studio-library-list>a>span:nth-child(2) {
-  min-width: 0;
-  flex: 1;
-}
-
-.studio-library-list>a strong {
-  font-size: 11px;
-  font-weight: 500;
-  display: block;
-}
-
-.studio-library-list>a small {
-  display: block;
-  font-size: 9px;
-  color: #91a198;
-  margin-top: 5px;
-}
-
-.mini-match-icon {
-  color: #7d9a83;
-}
-
-.studio-library-list .import-control {
-  margin-top: 20px;
-}
-
-.studio-library-list .import-error {
-  left: 0;
-  right: auto;
-  width: 220px;
-}
-
-.studio-library-list>p {
-  margin-top: 12px;
 }
 
 .studio-viewer {
@@ -4218,7 +4154,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   padding: 14px;
   margin-bottom: 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
   background: #202529;
   text-align: left;
   cursor: pointer;
@@ -4307,7 +4242,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 
 .studio-shell .play-button {
   min-width: 88px;
-  border-radius: 5px;
 }
 
 .studio-shell .playback-time {
@@ -4557,7 +4491,7 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   min-height: 28px;
   padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   color: #b3c3b8;
   font-size: 10px;
   list-style: none;
@@ -4622,8 +4556,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 .studio-viewer .pitch-compact .pitch-heading-status {
   gap: 5px;
 }
-
-
 
 @media (min-width: 1600px) {
   .studio-shell {
@@ -5354,7 +5286,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 .ask-suggestions button {
   padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 999px;
   color: #ccd6d0;
   background: #202529;
   font-size: 11px;
