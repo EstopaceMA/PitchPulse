@@ -89,7 +89,7 @@ async function generate<N extends AgentName>(agent: N, request: ParsedRequest, p
     let input: Record<string, unknown>[];
     let tool: ((name: string, args: string) => unknown) | undefined;
     if (agent === "ask") {
-        const context = { clock: facts.clock, score: facts.score, teams: facts.teams, roster: facts.roster, viewer: facts.viewer };
+        const context = { match: facts.match, clock: facts.clock, score: facts.score, teams: facts.teams, roster: facts.roster, viewer: facts.viewer };
         addGrounding(grounding, context);
         addGrounding(grounding, request.question);
         for (const turn of request.history) addGrounding(grounding, turn.text);

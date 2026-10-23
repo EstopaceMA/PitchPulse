@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { createLibraryMatch, DEMO_ID, validateLibraryMatch } from "./library";
+import { createLibraryMatch, DEMO_ID, refreshDemo, validateLibraryMatch } from "./library";
 import { libraryStorage } from "./library-storage";
 import { validateMatch } from "./validation";
 import type { Language, LibraryMatch, MatchAnnotation, PlaybackCheckpoint } from "./types";
@@ -37,15 +37,20 @@ async function initialize() {
     publish({ ready: true });
 }
 async function loadDemo() {
-    if (snapshot.matches.some(m => m.id === DEMO_ID)) return;
+    const stored = snapshot.matches.some(m => m.id === DEMO_ID);
     try {
         const response = await fetch("/api/match");
         if (!response.ok) throw new Error("Demo unavailable");
-        const match = createLibraryMatch(DEMO_ID, validateMatch(await response.json()), "Arsenal vs Chelsea", "demo", Date.now());
-        publish({ matches: [...snapshot.matches, match], loadError: false });
+        const data = validateMatch(await response.json());
+        // A stored demo keeps its progress and notes; only a newer bundled dataset replaces its data.
+        const current = snapshot.matches.find(m => m.id === DEMO_ID);
+        if (stored && !current) return;
+        const match = current ? refreshDemo(current, data) : createLibraryMatch(DEMO_ID, data, "Arsenal vs Chelsea", "demo", Date.now());
+        if (!match) return;
+        publish({ matches: current ? snapshot.matches.map(m => m.id === DEMO_ID ? match : m) : [...snapshot.matches, match], loadError: false });
         dirty.set(match.id, "match");
         flush();
-    } catch { publish({ loadError: true }); }
+    } catch { if (!stored) publish({ loadError: true }); }
 }
 /** A single writer and identity checks prevent older in-flight saves clearing newer changes. */
 function flush(force = false) {

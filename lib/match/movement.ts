@@ -160,6 +160,12 @@ function formationTarget(player: LayoutPlayer, ball: Position | null, possession
     return worldPosition({ x: clamp(x, 2, 98), y: clamp(y, 2, 98) }, player);
 }
 
+/** Team-relative 4-3-3 lane anchors by player ID: the slots the illustrative movement starts from. */
+export function formationAnchors(players: readonly Player[]): Map<string, Position> {
+    // Anchors are team-relative; the home team only sets drawing direction, which anchors don't use.
+    return new Map(layoutPlayers(players, "").map(player => [player.playerId, player.base]));
+}
+
 /**
  * Build from the already-processed, sequence-ordered prefix ONLY. Never reads
  * data.events, summaries, or later events to choose a target or tween duration.

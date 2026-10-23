@@ -5,7 +5,7 @@ import { Activity, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Crosshair, 
 import { Button } from "@/components/ui/button";
 import { formatTime, pitchPosition } from "@/lib/match/playback";
 import { buildMovementTimeline, sampleMovement } from "@/lib/match/movement";
-import { eventLabel, outcomeLabel, teamColor, tr } from "@/lib/match/presentation";
+import { eventLabel, outcomeLabel, rosterDisclosure, teamColor, tr } from "@/lib/match/presentation";
 import type { Language, MatchData, MatchEvent, Position } from "@/lib/match/types";
 import { PlayerRoster, TeamMotion } from "./team-motion";
 
@@ -81,7 +81,7 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
             </div>
             {!compact && viewControls}
             <div className="pitch-toolbar"><span style={{ color: teamColor(data.match.away_team_id, home) }}><ArrowLeft size={13} />{awayName}</span><span>{tr(language, "Fixed attacking directions", "Nakapirming direksiyon")}</span><span style={{ color: teamColor(home, home) }}>{homeName}<ArrowRight size={13} /></span></div>
-            <p className="pitch-disclosure">{simulation ? tr(language, "Illustrative movement · Demo players are fictional", "Halimbawang galaw · Kathang-isip ang mga demo na manlalaro") : tr(language, "Recorded positions only · Demo players are fictional", "Naitalang posisyon lamang · Kathang-isip ang mga demo na manlalaro")}</p>
+            <p className="pitch-disclosure">{[simulation ? tr(language, "Illustrative movement", "Halimbawang galaw") : tr(language, "Recorded positions only", "Naitalang posisyon lamang"), rosterDisclosure(data, language)].filter(Boolean).join(" · ")}</p>
             <div id="pitch-stage" className={`pitch-stage${simulation ? ` full-team-stage pitch-${sizing}` : ""}`} tabIndex={simulation ? 0 : undefined} role={simulation ? "region" : undefined} aria-label={simulation ? sizing === "fit" ? tr(language, "Full-team pitch. Fit pitch view.", "Pitch ng lahat. Nakaangkop na tanaw ng pitch.") : tr(language, "Full-team pitch. Scroll horizontally on small screens.", "Pitch ng lahat. Mag-scroll pahalang sa maliit na screen.") : undefined}>
                 <svg viewBox="0 0 760 510" role={simulation ? "group" : "img"} aria-label={simulation ? tr(language, `${frame.players.length} players with illustrative movement and dataset names.`, `${frame.players.length} manlalaro na may halimbawang galaw at mga pangalan mula sa dataset.`) : event ? `${formatTime(event.match_time_seconds)} ${actor?.name ?? ""} ${eventLabel(event, language)}. ${tr(language, "Only recorded event positions are shown.", "Mga naitalang posisyon lamang ang ipinapakita.")}` : tr(language, "Empty pitch. Start playback to see recorded actions.", "Walang aksiyon. Simulan ang laro.")}>
                     <defs>
@@ -122,7 +122,7 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
                     </div>
                     {event && <time className="action-time" aria-label={tr(language, "Event time", "Oras ng pangyayari")}>{formatTime(event.match_time_seconds)}</time>}
                 </div>
-                {simulation && selected && <div className="pitch-player-selection" role="status" aria-atomic="true"><UserRound size={16} aria-hidden="true" /><strong>{selected.name}</strong><span>{selected.position ?? tr(language, "Player", "Manlalaro")}{selected.shirt_number !== undefined ? ` · #${selected.shirt_number}` : ""}</span></div>}
+                {simulation && selected && <div className="pitch-player-selection" role="status" aria-atomic="true"><UserRound size={16} aria-hidden="true" /><strong>{selected.name}</strong><span>{selected.position ?? tr(language, "Player", "Manlalaro")}{selected.shirt_number !== undefined ? ` · #${selected.shirt_number}` : ""}{selected.nationality ? ` · ${selected.nationality}` : ""}</span></div>}
 
                 <div className="pitch-info-grid">
                     <details className="pitch-about"><summary className="pitch-info-summary"><Info size={16} aria-hidden="true" /><span className="pitch-info-title">{tr(language, "About this view", "Tungkol sa tanaw na ito")}</span><ChevronDown className="disclosure-chevron" size={16} aria-hidden="true" /></summary>

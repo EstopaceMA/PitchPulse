@@ -16,6 +16,11 @@ export function validateAnnotations(data: MatchData, value: unknown): MatchAnnot
         return true;
     });
 }
+/** The stored demo with newly bundled data, or null when nothing changed. Saved progress and notes stay while they still fit. */
+export function refreshDemo(stored: LibraryMatch, fresh: MatchData): LibraryMatch | null {
+    if (JSON.stringify(stored.data) === JSON.stringify(fresh)) return null;
+    return { ...stored, data: fresh, checkpoint: restorePlayback(fresh, stored.checkpoint), annotations: validateAnnotations(fresh, stored.annotations) };
+}
 export function validateLibraryMatch(raw: unknown, review?: unknown): LibraryMatch {
     if (!raw || typeof raw !== "object") throw new Error("Invalid library record");
     const row = raw as LibraryMatch;

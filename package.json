@@ -10,9 +10,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/match/*.test.ts lib/agents/*.test.ts lib/foundry/*.test.ts components/match/*.test.tsx",
+    "test": "tsx --test lib/match/*.test.ts lib/agents/*.test.ts lib/foundry/*.test.ts components/match/*.test.tsx scripts/demo-data/*.test.ts",
     "agents:provision": "tsx --env-file=.env.local scripts/provision-agents.ts",
-    "agents:evaluate": "tsx --env-file=.env.local scripts/evaluate-agents.ts"
+    "agents:evaluate": "tsx --env-file=.env.local scripts/evaluate-agents.ts",
+    "data:demo": "tsx scripts/build-demo.ts"
   },
   "dependencies": {
     "@azure/ai-projects": "^2.9.0",

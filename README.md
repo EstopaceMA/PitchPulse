@@ -22,11 +22,35 @@ The visual specification is maintained in [DESIGN.md](DESIGN.md): a charcoal mat
 - Checkpoints save every two seconds during playback and immediately on pause, seek, and studio navigation. Annotation changes save immediately. Abrupt browser/process termination may lose the latest unsaved interval. **Unsaved · this session only** indicates blocked/unavailable storage; **Retry** attempts persistence without discarding in-memory analysis. Corrupted stored match records are skipped with a recovery message; invalid checkpoints reset safely.
 - Imported games can be removed from their card after confirmation; this also removes their notes and bookmarks. The bundled demo remains available.
 - The pitch starts in **Full-team simulation**, **Fit pitch**, with player names enabled. **Detailed view** supports horizontal scrolling; selecting a player or lineup entry shows their details. All movement is deterministic and illustrative, driven by the shared replay clock.
-- **Recorded events** displays only supplied positions. Missing shot endpoints are never invented. Pause/boundary states freeze movement; reduced motion uses event snapshots. A visible pitch disclosure identifies illustrative movement and fictional demo players. **About this view** expands the legend, interaction hints, and detailed data limitations. Raw event IDs remain available in event details. Demo player labels are never presented as actual club rosters.
+- **Recorded events** displays only supplied positions. Missing shot endpoints are never invented. Pause/boundary states freeze movement; reduced motion uses event snapshots. A visible pitch disclosure identifies illustrative movement and what the dataset says about its players: fictional demo players, or real squad names in a simulated match, as in the bundled demo. **About this view** expands the legend, interaction hints, and detailed data limitations. Raw event IDs remain available in event details. The demo's events are never presented as an actual fixture.
 
 ## Data and architecture
 
 The default source is [public/arsenal-vs-chelsea-match.json](public/arsenal-vs-chelsea-match.json). The match API imports this copy and validates it before sending it to the simulator. No parent-folder dataset or expanded Turbopack root is required. As with any public asset, the original JSON is also directly downloadable; its raw summaries are not used by live panels.
+
+### Demo roster
+
+The bundled demo is a simulated match between real clubs with real players. Every event is invented; only the player details are real.
+
+Data sources:
+
+| Data | Source | Notes |
+| --- | --- | --- |
+| Arsenal first-team squad | English Wikipedia, [Arsenal F.C. § First-team squad](https://en.wikipedia.org/w/index.php?title=Arsenal_F.C.&oldid=1381292988), revision 1381292988 | Section marked updated 3 September 2026 |
+| Chelsea first-team squad | English Wikipedia, [Chelsea F.C. § First-team squad](https://en.wikipedia.org/w/index.php?title=Chelsea_F.C.&oldid=1381218771), revision 1381218771 | Section marked updated 1 September 2026 |
+| Starting XIs | Editorial choice, [data/lineups.json](data/lineups.json) | Placed in the dataset's fixed 4-3-3; not a real lineup |
+| Match events | The original PitchPulse simulation | Synthetic; see `documentation` in the dataset |
+
+- Both squad lists were read on 22 October 2026 (UTC). Wikipedia text is available under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- Only each player's name, shirt number, nationality code and listed position (GK, DF, MF or FW) were taken. No dates of birth, photos or other personal details were taken.
+- [data/squads.json](data/squads.json) records those rows for both full squads, with each page and revision. The repository contains no scraping code, and the app never fetches player data.
+- Player IDs (`ARS01`…`CHE11`) and slot positions never change.
+- Shots that the original simulation gave to defenders now belong to a forward (inside the penalty area) or a midfielder (outside it), together with the pass, ball win or pressure that set them up. Event IDs, times, positions, outcomes, team totals and goals are unchanged.
+- The dataset's `disclaimer`, `documentation.roster` and `documentation.shot_attribution` record the same sources and changes.
+
+To change the roster:
+1. Edit [data/squads.json](data/squads.json) from a newer revision of the pages above, and record the new revision and date. Edit [data/lineups.json](data/lineups.json) if a pick has changed.
+2. Run `npm run data:demo`. It rebuilds the bundled JSON offline and stops if a pick is not in the squad, does not fit its slot, or repeats a shirt number. It changes only the roster, disclaimer, documentation notes and realigned event references, and keeps the file's formatting.
 
 | Responsibility | Source |
 | --- | --- |
@@ -48,7 +72,8 @@ The default source is [public/arsenal-vs-chelsea-match.json](public/arsenal-vs-c
 | Agent request pipeline / route | [lib/agents/handle.ts](lib/agents/handle.ts), [app/api/agents/[agent]/route.ts](app/api/agents/[agent]/route.ts) |
 | Foundry runner / server-only client | [lib/foundry/run-agent.ts](lib/foundry/run-agent.ts), [lib/foundry/client.ts](lib/foundry/client.ts) |
 | Studio AI state / Foundry insight provider | [lib/match/use-agents.ts](lib/match/use-agents.ts) |
-| Tests | [lib/match/simulator.test.ts](lib/match/simulator.test.ts), [lib/agents/](lib/agents/) |
+| Demo roster build (lineups, shot realignment) | [scripts/build-demo.ts](scripts/build-demo.ts), [scripts/demo-data/](scripts/demo-data/) |
+| Tests | [lib/match/simulator.test.ts](lib/match/simulator.test.ts), [lib/agents/](lib/agents/), [scripts/demo-data/](scripts/demo-data/) |
 
 Playback stores elapsed time **and an event cursor** to preserve sequence at equal timestamps. Forward playback folds new events into cloned statistics; backward seeks rebuild the prefix. Statistics never use final summaries.
 
@@ -77,6 +102,7 @@ How the agents stay honest:
   - unknown or future evidence;
   - numbers or mm:ss times the model was never shown;
   - possession percentages, distances, speeds, xG, probabilities or betting language;
+  - outside knowledge about the real clubs and players, such as seasons, transfers, injuries, captaincy or competitions;
   - internal metric keys, block codes or dataset IDs in the prose.
 - Card metrics and evidence come from the packet catalog. When the list of supporting events is capped, the card states the full count.
 - AI output is always labeled **AI · Microsoft Foundry**, and is hidden after a rewind past the moment it describes. Ask history from a later playhead is never sent back.
@@ -103,6 +129,8 @@ Data and limits:
 
 Required top-level fields: `match`, `teams` (two), `players`, and `events`. Match requires `match_id`, valid distinct home/away IDs, positive `duration_seconds`, and an earlier `period_seconds` half-time boundary.
 
+Players require `player_id`, `name` and a valid `team_id`; `shirt_number`, `position`, `nationality` (text) and `fictional` are optional. A `synthetic: true` match whose players are all marked `fictional: false` is shown as real squad names in a simulated match. Any player marked `fictional: true` keeps the fictional-demo disclosure.
+
 Events require unique `event_id` / integer `sequence`, valid `match_time_seconds`, `period` (1 or 2), supported `type`, `team_id`, `player_id`, and `possession_id`. Neutral references may be null. Acting players must belong to the acting team. Sequence timestamps/periods must not move backward. Array order is normalized by sequence.
 
 Supported event types: `match_start`, `kickoff`, `pass`, `shot`, `tackle`, `pressure`, `possession_change`, `half_time`, `second_half_start`, `full_time`. Optional positions, outcomes, recipients, targets, and metrics are validated only when present.
@@ -126,6 +154,8 @@ Use `npm test`, `npm run lint`, and `npm run build`. Agent tests run without Azu
 - the local tool loop;
 - request rejection and error classification;
 - markup for the labeled AI panels.
+
+Demo roster tests cover lineup checks against the squad snapshot, shot realignment, minimal-diff rewriting of the bundled JSON and the demo refresh that keeps saved progress and notes.
 
 Replay tests cover score rollback, period boundaries, validation, coordinates, and evidence. Movement tests cover all-player coverage, continuity, mirrored formations, equal timestamps, backward sampling, missing fields, and independence from future events. Component markup regressions in [components/match/presentation.test.tsx](components/match/presentation.test.tsx) cover pitch defaults, bilingual inspection controls, playback boundaries, transport labels, and header personalization. [components/match/summary-panels.test.tsx](components/match/summary-panels.test.tsx) verifies statistics comparisons, absence of possession estimates, bounded commentary, linked evidence, empty rosters, and exclusion of future goals and equal-time second-half events. Studio regressions cover exact checkpoint restoration, same-time and period boundaries, annotation anchors, invalid persisted records, library cards, bilingual note controls, and bounded 50,000-event timeline rendering. Browser checks cover multiple imports, invalid input preservation, notes/bookmarks, reload persistence, navigation, removal, storage failure/retry, timeline zoom, playback boundaries, mobile layout, keyboard controls, and reduced motion.
 

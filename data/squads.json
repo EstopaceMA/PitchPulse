@@ -1,0 +1,406 @@
+{
+  "source": "English Wikipedia first-team squad lists",
+  "license": "CC BY-SA 4.0",
+  "retrieved": "2026-10-22",
+  "clubs": {
+    "ARS": {
+      "page": "Arsenal F.C.",
+      "revision": 1381292988,
+      "updated": "3 September 2026",
+      "players": [
+        {
+          "number": 1,
+          "name": "David Raya",
+          "title": "David Raya",
+          "nationality": "ESP",
+          "position": "GK"
+        },
+        {
+          "number": 2,
+          "name": "William Saliba",
+          "title": "William Saliba",
+          "nationality": "FRA",
+          "position": "DF"
+        },
+        {
+          "number": 3,
+          "name": "Cristhian Mosquera",
+          "title": "Cristhian Mosquera",
+          "nationality": "ESP",
+          "position": "DF"
+        },
+        {
+          "number": 4,
+          "name": "Ben White",
+          "title": "Ben White (footballer)",
+          "nationality": "ENG",
+          "position": "DF"
+        },
+        {
+          "number": 5,
+          "name": "Piero Hincapié",
+          "title": "Piero Hincapié",
+          "nationality": "ECU",
+          "position": "DF"
+        },
+        {
+          "number": 6,
+          "name": "Gabriel Magalhães",
+          "title": "Gabriel Magalhães",
+          "nationality": "BRA",
+          "position": "DF"
+        },
+        {
+          "number": 7,
+          "name": "Bukayo Saka",
+          "title": "Bukayo Saka",
+          "nationality": "ENG",
+          "position": "FW"
+        },
+        {
+          "number": 8,
+          "name": "Martin Ødegaard",
+          "title": "Martin Ødegaard",
+          "nationality": "NOR",
+          "position": "MF"
+        },
+        {
+          "number": 10,
+          "name": "Eberechi Eze",
+          "title": "Eberechi Eze",
+          "nationality": "ENG",
+          "position": "MF"
+        },
+        {
+          "number": 12,
+          "name": "Jurriën Timber",
+          "title": "Jurriën Timber",
+          "nationality": "NED",
+          "position": "DF"
+        },
+        {
+          "number": 13,
+          "name": "Kepa Arrizabalaga",
+          "title": "Kepa Arrizabalaga",
+          "nationality": "ESP",
+          "position": "GK"
+        },
+        {
+          "number": 14,
+          "name": "Viktor Gyökeres",
+          "title": "Viktor Gyökeres",
+          "nationality": "SWE",
+          "position": "FW"
+        },
+        {
+          "number": 15,
+          "name": "Ezri Konsa",
+          "title": "Ezri Konsa",
+          "nationality": "ENG",
+          "position": "DF"
+        },
+        {
+          "number": 17,
+          "name": "Christos Tzolis",
+          "title": "Christos Tzolis",
+          "nationality": "GRE",
+          "position": "FW"
+        },
+        {
+          "number": 20,
+          "name": "Noni Madueke",
+          "title": "Noni Madueke",
+          "nationality": "ENG",
+          "position": "FW"
+        },
+        {
+          "number": 23,
+          "name": "Mikel Merino",
+          "title": "Mikel Merino",
+          "nationality": "ESP",
+          "position": "MF"
+        },
+        {
+          "number": 29,
+          "name": "Kai Havertz",
+          "title": "Kai Havertz",
+          "nationality": "GER",
+          "position": "FW"
+        },
+        {
+          "number": 30,
+          "name": "Illan Meslier",
+          "title": "Illan Meslier",
+          "nationality": "FRA",
+          "position": "GK"
+        },
+        {
+          "number": 33,
+          "name": "Riccardo Calafiori",
+          "title": "Riccardo Calafiori",
+          "nationality": "ITA",
+          "position": "DF"
+        },
+        {
+          "number": 36,
+          "name": "Martín Zubimendi",
+          "title": "Martín Zubimendi",
+          "nationality": "ESP",
+          "position": "MF"
+        },
+        {
+          "number": 39,
+          "name": "Bruno Guimarães",
+          "title": "Bruno Guimarães",
+          "nationality": "BRA",
+          "position": "MF"
+        },
+        {
+          "number": 41,
+          "name": "Declan Rice",
+          "title": "Declan Rice",
+          "nationality": "ENG",
+          "position": "MF"
+        },
+        {
+          "number": 49,
+          "name": "Myles Lewis-Skelly",
+          "title": "Myles Lewis-Skelly",
+          "nationality": "ENG",
+          "position": "DF"
+        },
+        {
+          "number": 56,
+          "name": "Max Dowman",
+          "title": "Max Dowman",
+          "nationality": "ENG",
+          "position": "FW"
+        },
+        {
+          "number": 89,
+          "name": "Marli Salmon",
+          "title": "Marli Salmon",
+          "nationality": "ENG",
+          "position": "DF"
+        }
+      ]
+    },
+    "CHE": {
+      "page": "Chelsea F.C.",
+      "revision": 1381218771,
+      "updated": "1 September 2026",
+      "players": [
+        {
+          "number": 1,
+          "name": "Emiliano Martínez",
+          "title": "Emiliano Martínez",
+          "nationality": "ARG",
+          "position": "GK"
+        },
+        {
+          "number": 2,
+          "name": "Marco Palestra",
+          "title": "Marco Palestra",
+          "nationality": "ITA",
+          "position": "DF"
+        },
+        {
+          "number": 3,
+          "name": "Wesley Fofana",
+          "title": "Wesley Fofana (footballer)",
+          "nationality": "FRA",
+          "position": "DF"
+        },
+        {
+          "number": 4,
+          "name": "Valentín Barco",
+          "title": "Valentín Barco",
+          "nationality": "ARG",
+          "position": "MF"
+        },
+        {
+          "number": 5,
+          "name": "Maxence Lacroix",
+          "title": "Maxence Lacroix",
+          "nationality": "FRA",
+          "position": "DF"
+        },
+        {
+          "number": 6,
+          "name": "Levi Colwill",
+          "title": "Levi Colwill",
+          "nationality": "ENG",
+          "position": "DF"
+        },
+        {
+          "number": 7,
+          "name": "Pedro Neto",
+          "title": "Pedro Neto",
+          "nationality": "POR",
+          "position": "FW"
+        },
+        {
+          "number": 9,
+          "name": "João Pedro",
+          "title": "João Pedro (footballer, born 2001)",
+          "nationality": "BRA",
+          "position": "FW"
+        },
+        {
+          "number": 10,
+          "name": "Cole Palmer",
+          "title": "Cole Palmer",
+          "nationality": "ENG",
+          "position": "MF"
+        },
+        {
+          "number": 11,
+          "name": "Jamie Gittens",
+          "title": "Jamie Gittens",
+          "nationality": "ENG",
+          "position": "FW"
+        },
+        {
+          "number": 14,
+          "name": "Jordan Henderson",
+          "title": "Jordan Henderson",
+          "nationality": "ENG",
+          "position": "MF"
+        },
+        {
+          "number": 17,
+          "name": "Morgan Rogers",
+          "title": "Morgan Rogers",
+          "nationality": "ENG",
+          "position": "MF"
+        },
+        {
+          "number": 18,
+          "name": "Danny Welbeck",
+          "title": "Danny Welbeck",
+          "nationality": "ENG",
+          "position": "FW"
+        },
+        {
+          "number": 21,
+          "name": "Jorrel Hato",
+          "title": "Jorrel Hato",
+          "nationality": "NED",
+          "position": "DF"
+        },
+        {
+          "number": 22,
+          "name": "Emmanuel Emegha",
+          "title": "Emmanuel Emegha",
+          "nationality": "NED",
+          "position": "FW"
+        },
+        {
+          "number": 23,
+          "name": "Geovany Quenda",
+          "title": "Geovany Quenda",
+          "nationality": "POR",
+          "position": "FW"
+        },
+        {
+          "number": 24,
+          "name": "Reece James",
+          "title": "Reece James",
+          "nationality": "ENG",
+          "position": "DF"
+        },
+        {
+          "number": 25,
+          "name": "Moisés Caicedo",
+          "title": "Moisés Caicedo",
+          "nationality": "ECU",
+          "position": "MF"
+        },
+        {
+          "number": 27,
+          "name": "Malo Gusto",
+          "title": "Malo Gusto",
+          "nationality": "FRA",
+          "position": "DF"
+        },
+        {
+          "number": 28,
+          "name": "Teddy Sharman-Lowe",
+          "title": "Teddy Sharman-Lowe",
+          "nationality": "ENG",
+          "position": "GK"
+        },
+        {
+          "number": 29,
+          "name": "Pep Chavarría",
+          "title": "Pep Chavarría",
+          "nationality": "ESP",
+          "position": "DF"
+        },
+        {
+          "number": 30,
+          "name": "Aarón Anselmino",
+          "title": "Aarón Anselmino",
+          "nationality": "ARG",
+          "position": "DF"
+        },
+        {
+          "number": 31,
+          "name": "Reggie Watson",
+          "title": "Reggie Watson",
+          "nationality": "ENG",
+          "position": "MF"
+        },
+        {
+          "number": 32,
+          "name": "Mahdi Nicoll-Jazuli",
+          "title": "Mahdi Nicoll-Jazuli",
+          "nationality": "ENG",
+          "position": "MF"
+        },
+        {
+          "number": 34,
+          "name": "Josh Acheampong",
+          "title": "Josh Acheampong",
+          "nationality": "ENG",
+          "position": "DF"
+        },
+        {
+          "number": 37,
+          "name": "Olutayo Subuloye",
+          "title": "Olutayo Subuloye",
+          "nationality": "ENG",
+          "position": "DF"
+        },
+        {
+          "number": 39,
+          "name": "Mike Penders",
+          "title": "Mike Penders",
+          "nationality": "BEL",
+          "position": "GK"
+        },
+        {
+          "number": 41,
+          "name": "Estêvão",
+          "title": "Estêvão Willian",
+          "nationality": "BRA",
+          "position": "FW"
+        },
+        {
+          "number": 44,
+          "name": "Gabriel Slonina",
+          "title": "Gabriel Slonina",
+          "nationality": "USA",
+          "position": "GK"
+        },
+        {
+          "number": 45,
+          "name": "Roméo Lavia",
+          "title": "Roméo Lavia",
+          "nationality": "BEL",
+          "position": "MF"
+        }
+      ]
+    }
+  }
+}

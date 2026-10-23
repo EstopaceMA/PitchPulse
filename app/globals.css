@@ -1595,6 +1595,18 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   font-size: 12px;
 }
 
+.roster-nation {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+
+.roster-nation+.roster-position {
+  margin-left: 0;
+}
+
 .roster-note {
   margin-top: 12px;
 }

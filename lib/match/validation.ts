@@ -28,6 +28,7 @@ export function validateMatch(raw: unknown): MatchData {
         requireValue(!playerTeams.has(player.player_id), `Duplicate player_id: ${player.player_id}.`);
         if (player.shirt_number !== undefined) requireValue(finite(player.shirt_number) && Number.isInteger(player.shirt_number), `${player.player_id}: shirt_number must be an integer.`);
         if (player.position !== undefined) requireValue(text(player.position), `${player.player_id}: position must be text.`);
+        if (player.nationality !== undefined) requireValue(text(player.nationality), `${player.player_id}: nationality must be text.`);
         playerTeams.set(player.player_id, player.team_id);
     }
     requireValue(Array.isArray(events) && events.length <= 50000, 'An "events" array with at most 50,000 entries is required.');

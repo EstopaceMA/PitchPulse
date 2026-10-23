@@ -75,15 +75,28 @@ function rejectsUpload(name: string, mutate: (upload: Fixture) => void, error: R
 }
 
 describe("match upload validation", () => {
-  test("bundled player labels omit Demo while retaining fictional-roster disclosure", () => {
+  test("bundled roster names real squad players while the match stays clearly simulated", () => {
     assert.equal(data.players.length, 22);
     assert.equal(data.synthetic, true);
-    assert.match(data.disclaimer ?? "", /fictional player labels/i);
-    for (const player of data.players) {
-      const team = data.teams.find(team => team.team_id === player.team_id)!;
-      assert.equal(player.name, `${team.name} ${player.player_id.slice(-2)}`);
-      assert.equal(player.fictional, true);
+    assert.match(data.disclaimer ?? "", /simulated/i);
+    assert.match(data.disclaimer ?? "", /none of these events happened/i);
+    for (const team of data.teams) {
+      const squad = data.players.filter((player) => player.team_id === team.team_id);
+      // Slots keep the fixed 4-3-3 that the event history and illustrative movement were built around.
+      assert.deepEqual(squad.map((player) => player.position), ["GK", "RB", "CB", "CB", "LB", "DM", "CM", "CM", "RW", "ST", "LW"]);
+      assert.equal(new Set(squad.map((player) => player.shirt_number)).size, squad.length);
     }
+    for (const player of data.players) {
+      assert.equal(player.fictional, false);
+      assert.match(player.nationality ?? "", /^[A-Z]{3}$/);
+      assert.doesNotMatch(player.name, /^(Arsenal|Chelsea) \d{2}$/);
+    }
+  });
+
+  test("player nationality is optional text", () => {
+    const upload = structuredClone(fixture);
+    for (const player of upload.players) delete player.nationality;
+    assert.equal(validateMatch(upload).players[0].nationality, undefined);
   });
 
   test("uploaded player names are preserved, including the word Demo", () => {
@@ -127,6 +140,9 @@ describe("match upload validation", () => {
     rejectsUpload(`rejects missing ${key}`, (upload) => { Reflect.deleteProperty(upload, key); }, /required|teams|events/i);
   }
 
+  rejectsUpload("rejects a player nationality that is not text", (upload) => {
+    Object.assign(upload.players[0], { nationality: 7 });
+  }, /nationality must be text/);
   rejectsUpload("rejects duplicate event IDs", (upload) => {
     upload.events[1].event_id = upload.events[0].event_id;
   }, /event_id.*unique/);
@@ -710,7 +726,7 @@ describe("rule-based insight provider", () => {
 });
 // Studio checkpoints must preserve cursor identity, not just the displayed clock.
 import { annotationAnchor, restorePlayback, validCheckpoint } from "./playback";
-import { createLibraryMatch, groupTimelineEvents, validateAnnotations, validateLibraryMatch } from "./library";
+import { createLibraryMatch, DEMO_ID, groupTimelineEvents, refreshDemo, validateAnnotations, validateLibraryMatch } from "./library";
 
 describe("studio persistence and annotation anchors", () => {
   test("restores stepped equal-time events exactly and never resumes automatically", () => {
@@ -766,6 +782,19 @@ describe("studio persistence and annotation anchors", () => {
     assert.equal("final_score" in stored.data.match, false);
     assert.deepEqual(stored.checkpoint, initialPlayback());
     assert.throws(() => validateLibraryMatch({ ...match, data: {} }));
+  });
+  test("a newer bundled demo replaces stored data but keeps saved progress and notes", () => {
+    const checkpoint = playbackReducer(data, initialPlayback(), { type: "seek", elapsed: 1200 });
+    const note = { id: "note", kind: "note" as const, text: "Rice from distance", anchor: annotationAnchor(data, checkpoint), createdAt: 1 };
+    const stored = { ...createLibraryMatch(DEMO_ID, data, "Arsenal vs Chelsea", "demo", 1), checkpoint, annotations: [note] };
+    assert.equal(refreshDemo(stored, structuredClone(data)), null);
+    const placeholders = { ...data, players: data.players.map((player) => ({ ...player, name: player.player_id, fictional: true })) };
+    const refreshed = refreshDemo({ ...stored, data: placeholders }, data);
+    assert.ok(refreshed);
+    assert.deepEqual(refreshed.data, data);
+    assert.deepEqual(refreshed.checkpoint, checkpoint);
+    assert.deepEqual(refreshed.annotations, [note]);
+    assert.equal(refreshed.createdAt, stored.createdAt);
   });
   test("50,000 events produce a bounded set of timeline groups with no lost events", () => {
     const large = Array.from({ length: 50000 }, (_, i) => ({ ...data.events[0], event_id: `large-${i}`, sequence: i, match_time_seconds: i / 49999 * end }));

@@ -1,6 +1,24 @@
-import type { Language, MatchEvent } from "./types";
+import type { Language, MatchData, MatchEvent } from "./types";
 
 export const tr = (language: Language, en: string, fil: string): string => language === "fil" ? fil : en;
+/**
+ * What a dataset says about its roster: placeholder demo players, real people (every player marked fictional: false)
+ * in a simulated match, a simulated match making no claim about names, or recorded data making no claim at all.
+ */
+export function rosterKind(data: Pick<MatchData, "players" | "synthetic">): "fictional" | "real-simulated" | "simulated" | "recorded" {
+    if (data.players.some(player => player.fictional === true)) return "fictional";
+    if (!data.synthetic) return "recorded";
+    return data.players.length > 0 && data.players.every(player => player.fictional === false) ? "real-simulated" : "simulated";
+}
+/** The short roster disclosure shown above the pitch, or null when the dataset makes no claim to disclose. */
+export function rosterDisclosure(data: Pick<MatchData, "players" | "synthetic">, language: Language): string | null {
+    switch (rosterKind(data)) {
+        case "fictional": return tr(language, "Demo players are fictional", "Kathang-isip ang mga demo na manlalaro");
+        case "real-simulated": return tr(language, "Simulated match · real squad names", "Simuladong laban · totoong pangalan ng mga manlalaro");
+        case "simulated": return tr(language, "Simulated match", "Simuladong laban");
+        default: return null;
+    }
+}
 const actions: Record<string, [string, string]> = {
     match_start: ["Match started", "Nagsimula ang laban"], kickoff: ["Kick-off", "Simula ng laro"], pass: ["Pass", "Pasa"], shot: ["Shot", "Tira"], tackle: ["Tackle", "Agaw"], pressure: ["Pressure", "Pagdiin"], possession_change: ["Possession change", "Pagpalit ng may bola"], half_time: ["Half-time", "Pahinga"], second_half_start: ["Second half", "Ikalawang hati"], full_time: ["Full-time", "Tapos na"],
 };

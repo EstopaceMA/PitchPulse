@@ -48,6 +48,13 @@ describe("numeric grounding and banned claims", () => {
         for (const text of ["Arsenal won possession back three times", "Possession changes followed interceptions", "chance creation improved"]) assert.ok(!bannedClaim(text), text);
     });
 
+    test("rejects outside knowledge about the real clubs and players in English and Filipino", () => {
+        for (const text of ["Saka has 9 goals this season", "the best spell of his career", "a summer transfer target", "signed from Newcastle", "his new contract", "back from injury", "the Arsenal captain", "an England international", "a Premier League rivalry", "Champions League nights", "ngayong season", "ang kapitan ng Chelsea", "bagong kontrata", "napinsala noong nakaraang laban", "sa pambansang koponan"]) {
+            assert.ok(bannedClaim(text), text);
+        }
+        for (const text of ["Bukayo Saka took 3 shots from the attacking third", "Chelsea pressed high between 15:00 and 30:00", "Declan Rice passed to Martin Ødegaard", "the second half opened with a long spell of passing", "a European-style press", "pinilit ng Arsenal ang depensa ng Chelsea"]) assert.ok(!bannedClaim(text), text);
+    });
+
     test("rejects metric keys, block codes and dataset IDs in prose but not names or plain words", () => {
         for (const text of [`${homeName} had shots (${home}.total.shots = 4)`, "Arsenal had 3 shots in b1", `Arsenal scored (${reached})`, `${homePlayer.player_id} was busy`, `(${away} 20 middle recoveries)`, "ARS.zone.passes.centre was high"]) {
             assert.ok(internalReference(text, grounding), text);
@@ -150,6 +157,14 @@ describe("recap, answer and commentary outputs", () => {
         assert.equal(result.caveat, null);
         assert.equal(dropped, 1);
         assert.throws(() => toAgentAnswer({ ...answer, evidence_event_ids: [later] }, packet, grounding), UnverifiableOutput);
+    });
+
+    test("only a declined out-of-scope answer may name the real-world topic it cannot answer", () => {
+        const declined = { answer: both("This replay records events only, so it cannot say who the captain is.", "Mga pangyayari lamang ang naitala, kaya hindi nito masasabi kung sino ang kapitan."), evidence_event_ids: [], caveat: null, out_of_scope: true };
+        assert.equal(toAgentAnswer(declined, packet, grounding).result.outOfScope, true);
+        assert.throws(() => toAgentAnswer({ ...declined, out_of_scope: false }, packet, grounding), /captain/);
+        assert.throws(() => toAgentAnswer({ ...declined, answer: both("He has captained them for 77 matches.") }, packet, grounding), /77/);
+        assert.throws(() => toAgentAnswer({ ...declined, answer: both("Possession share is not recorded.") }, packet, grounding), /possession share/i);
     });
 
     test("commentary keeps requested events only, in request order", () => {

@@ -44,6 +44,9 @@ async function main(): Promise<void> {
         ...MOMENTS.map(moment => ["analyst", request(moment)] as [AgentName, AgentRequest]),
         ["recap", request(MOMENTS[1])], ["recap", request(MOMENTS[3])],
         ["ask", request(MOMENTS[2], { question: "Which Chelsea player has the most recorded actions so far?", history: [] })],
+        ["ask", request(MOMENTS[3], { question: "Who took the most shots in this match?", history: [] })],
+        // Real squad names invite outside knowledge; the agent must decline without asserting any.
+        ["ask", request(MOMENTS[2], { question: "Is Bukayo Saka Arsenal's captain this season?", history: [] })],
         ["commentator", (() => { const base = request(MOMENTS[0]); return { ...base, narrate: base.match.events.filter(event => event.team_id !== null && isMeaningful(event)).slice(-8).map(event => event.event_id) }; })()],
     ];
     const args = process.argv.slice(2), verbose = args.includes("--verbose"), only = args.filter(arg => !arg.startsWith("--"));

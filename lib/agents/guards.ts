@@ -73,8 +73,20 @@ const BANNED = [
     /\d+(?:[.,]\d+)?\s*%\s*(?:chance|likely|probability|na\s+tsansa)|tsansa\s+na\s+\d/i,
     /\b(?:tracking data|heat ?maps?|gps)\b/i,
 ];
-/** The first unsupported claim in the text, or null. */
-export const bannedClaim = (text: string): string | null => BANNED.map(pattern => text.match(pattern)?.[0]).find(Boolean) ?? null;
+// Outside knowledge about real clubs and people: the data is one simulated match, with no history behind it.
+const OUTSIDE_KNOWLEDGE = [
+    /\b(?:seasons?|career)\b|\bkarera\b/i,
+    /\b(?:transfers?|signings?|signed\s+(?:from|for|by)|contracts?|loan\s+(?:spell|deal|move))\b|\bkontrata\b/i,
+    /\binjur(?:y|ies|ed)\b|\bnapinsala\b/i,
+    /\b(?:captain|vice-captain|captaincy|skipper)\b|\bkapitan\b/i,
+    /\b(?:international|national team)\b|\bpambansang koponan\b/i,
+    /\b(?:Premier League|Champions League|Europa League|Conference League|FA Cup|League Cup|Carabao Cup|World Cup|Euros?|Ballon d'Or|Golden Boot)\b/i,
+];
+/**
+ * The first unsupported claim in the text, or null. An answer that declines an out-of-scope question may name the
+ * real-world topic it cannot answer; numbers, IDs and the data limits are still checked.
+ */
+export const bannedClaim = (text: string, declining = false): string | null => [...BANNED, ...(declining ? [] : OUTSIDE_KNOWLEDGE)].map(pattern => text.match(pattern)?.[0]).find(Boolean) ?? null;
 
 // Metric keys, block codes and dataset IDs belong in ID fields and the evidence list, never in prose.
 const METRIC_KEY = /\b[\w-]+\.(?:total|b\d+|zone)\.[\w.]*\w/;
@@ -110,20 +122,20 @@ function stripCitations(text: string, grounding: Grounding): string {
     return leading && cited([leading[1]]) ? inline.slice(leading[0].length) : inline;
 }
 
-function text(value: unknown, limit: number, grounding: Grounding, field: string): string {
+function text(value: unknown, limit: number, grounding: Grounding, field: string, declining = false): string {
     const trimmed = typeof value === "string" ? stripCitations(value, grounding).trim() : "";
     if (!trimmed) return reject(`${field} is missing`);
     if (trimmed.length > limit) return reject(`${field} is longer than ${limit} characters`);
-    const claim = bannedClaim(trimmed);
+    const claim = bannedClaim(trimmed, declining);
     if (claim !== null) return reject(`${field} makes a claim this data cannot support: ${quote(claim)}`);
     const reference = internalReference(trimmed, grounding);
     if (reference !== null) return reject(`${field} contains the internal reference ${reference}; use plain words instead`);
     const unseen = ungrounded(trimmed, grounding);
     return unseen === null ? trimmed : reject(`${field} uses ${unseen}, which does not appear in the data`);
 }
-function bilingual(value: unknown, limit: number, grounding: Grounding, field: string): Bilingual {
+function bilingual(value: unknown, limit: number, grounding: Grounding, field: string, declining = false): Bilingual {
     if (!object(value)) return reject(`${field} is missing`);
-    return { en: text(value.en, limit, grounding, `${field}.en`), fil: text(value.fil, limit, grounding, `${field}.fil`) };
+    return { en: text(value.en, limit, grounding, `${field}.en`, declining), fil: text(value.fil, limit, grounding, `${field}.fil`, declining) };
 }
 /** Known catalog keys only; at least one must survive. */
 function metricKeys(value: unknown, packet: MatchPacket): string[] {
@@ -221,13 +233,13 @@ export function toAgentRecap(raw: unknown, packet: MatchPacket, grounding: Groun
 
 export function toAgentAnswer(raw: unknown, packet: MatchPacket, grounding: Grounding): Verified<AgentAnswer> {
     if (!object(raw)) throw new UnverifiableOutput("The output must be an object.");
-    const reasons: string[] = [];
-    const answer = attempt(reasons, "answer", () => bilingual(raw.answer, LIMITS.answer, grounding, "answer"));
+    const reasons: string[] = [], declining = raw.out_of_scope === true;
+    const answer = attempt(reasons, "answer", () => bilingual(raw.answer, LIMITS.answer, grounding, "answer", declining));
     const cited = answer && attempt(reasons, "answer", () => citedIds(raw.evidence_event_ids, packet));
     if (!answer || !cited) throw new UnverifiableOutput(reasons[0]);
     // An unverifiable caveat is removed; the answer stands on its own.
-    const caveat = raw.caveat === null || raw.caveat === undefined ? null : attempt(reasons, "caveat", () => bilingual(raw.caveat, LIMITS.caveat, grounding, "caveat")) ?? null;
-    return { result: { answer, eventIds: cited.sort(byOrder(packet)).slice(-SHOWN_EVIDENCE), caveat, outOfScope: raw.out_of_scope === true }, dropped: reasons.length, reasons };
+    const caveat = raw.caveat === null || raw.caveat === undefined ? null : attempt(reasons, "caveat", () => bilingual(raw.caveat, LIMITS.caveat, grounding, "caveat", declining)) ?? null;
+    return { result: { answer, eventIds: cited.sort(byOrder(packet)).slice(-SHOWN_EVIDENCE), caveat, outOfScope: declining }, dropped: reasons.length, reasons };
 }
 
 export function toCommentaryLines(raw: unknown, grounding: Grounding, requested: readonly string[]): Verified<AgentCommentaryLine[]> {

@@ -6,7 +6,7 @@ export type AgentName = (typeof AGENT_NAMES)[number];
 export const isAgentName = (value: unknown): value is AgentName => typeof value === "string" && (AGENT_NAMES as readonly string[]).includes(value);
 
 /** Bump when instructions or schemas change. Client caches and agent metadata carry it. */
-export const PROMPT_VERSION = "2026-10-21.4";
+export const PROMPT_VERSION = "2026-10-23.1";
 export const ASK_QUESTION_LIMIT = 500;
 export const ASK_HISTORY_LIMIT = 8;
 export const NARRATE_LIMIT = 12;

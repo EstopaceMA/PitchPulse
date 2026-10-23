@@ -4,7 +4,7 @@ export type Language = "en" | "fil";
 export type ViewMode = "casual" | "analyst" | "player";
 export type Position = { x: number; y: number };
 export interface Team { team_id: string; name: string }
-export interface Player { player_id: string; team_id: string; name: string; shirt_number?: number; position?: string; fictional?: boolean }
+export interface Player { player_id: string; team_id: string; name: string; shirt_number?: number; position?: string; nationality?: string; fictional?: boolean }
 export interface MatchEvent {
     event_id: string;
     sequence: number;

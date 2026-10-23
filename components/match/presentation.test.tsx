@@ -201,6 +201,29 @@ test("notes expose bilingual empty states and explicit moment navigation", () =>
 });
 
 
+test("roster disclosures say only what the dataset itself claims", () => {
+    const disclosure = (match: typeof data) => {
+        const html = renderToStaticMarkup(<Pitch data={match} events={[]} elapsed={0} pinned={false} language="en" onLive={noop} />);
+        return html.slice(html.indexOf('class="pitch-disclosure"'), html.indexOf('id="pitch-stage"'));
+    };
+    assert.match(disclosure(data), />Illustrative movement · Simulated match · real squad names</);
+    const placeholder = { ...data, players: data.players.map((player, index) => index ? player : { ...player, fictional: true }) };
+    assert.match(disclosure(placeholder), />Illustrative movement · Demo players are fictional</);
+    const unmarked = { ...data, players: data.players.map((player) => ({ ...player, fictional: undefined })) };
+    assert.match(disclosure(unmarked), />Illustrative movement · Simulated match</);
+    assert.match(disclosure({ ...data, synthetic: false }), />Illustrative movement</);
+});
+
+test("roster lists each player's number, name, nationality and slot with the dataset note", () => {
+    for (const language of ["en", "fil"] as const) {
+        const html = renderToStaticMarkup(<Pitch data={data} events={[]} elapsed={0} pinned={false} language={language} onLive={noop} />);
+        const saka = data.players.find((player) => player.name === "Bukayo Saka")!;
+        assert.match(html, new RegExp(`roster-number"[^>]*>${saka.shirt_number}</span><span class="roster-name">Bukayo Saka</span><span class="roster-nation">ENG</span><span class="roster-position">RW</span>`));
+        assert.ok(html.includes(language === "en" ? "The players are real, but the match is simulated" : "Totoo ang mga manlalaro, pero simulado ang laban"));
+        assert.ok(html.includes(`${language === "en" ? "Dataset note" : "Tala ng dataset"}: ${data.disclaimer}`));
+    }
+});
+
 test("pitch keeps disclosures visible, help collapsed and event IDs in details only", () => {
     for (const language of ["en", "fil"] as const) {
         const event = data.events[0];
@@ -209,7 +232,7 @@ test("pitch keeps disclosures visible, help collapsed and event IDs in details o
         assert.ok(html.includes(language === "en" ? "About this view" : "Tungkol sa tanaw na ito"));
         const disclosure = html.slice(html.indexOf('class="pitch-disclosure"'), html.indexOf('id="pitch-stage"'));
         assert.ok(disclosure.includes(language === "en" ? "Illustrative movement" : "Halimbawang galaw"));
-        assert.ok(disclosure.includes(language === "en" ? "Demo players are fictional" : "Kathang-isip"));
+        assert.ok(disclosure.includes(language === "en" ? "Simulated match · real squad names" : "Simuladong laban · totoong pangalan ng mga manlalaro"));
         assert.match(html, /<time>00:00<\/time>/);
         const action = html.slice(html.indexOf('class="current-action"'), html.indexOf('class="pitch-about"'));
         assert.ok(!action.includes(event.event_id));

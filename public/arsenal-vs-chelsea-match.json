@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "synthetic": true,
-  "disclaimer": "Fictional demonstration match using real club names and fictional player labels. Not an actual fixture, current roster, or official Premier League data.",
+  "disclaimer": "Simulated demonstration match using real club names and real first-team squad names. None of these events happened: this is not an actual fixture, lineup or official match data.",
   "match": {
     "match_id": "SYN-ARS-CHE-001",
     "home_team_id": "ARS",
@@ -28,178 +28,200 @@
     {
       "player_id": "ARS01",
       "team_id": "ARS",
-      "name": "Arsenal 01",
+      "name": "David Raya",
       "shirt_number": 1,
       "position": "GK",
-      "fictional": true
+      "nationality": "ESP",
+      "fictional": false
     },
     {
       "player_id": "ARS02",
       "team_id": "ARS",
-      "name": "Arsenal 02",
-      "shirt_number": 2,
+      "name": "Jurri\u00ebn Timber",
+      "shirt_number": 12,
       "position": "RB",
-      "fictional": true
+      "nationality": "NED",
+      "fictional": false
     },
     {
       "player_id": "ARS03",
       "team_id": "ARS",
-      "name": "Arsenal 03",
-      "shirt_number": 3,
+      "name": "William Saliba",
+      "shirt_number": 2,
       "position": "CB",
-      "fictional": true
+      "nationality": "FRA",
+      "fictional": false
     },
     {
       "player_id": "ARS04",
       "team_id": "ARS",
-      "name": "Arsenal 04",
-      "shirt_number": 4,
+      "name": "Gabriel Magalh\u00e3es",
+      "shirt_number": 6,
       "position": "CB",
-      "fictional": true
+      "nationality": "BRA",
+      "fictional": false
     },
     {
       "player_id": "ARS05",
       "team_id": "ARS",
-      "name": "Arsenal 05",
-      "shirt_number": 5,
+      "name": "Riccardo Calafiori",
+      "shirt_number": 33,
       "position": "LB",
-      "fictional": true
+      "nationality": "ITA",
+      "fictional": false
     },
     {
       "player_id": "ARS06",
       "team_id": "ARS",
-      "name": "Arsenal 06",
-      "shirt_number": 6,
+      "name": "Mart\u00edn Zubimendi",
+      "shirt_number": 36,
       "position": "DM",
-      "fictional": true
+      "nationality": "ESP",
+      "fictional": false
     },
     {
       "player_id": "ARS07",
       "team_id": "ARS",
-      "name": "Arsenal 07",
-      "shirt_number": 7,
+      "name": "Declan Rice",
+      "shirt_number": 41,
       "position": "CM",
-      "fictional": true
+      "nationality": "ENG",
+      "fictional": false
     },
     {
       "player_id": "ARS08",
       "team_id": "ARS",
-      "name": "Arsenal 08",
+      "name": "Martin \u00d8degaard",
       "shirt_number": 8,
       "position": "CM",
-      "fictional": true
+      "nationality": "NOR",
+      "fictional": false
     },
     {
       "player_id": "ARS09",
       "team_id": "ARS",
-      "name": "Arsenal 09",
-      "shirt_number": 9,
+      "name": "Bukayo Saka",
+      "shirt_number": 7,
       "position": "RW",
-      "fictional": true
+      "nationality": "ENG",
+      "fictional": false
     },
     {
       "player_id": "ARS10",
       "team_id": "ARS",
-      "name": "Arsenal 10",
-      "shirt_number": 10,
+      "name": "Viktor Gy\u00f6keres",
+      "shirt_number": 14,
       "position": "ST",
-      "fictional": true
+      "nationality": "SWE",
+      "fictional": false
     },
     {
       "player_id": "ARS11",
       "team_id": "ARS",
-      "name": "Arsenal 11",
-      "shirt_number": 11,
+      "name": "Eberechi Eze",
+      "shirt_number": 10,
       "position": "LW",
-      "fictional": true
+      "nationality": "ENG",
+      "fictional": false
     },
     {
       "player_id": "CHE01",
       "team_id": "CHE",
-      "name": "Chelsea 01",
+      "name": "Emiliano Mart\u00ednez",
       "shirt_number": 1,
       "position": "GK",
-      "fictional": true
+      "nationality": "ARG",
+      "fictional": false
     },
     {
       "player_id": "CHE02",
       "team_id": "CHE",
-      "name": "Chelsea 02",
-      "shirt_number": 2,
+      "name": "Reece James",
+      "shirt_number": 24,
       "position": "RB",
-      "fictional": true
+      "nationality": "ENG",
+      "fictional": false
     },
     {
       "player_id": "CHE03",
       "team_id": "CHE",
-      "name": "Chelsea 03",
+      "name": "Wesley Fofana",
       "shirt_number": 3,
       "position": "CB",
-      "fictional": true
+      "nationality": "FRA",
+      "fictional": false
     },
     {
       "player_id": "CHE04",
       "team_id": "CHE",
-      "name": "Chelsea 04",
-      "shirt_number": 4,
+      "name": "Levi Colwill",
+      "shirt_number": 6,
       "position": "CB",
-      "fictional": true
+      "nationality": "ENG",
+      "fictional": false
     },
     {
       "player_id": "CHE05",
       "team_id": "CHE",
-      "name": "Chelsea 05",
-      "shirt_number": 5,
+      "name": "Jorrel Hato",
+      "shirt_number": 21,
       "position": "LB",
-      "fictional": true
+      "nationality": "NED",
+      "fictional": false
     },
     {
       "player_id": "CHE06",
       "team_id": "CHE",
-      "name": "Chelsea 06",
-      "shirt_number": 6,
+      "name": "Mois\u00e9s Caicedo",
+      "shirt_number": 25,
       "position": "DM",
-      "fictional": true
+      "nationality": "ECU",
+      "fictional": false
     },
     {
       "player_id": "CHE07",
       "team_id": "CHE",
-      "name": "Chelsea 07",
-      "shirt_number": 7,
+      "name": "Morgan Rogers",
+      "shirt_number": 17,
       "position": "CM",
-      "fictional": true
+      "nationality": "ENG",
+      "fictional": false
     },
     {
       "player_id": "CHE08",
       "team_id": "CHE",
-      "name": "Chelsea 08",
-      "shirt_number": 8,
+      "name": "Cole Palmer",
+      "shirt_number": 10,
       "position": "CM",
-      "fictional": true
+      "nationality": "ENG",
+      "fictional": false
     },
     {
       "player_id": "CHE09",
       "team_id": "CHE",
-      "name": "Chelsea 09",
-      "shirt_number": 9,
+      "name": "Est\u00eav\u00e3o",
+      "shirt_number": 41,
       "position": "RW",
-      "fictional": true
+      "nationality": "BRA",
+      "fictional": false
     },
     {
       "player_id": "CHE10",
       "team_id": "CHE",
-      "name": "Chelsea 10",
-      "shirt_number": 10,
+      "name": "Jo\u00e3o Pedro",
+      "shirt_number": 9,
       "position": "ST",
-      "fictional": true
+      "nationality": "BRA",
+      "fictional": false
     },
     {
       "player_id": "CHE11",
       "team_id": "CHE",
-      "name": "Chelsea 11",
-      "shirt_number": 11,
+      "name": "Pedro Neto",
+      "shirt_number": 7,
       "position": "LW",
-      "fictional": true
+      "nationality": "POR",
+      "fictional": false
     }
   ],
   "documentation": {
@@ -212,7 +234,9 @@
     "shot_count": "Goals are shot events with outcome=goal; do not count them twice.",
     "possession_id": "Identifies current possession sequence; defensive pressure and tackle events reference the possession being challenged. New possession begins at possession_change or kickoff.",
     "limitations": "Simplified 90-minute simulation: no substitutions, fouls, cards, offsides, corners, stoppage time or injuries. Shot-end possession is simplified. Suitable for UI and streaming demos, not statistical benchmarking.",
-    "summary_usage": "final_statistics is computed from all events. Hide it during replay and aggregate only events already emitted to avoid future-data leakage."
+    "summary_usage": "final_statistics is computed from all events. Hide it during replay and aggregate only events already emitted to avoid future-data leakage.",
+    "roster": "Player names, shirt numbers and nationality codes come from the English Wikipedia first-team squad lists of Arsenal F.C. (revision 1381292988, updated 3 September 2026) and Chelsea F.C. (revision 1381218771, updated 1 September 2026), retrieved 2026-10-22 (CC BY-SA 4.0). Each starting XI is an editorial pick placed in a fixed 4-3-3. The players are real; every event in this match is simulated.",
+    "shot_attribution": "Shots that the original simulation gave to defenders belong to a forward of the same team when taken inside the penalty area, or a midfielder when taken outside it, together with the pass, ball win or pressure that set them up. Event IDs, times, positions, outcomes and team totals are unchanged."
   },
   "final_statistics": {
     "ARS": {
@@ -3209,7 +3233,7 @@
       "team_id": "CHE",
       "player_id": "CHE10",
       "possession_id": 12,
-      "recipient_player_id": "CHE05",
+      "recipient_player_id": "CHE07",
       "start_position": {
         "x": 75.1,
         "y": 23.0
@@ -3236,7 +3260,7 @@
       "clock": "08:53",
       "type": "shot",
       "team_id": "CHE",
-      "player_id": "CHE05",
+      "player_id": "CHE07",
       "possession_id": 12,
       "position": {
         "x": 81.94,
@@ -4867,7 +4891,7 @@
       "clock": "13:42",
       "type": "possession_change",
       "team_id": "ARS",
-      "player_id": "ARS03",
+      "player_id": "ARS08",
       "possession_id": 21,
       "from_team_id": "CHE",
       "reason": "interception",
@@ -4889,7 +4913,7 @@
       "clock": "13:48",
       "type": "shot",
       "team_id": "ARS",
-      "player_id": "ARS03",
+      "player_id": "ARS08",
       "possession_id": 21,
       "position": {
         "x": 81.47,
@@ -7259,7 +7283,7 @@
       "team_id": "CHE",
       "player_id": "CHE09",
       "possession_id": 32,
-      "recipient_player_id": "CHE04",
+      "recipient_player_id": "CHE11",
       "start_position": {
         "x": 74.75,
         "y": 55.87
@@ -7286,7 +7310,7 @@
       "clock": "21:05",
       "type": "shot",
       "team_id": "CHE",
-      "player_id": "CHE04",
+      "player_id": "CHE11",
       "possession_id": 32,
       "position": {
         "x": 91.86,
@@ -8615,7 +8639,7 @@
       "team_id": "ARS",
       "player_id": "ARS05",
       "possession_id": 39,
-      "recipient_player_id": "ARS04",
+      "recipient_player_id": "ARS06",
       "start_position": {
         "x": 75.54,
         "y": 66.39
@@ -8644,7 +8668,7 @@
       "team_id": "CHE",
       "player_id": "CHE09",
       "possession_id": 39,
-      "target_player_id": "ARS04",
+      "target_player_id": "ARS06",
       "position": {
         "x": 21.85,
         "y": 52.62
@@ -8664,7 +8688,7 @@
       "clock": "25:52",
       "type": "shot",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS06",
       "possession_id": 39,
       "position": {
         "x": 78.15,
@@ -9875,7 +9899,7 @@
       "team_id": "ARS",
       "player_id": "ARS02",
       "possession_id": 45,
-      "recipient_player_id": "ARS03",
+      "recipient_player_id": "ARS09",
       "start_position": {
         "x": 89.32,
         "y": 2
@@ -9902,7 +9926,7 @@
       "clock": "29:31",
       "type": "shot",
       "team_id": "ARS",
-      "player_id": "ARS03",
+      "player_id": "ARS09",
       "possession_id": 45,
       "position": {
         "x": 95.98,
@@ -11452,7 +11476,7 @@
       "clock": "33:55",
       "type": "tackle",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS10",
       "possession_id": 54,
       "target_player_id": "CHE07",
       "outcome": "won",
@@ -11474,7 +11498,7 @@
       "clock": "33:55",
       "type": "possession_change",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS10",
       "possession_id": 55,
       "from_team_id": "CHE",
       "reason": "tackle",
@@ -11497,7 +11521,7 @@
       "clock": "34:01",
       "type": "shot",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS10",
       "possession_id": 55,
       "position": {
         "x": 95.68,
@@ -11958,7 +11982,7 @@
       "team_id": "ARS",
       "player_id": "ARS03",
       "possession_id": 57,
-      "recipient_player_id": "ARS04",
+      "recipient_player_id": "ARS09",
       "start_position": {
         "x": 96,
         "y": 2
@@ -11985,7 +12009,7 @@
       "clock": "35:30",
       "type": "shot",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS09",
       "possession_id": 57,
       "position": {
         "x": 95.8,
@@ -13264,7 +13288,7 @@
       "team_id": "ARS",
       "player_id": "ARS02",
       "possession_id": 65,
-      "recipient_player_id": "ARS04",
+      "recipient_player_id": "ARS06",
       "start_position": {
         "x": 67.83,
         "y": 62.35
@@ -13293,7 +13317,7 @@
       "team_id": "CHE",
       "player_id": "CHE06",
       "possession_id": 65,
-      "target_player_id": "ARS04",
+      "target_player_id": "ARS06",
       "position": {
         "x": 17.22,
         "y": 43.53
@@ -13313,7 +13337,7 @@
       "clock": "38:59",
       "type": "shot",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS06",
       "possession_id": 65,
       "position": {
         "x": 82.78,
@@ -16589,7 +16613,7 @@
       "team_id": "ARS",
       "player_id": "ARS03",
       "possession_id": 83,
-      "recipient_player_id": "ARS04",
+      "recipient_player_id": "ARS11",
       "start_position": {
         "x": 96,
         "y": 88.43
@@ -16616,7 +16640,7 @@
       "clock": "48:44",
       "type": "shot",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS11",
       "possession_id": 83,
       "position": {
         "x": 94.37,
@@ -20671,7 +20695,7 @@
       "team_id": "CHE",
       "player_id": "CHE04",
       "possession_id": 106,
-      "recipient_player_id": "CHE02",
+      "recipient_player_id": "CHE11",
       "start_position": {
         "x": 80.72,
         "y": 90.39
@@ -20698,7 +20722,7 @@
       "clock": "61:52",
       "type": "shot",
       "team_id": "CHE",
-      "player_id": "CHE02",
+      "player_id": "CHE11",
       "possession_id": 106,
       "position": {
         "x": 90.16,
@@ -21110,7 +21134,7 @@
       "team_id": "CHE",
       "player_id": "CHE02",
       "possession_id": 110,
-      "recipient_player_id": "CHE04",
+      "recipient_player_id": "CHE06",
       "start_position": {
         "x": 96,
         "y": 51.04
@@ -21137,7 +21161,7 @@
       "clock": "63:02",
       "type": "shot",
       "team_id": "CHE",
-      "player_id": "CHE04",
+      "player_id": "CHE06",
       "possession_id": 110,
       "position": {
         "x": 80.33,
@@ -24676,7 +24700,7 @@
       "team_id": "CHE",
       "player_id": "CHE02",
       "possession_id": 126,
-      "recipient_player_id": "CHE03",
+      "recipient_player_id": "CHE06",
       "start_position": {
         "x": 96,
         "y": 48.29
@@ -24705,7 +24729,7 @@
       "team_id": "ARS",
       "player_id": "ARS09",
       "possession_id": 126,
-      "target_player_id": "CHE03",
+      "target_player_id": "CHE06",
       "position": {
         "x": 19.54,
         "y": 52.95
@@ -24725,7 +24749,7 @@
       "clock": "73:32",
       "type": "shot",
       "team_id": "CHE",
-      "player_id": "CHE03",
+      "player_id": "CHE06",
       "possession_id": 126,
       "position": {
         "x": 80.46,
@@ -25194,7 +25218,7 @@
       "clock": "74:53",
       "type": "possession_change",
       "team_id": "CHE",
-      "player_id": "CHE03",
+      "player_id": "CHE10",
       "possession_id": 132,
       "from_team_id": "ARS",
       "reason": "interception",
@@ -25218,7 +25242,7 @@
       "team_id": "ARS",
       "player_id": "ARS10",
       "possession_id": 132,
-      "target_player_id": "CHE03",
+      "target_player_id": "CHE10",
       "position": {
         "x": 3,
         "y": 38.34
@@ -25238,7 +25262,7 @@
       "clock": "74:58",
       "type": "shot",
       "team_id": "CHE",
-      "player_id": "CHE03",
+      "player_id": "CHE10",
       "possession_id": 132,
       "position": {
         "x": 97,
@@ -25428,7 +25452,7 @@
       "clock": "75:28",
       "type": "tackle",
       "team_id": "CHE",
-      "player_id": "CHE05",
+      "player_id": "CHE11",
       "possession_id": 133,
       "target_player_id": "ARS06",
       "outcome": "won",
@@ -25450,7 +25474,7 @@
       "clock": "75:28",
       "type": "possession_change",
       "team_id": "CHE",
-      "player_id": "CHE05",
+      "player_id": "CHE11",
       "possession_id": 134,
       "from_team_id": "ARS",
       "reason": "tackle",
@@ -25473,7 +25497,7 @@
       "clock": "75:33",
       "type": "shot",
       "team_id": "CHE",
-      "player_id": "CHE05",
+      "player_id": "CHE11",
       "possession_id": 134,
       "position": {
         "x": 94.91,
@@ -27198,7 +27222,7 @@
       "team_id": "CHE",
       "player_id": "CHE10",
       "possession_id": 146,
-      "recipient_player_id": "CHE05",
+      "recipient_player_id": "CHE11",
       "start_position": {
         "x": 72.28,
         "y": 88.72
@@ -27225,7 +27249,7 @@
       "clock": "80:51",
       "type": "shot",
       "team_id": "CHE",
-      "player_id": "CHE05",
+      "player_id": "CHE11",
       "possession_id": 146,
       "position": {
         "x": 90.21,
@@ -27836,7 +27860,7 @@
       "clock": "82:52",
       "type": "tackle",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS07",
       "possession_id": 148,
       "target_player_id": "CHE11",
       "outcome": "won",
@@ -27858,7 +27882,7 @@
       "clock": "82:52",
       "type": "possession_change",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS07",
       "possession_id": 149,
       "from_team_id": "CHE",
       "reason": "tackle",
@@ -27881,7 +27905,7 @@
       "clock": "82:57",
       "type": "shot",
       "team_id": "ARS",
-      "player_id": "ARS04",
+      "player_id": "ARS07",
       "possession_id": 149,
       "position": {
         "x": 78.87,
