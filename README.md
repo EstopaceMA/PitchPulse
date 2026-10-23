@@ -2,7 +2,11 @@
 
 A working event-driven football simulator using Next.js, TypeScript, Tailwind, shadcn/ui, Lucide, and self-hosted Inter and JetBrains Mono. No continuous tracking is involved. Optional [Microsoft Foundry analysis agents](#optional-microsoft-foundry-agents) are off by default; without them, no AI connection or credentials are involved.
 
-The visual specification is maintained in [DESIGN.md](DESIGN.md): a charcoal match library and an editor-style analysis studio with green accents and red/blue team identity. The built-in insights are local and rule-based; the optional agents add separately labeled AI analysis.
+The visual specification is maintained in [DESIGN.md](src/web/DESIGN.md): a charcoal match library and an editor-style analysis studio with green accents and red/blue team identity. The built-in insights are local and rule-based; the optional agents add separately labeled AI analysis.
+
+Repository layout:
+- [src/web/](src/web/) is the whole Next.js app: source, tests, scripts, data and its `Dockerfile`. Run npm commands there.
+- [infra/](infra/) (Terraform) and [azure.yaml](azure.yaml) make the repository an Azure Developer CLI template; see [Deploy to Azure](#deploy-to-azure).
 
 ## Library and studio guide
 
@@ -26,7 +30,7 @@ The visual specification is maintained in [DESIGN.md](DESIGN.md): a charcoal mat
 
 ## Data and architecture
 
-The default source is [public/arsenal-vs-chelsea-match.json](public/arsenal-vs-chelsea-match.json). The match API imports this copy and validates it before sending it to the simulator. No parent-folder dataset or expanded Turbopack root is required. As with any public asset, the original JSON is also directly downloadable; its raw summaries are not used by live panels.
+The default source is [public/arsenal-vs-chelsea-match.json](src/web/public/arsenal-vs-chelsea-match.json). The match API imports this copy and validates it before sending it to the simulator. No parent-folder dataset or expanded Turbopack root is required. As with any public asset, the original JSON is also directly downloadable; its raw summaries are not used by live panels.
 
 ### Demo roster
 
@@ -38,42 +42,42 @@ Data sources:
 | --- | --- | --- |
 | Arsenal first-team squad | English Wikipedia, [Arsenal F.C. § First-team squad](https://en.wikipedia.org/w/index.php?title=Arsenal_F.C.&oldid=1381292988), revision 1381292988 | Section marked updated 3 September 2026 |
 | Chelsea first-team squad | English Wikipedia, [Chelsea F.C. § First-team squad](https://en.wikipedia.org/w/index.php?title=Chelsea_F.C.&oldid=1381218771), revision 1381218771 | Section marked updated 1 September 2026 |
-| Starting XIs | Editorial choice, [data/lineups.json](data/lineups.json) | Placed in the dataset's fixed 4-3-3; not a real lineup |
+| Starting XIs | Editorial choice, [data/lineups.json](src/web/data/lineups.json) | Placed in the dataset's fixed 4-3-3; not a real lineup |
 | Match events | The original PitchPulse simulation | Synthetic; see `documentation` in the dataset |
 
 - Both squad lists were read on 22 October 2026 (UTC). Wikipedia text is available under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 - Only each player's name, shirt number, nationality code and listed position (GK, DF, MF or FW) were taken. No dates of birth, photos or other personal details were taken.
-- [data/squads.json](data/squads.json) records those rows for both full squads, with each page and revision. The repository contains no scraping code, and the app never fetches player data.
+- [data/squads.json](src/web/data/squads.json) records those rows for both full squads, with each page and revision. The repository contains no scraping code, and the app never fetches player data.
 - Player IDs (`ARS01`…`CHE11`) and slot positions never change.
 - Shots that the original simulation gave to defenders now belong to a forward (inside the penalty area) or a midfielder (outside it), together with the pass, ball win or pressure that set them up. Event IDs, times, positions, outcomes, team totals and goals are unchanged.
 - The dataset's `disclaimer`, `documentation.roster` and `documentation.shot_attribution` record the same sources and changes.
 
 To change the roster:
-1. Edit [data/squads.json](data/squads.json) from a newer revision of the pages above, and record the new revision and date. Edit [data/lineups.json](data/lineups.json) if a pick has changed.
-2. Run `npm run data:demo`. It rebuilds the bundled JSON offline and stops if a pick is not in the squad, does not fit its slot, or repeats a shirt number. It changes only the roster, disclaimer, documentation notes and realigned event references, and keeps the file's formatting.
+1. Edit [data/squads.json](src/web/data/squads.json) from a newer revision of the pages above, and record the new revision and date. Edit [data/lineups.json](src/web/data/lineups.json) if a pick has changed.
+2. From `src/web`, run `npm run data:demo`. It rebuilds the bundled JSON offline and stops if a pick is not in the squad, does not fit its slot, or repeats a shirt number. It changes only the roster, disclaimer, documentation notes and realigned event references, and keeps the file's formatting.
 
 | Responsibility | Source |
 | --- | --- |
-| Types / provider contract | [lib/match/types.ts](lib/match/types.ts) |
-| Upload validation | [lib/match/validation.ts](lib/match/validation.ts) |
-| Pure event state machine | [lib/match/playback.ts](lib/match/playback.ts) |
-| Shared clock / atomic incremental stats | [lib/match/use-simulation.ts](lib/match/use-simulation.ts) |
-| Statistics reducer | [lib/match/statistics.ts](lib/match/statistics.ts) |
-| Illustrative movement model | [lib/match/movement.ts](lib/match/movement.ts) |
-| Named player markers and roster | [components/match/team-motion.tsx](components/match/team-motion.tsx) |
-| Deterministic bilingual rules | [lib/match/insights.ts](lib/match/insights.ts) |
-| Dataset API | [app/api/match/route.ts](app/api/match/route.ts) |
-| Game library | [components/match/match-library.tsx](components/match/match-library.tsx) |
-| Studio composition | [components/match/simulator.tsx](components/match/simulator.tsx) |
-| Library validation / timeline grouping | [lib/match/library.ts](lib/match/library.ts) |
-| IndexedDB / serialized session store | [lib/match/library-storage.ts](lib/match/library-storage.ts), [lib/match/use-library.ts](lib/match/use-library.ts) |
-| Agent contracts / prefix-only match packet | [lib/agents/contracts.ts](lib/agents/contracts.ts), [lib/agents/packet.ts](lib/agents/packet.ts) |
-| Agent output guards / Ask tools / instructions | [lib/agents/guards.ts](lib/agents/guards.ts), [lib/agents/tools.ts](lib/agents/tools.ts), [lib/agents/definitions.ts](lib/agents/definitions.ts) |
-| Agent request pipeline / route | [lib/agents/handle.ts](lib/agents/handle.ts), [app/api/agents/[agent]/route.ts](app/api/agents/[agent]/route.ts) |
-| Foundry runner / server-only client | [lib/foundry/run-agent.ts](lib/foundry/run-agent.ts), [lib/foundry/client.ts](lib/foundry/client.ts) |
-| Studio AI state / Foundry insight provider | [lib/match/use-agents.ts](lib/match/use-agents.ts) |
-| Demo roster build (lineups, shot realignment) | [scripts/build-demo.ts](scripts/build-demo.ts), [scripts/demo-data/](scripts/demo-data/) |
-| Tests | [lib/match/simulator.test.ts](lib/match/simulator.test.ts), [lib/agents/](lib/agents/), [scripts/demo-data/](scripts/demo-data/) |
+| Types / provider contract | [lib/match/types.ts](src/web/lib/match/types.ts) |
+| Upload validation | [lib/match/validation.ts](src/web/lib/match/validation.ts) |
+| Pure event state machine | [lib/match/playback.ts](src/web/lib/match/playback.ts) |
+| Shared clock / atomic incremental stats | [lib/match/use-simulation.ts](src/web/lib/match/use-simulation.ts) |
+| Statistics reducer | [lib/match/statistics.ts](src/web/lib/match/statistics.ts) |
+| Illustrative movement model | [lib/match/movement.ts](src/web/lib/match/movement.ts) |
+| Named player markers and roster | [components/match/team-motion.tsx](src/web/components/match/team-motion.tsx) |
+| Deterministic bilingual rules | [lib/match/insights.ts](src/web/lib/match/insights.ts) |
+| Dataset API | [app/api/match/route.ts](src/web/app/api/match/route.ts) |
+| Game library | [components/match/match-library.tsx](src/web/components/match/match-library.tsx) |
+| Studio composition | [components/match/simulator.tsx](src/web/components/match/simulator.tsx) |
+| Library validation / timeline grouping | [lib/match/library.ts](src/web/lib/match/library.ts) |
+| IndexedDB / serialized session store | [lib/match/library-storage.ts](src/web/lib/match/library-storage.ts), [lib/match/use-library.ts](src/web/lib/match/use-library.ts) |
+| Agent contracts / prefix-only match packet | [lib/agents/contracts.ts](src/web/lib/agents/contracts.ts), [lib/agents/packet.ts](src/web/lib/agents/packet.ts) |
+| Agent output guards / Ask tools / instructions | [lib/agents/guards.ts](src/web/lib/agents/guards.ts), [lib/agents/tools.ts](src/web/lib/agents/tools.ts), [lib/agents/definitions.ts](src/web/lib/agents/definitions.ts) |
+| Agent request pipeline / route | [lib/agents/handle.ts](src/web/lib/agents/handle.ts), [app/api/agents/[agent]/route.ts](src/web/app/api/agents/[agent]/route.ts) |
+| Foundry runner / server-only client | [lib/foundry/run-agent.ts](src/web/lib/foundry/run-agent.ts), [lib/foundry/client.ts](src/web/lib/foundry/client.ts) |
+| Studio AI state / Foundry insight provider | [lib/match/use-agents.ts](src/web/lib/match/use-agents.ts) |
+| Demo roster build (lineups, shot realignment) | [scripts/build-demo.ts](src/web/scripts/build-demo.ts), [scripts/demo-data/](src/web/scripts/demo-data/) |
+| Tests | [lib/match/simulator.test.ts](src/web/lib/match/simulator.test.ts), [lib/agents/](src/web/lib/agents/), [scripts/demo-data/](src/web/scripts/demo-data/) |
 
 Playback stores elapsed time **and an event cursor** to preserve sequence at equal timestamps. Forward playback folds new events into cloned statistics; backward seeks rebuild the prefix. Statistics never use final summaries.
 
@@ -97,8 +101,8 @@ Four Foundry Agent Service prompt agents add AI analysis. Each runs only on dema
 How the agents stay honest:
 - The model chooses what to say and writes the text; PitchPulse code supplies every number.
 - Requests carry only the processed prefix. The server re-validates the payload like an upload and asserts that it ends at the playhead.
-- [lib/agents/packet.ts](lib/agents/packet.ts) derives the metrics with the same reducer as the Stats tab: totals, 15-minute blocks, team-relative thirds, and flanks as drawn. It derives no possession share, distances, speeds or synthetic estimates.
-- [lib/agents/guards.ts](lib/agents/guards.ts) removes any card, note or line with any of the following:
+- [lib/agents/packet.ts](src/web/lib/agents/packet.ts) derives the metrics with the same reducer as the Stats tab: totals, 15-minute blocks, team-relative thirds, and flanks as drawn. It derives no possession share, distances, speeds or synthetic estimates.
+- [lib/agents/guards.ts](src/web/lib/agents/guards.ts) removes any card, note or line with any of the following:
   - unknown or future evidence;
   - numbers or mm:ss times the model was never shown;
   - possession percentages, distances, speeds, xG, probabilities or betting language;
@@ -111,9 +115,9 @@ How the agents stay honest:
 Setup (requires Node 22 or later, for example via `nvm use`):
 
 1. Create a Foundry project and deploy an agent-supported model (the default is `gpt-5-mini`).
-2. Grant your account **Foundry User** (formerly Azure AI User) on the project. A deployed server identity only needs **Foundry Agent Consumer**. Agent Service uses Microsoft Entra ID, not API keys: `DefaultAzureCredential` uses `az login` locally, a managed identity on Azure, or `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` elsewhere.
-3. Copy [.env.example](.env.example) to `.env.local` and set `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_MODEL_DEPLOYMENT` and `PITCHPULSE_AI=on`.
-4. Run `npm run agents:provision`. It creates or versions the four agents and prints optional `FOUNDRY_AGENT_VERSION_*` pins.
+2. Grant your account **Foundry User** (formerly Azure AI User) on the project. A deployed server identity needs **Foundry User** on the project; the Azure template assigns it at project scope only. The narrower Foundry Project Runtime User and Foundry Agent Consumer roles return 403 for Responses API calls that use an agent reference. Agent Service uses Microsoft Entra ID, not API keys: `DefaultAzureCredential` uses `az login` locally, a managed identity on Azure, or `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` elsewhere.
+3. In `src/web`, copy [.env.example](src/web/.env.example) to `.env.local` and set `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_MODEL_DEPLOYMENT` and `PITCHPULSE_AI=on`.
+4. From `src/web`, run `npm run agents:provision`. It creates or versions the four agents and prints optional `FOUNDRY_AGENT_VERSION_*` pins.
 5. Optionally run `npm run agents:evaluate`. It calls each agent on the bundled demo at fixed moments and reports how many generated items the guards removed, and why. Add `-- --verbose` to print the verified output, and agent names (for example `-- --verbose ask`) to run only those agents.
 
 When a recap or answer fails verification, or every card or line is removed, the agent gets one corrective retry that names the failed checks. The server logs removal reasons as `[agents/<name>] removed by verification: …`. With `gpt-5-mini`, a turn takes roughly 15–45 seconds; the route allows up to 115 seconds.
@@ -147,7 +151,7 @@ Supported event types: `match_start`, `kickoff`, `pass`, `shot`, `tackle`, `pres
 
 ## Verification and advisory
 
-Use `npm test`, `npm run lint`, and `npm run build`. Agent tests run without Azure, using fake runners. They cover:
+From `src/web`, use `npm test`, `npm run lint`, and `npm run build`. For the infrastructure, run `terraform fmt -check` and `terraform validate` in `infra/`. Agent tests run without Azure, using fake runners. They cover:
 - prefix-only packets and parity with the statistics reducer;
 - zone mirroring;
 - grounding and banned claims in English and Filipino;
@@ -157,15 +161,68 @@ Use `npm test`, `npm run lint`, and `npm run build`. Agent tests run without Azu
 
 Demo roster tests cover lineup checks against the squad snapshot, shot realignment, minimal-diff rewriting of the bundled JSON and the demo refresh that keeps saved progress and notes.
 
-Replay tests cover score rollback, period boundaries, validation, coordinates, and evidence. Movement tests cover all-player coverage, continuity, mirrored formations, equal timestamps, backward sampling, missing fields, and independence from future events. Component markup regressions in [components/match/presentation.test.tsx](components/match/presentation.test.tsx) cover pitch defaults, bilingual inspection controls, playback boundaries, transport labels, and header personalization. [components/match/summary-panels.test.tsx](components/match/summary-panels.test.tsx) verifies statistics comparisons, absence of possession estimates, bounded commentary, linked evidence, empty rosters, and exclusion of future goals and equal-time second-half events. Studio regressions cover exact checkpoint restoration, same-time and period boundaries, annotation anchors, invalid persisted records, library cards, bilingual note controls, and bounded 50,000-event timeline rendering. Browser checks cover multiple imports, invalid input preservation, notes/bookmarks, reload persistence, navigation, removal, storage failure/retry, timeline zoom, playback boundaries, mobile layout, keyboard controls, and reduced motion.
+Replay tests cover score rollback, period boundaries, validation, coordinates, and evidence. Movement tests cover all-player coverage, continuity, mirrored formations, equal timestamps, backward sampling, missing fields, and independence from future events. Component markup regressions in [components/match/presentation.test.tsx](src/web/components/match/presentation.test.tsx) cover pitch defaults, bilingual inspection controls, playback boundaries, transport labels, and header personalization. [components/match/summary-panels.test.tsx](src/web/components/match/summary-panels.test.tsx) verifies statistics comparisons, absence of possession estimates, bounded commentary, linked evidence, empty rosters, and exclusion of future goals and equal-time second-half events. Studio regressions cover exact checkpoint restoration, same-time and period boundaries, annotation anchors, invalid persisted records, library cards, bilingual note controls, and bounded 50,000-event timeline rendering. Browser checks cover multiple imports, invalid input preservation, notes/bookmarks, reload persistence, navigation, removal, storage failure/retry, timeline zoom, playback boundaries, mobile layout, keyboard controls, and reduced motion.
 
 The current audit reports nine high-severity dependency paths rooted in `braces@3.0.3` ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)). The registry's latest release remains 3.0.3; suggested fixes downgrade shadcn/Next ESLint across major versions. These were not force-applied. Recheck upstream patches before deployment. Uploaded JSON never enters those glob-pattern tooling packages.
 
-## Getting Started
+## Deploy to Azure
 
-Use Node 22 or later (`nvm use` reads [.nvmrc](.nvmrc)), then run the development server:
+The repository is an [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/) (azd) template. `azd up` provisions [infra/](infra/) with Terraform and deploys [src/web](src/web/) to Azure Container Apps. The image is built in Azure from [src/web/Dockerfile](src/web/Dockerfile) as a Next.js standalone server.
+
+It creates one resource group, `rg-<environment>`, containing:
+- **Container App:** one always-warm replica, 0.5 vCPU and 1 GiB, with an HTTPS endpoint.
+- **Container Registry:** Basic.
+- **Container Apps environment** and a **Log Analytics workspace**.
+- **User-assigned managed identity:** gets **AcrPull** on the registry, and **Foundry User** scoped to your one Foundry project. There are no keys or secrets.
+
+It also creates a monthly cost alert on your Foundry resource group, which notifies subscription Owners. Your Foundry account and project are only looked up, so `azd down` never deletes them.
+
+Prerequisites:
+- **Tools:** azd, Terraform 1.9 or later, and the Azure CLI.
+- **Sign-in:** run `az login` and `azd auth login`. Terraform authenticates through the Azure CLI.
+- **Permissions:** Owner or User Access Administrator on the subscription, to create the role assignments.
+- **One-time setup:** `az provider register --namespace Microsoft.ContainerRegistry --wait`.
 
 ```bash
+azd env new pitchpulse-demo --location southeastasia
+azd env set FOUNDRY_PROJECT_ENDPOINT "https://<account>.services.ai.azure.com/api/projects/<project>"
+azd env set FOUNDRY_AGENT_VERSION 5   # optional
+azd env set AI_BUDGET_AMOUNT 25       # optional
+azd up
+```
+
+| Setting | Effect |
+| --- | --- |
+| `FOUNDRY_PROJECT_ENDPOINT` | Turns AI analysis on and gives the app's identity access to that project. Leave it unset to deploy without AI. |
+| `FOUNDRY_AGENT_VERSION` | Pins all four agents to one provisioned version. Unset uses each agent's latest version. |
+| `AI_BUDGET_AMOUNT` | Monthly cost alert in US dollars on the Foundry resource group. The default is 25; 0 creates none. |
+
+Afterwards:
+- `azd deploy` ships code changes.
+- `azd provision` applies infrastructure changes and never rolls back the deployed image.
+- `azd down` deletes the environment.
+- After provisioning new agent versions, run `azd env set FOUNDRY_AGENT_VERSION <n>` and then `azd provision`.
+
+Notes:
+- **Region:** use the Foundry project's region for `--location`, to keep agent calls short.
+- **Access:** the app is public. AI stays opt-in per visitor and on demand, and the agents route rate-limits each visitor by the client address that Container Apps supplies. The single replica keeps that in-memory limit accurate.
+- **Cost:** roughly US$15 a month (one idle replica about US$10, the registry about US$5) plus Foundry token usage.
+- **State:** Terraform state stays local in `.azure/<environment>`. Configure remote state before sharing an environment. azd's Terraform support is in beta.
+- **Troubleshooting:**
+  - If the first AI request fails with a Foundry error (403 in `az containerapp logs show`), the role assignment may still be propagating; retry after a few minutes.
+  - Older azd releases (for example 1.23) fail the remote build with `InvalidCorrelationRequestId`. Update azd, or start Docker so azd can build locally, or build and roll out with the Azure CLI using the values from `azd env get-values`:
+
+    ```bash
+    az acr build --registry "$AZURE_CONTAINER_REGISTRY_NAME" --image "pitchpulse/web-$AZURE_ENV_NAME:$TAG" src/web
+    az containerapp update -n "$SERVICE_WEB_NAME" -g "$AZURE_RESOURCE_GROUP" --image "$AZURE_CONTAINER_REGISTRY_ENDPOINT/pitchpulse/web-$AZURE_ENV_NAME:$TAG"
+    ```
+
+## Getting Started
+
+From `src/web`, use Node 22 or later (`nvm use` reads [.nvmrc](src/web/.nvmrc)), install with `npm ci`, then run the development server:
+
+```bash
+cd src/web
 npm run dev
 # or
 yarn dev
@@ -177,7 +234,7 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You can start editing the page by modifying `src/web/app/page.tsx`. The page auto-updates as you edit the file.
 
 Inter is self-hosted through `@fontsource-variable/inter`; metric values use self-hosted `@fontsource/jetbrains-mono`. No external font request is required.
 
