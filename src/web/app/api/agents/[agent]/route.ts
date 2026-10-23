@@ -1,5 +1,6 @@
 import { isAgentName, type AgentErrorCode, type AgentResult } from "@/lib/agents/contracts";
 import { handleAgentRequest } from "@/lib/agents/handle";
+import { clientAddress, createRateLimiter } from "@/lib/agents/rate-limit";
 import { agentReference, foundryResponses, foundryStatus } from "@/lib/foundry/client";
 import { runAgent } from "@/lib/foundry/run-agent";
 
@@ -12,16 +13,8 @@ const RATE_WINDOW_MS = 10 * 60_000;
 const RATE_LIMIT = 30;
 const STATUS: Record<AgentErrorCode, number> = { invalid_request: 400, unverifiable_output: 422, rate_limited: 429, upstream_error: 502, not_configured: 503, timeout: 504 };
 
-// Best-effort and per server instance: there are no accounts, so clients are keyed by address.
-const recent = new Map<string, number[]>();
-function limited(client: string, now: number): boolean {
-    const times = (recent.get(client) ?? []).filter(time => now - time < RATE_WINDOW_MS);
-    const blocked = times.length >= RATE_LIMIT;
-    if (!blocked) times.push(now);
-    recent.set(client, times);
-    if (recent.size > 1000) for (const [key, value] of recent) if (value.every(time => now - time >= RATE_WINDOW_MS)) recent.delete(key);
-    return blocked;
-}
+// Best-effort and per server instance, which is why production runs a single replica.
+const limiter = createRateLimiter(RATE_LIMIT, RATE_WINDOW_MS);
 
 /** Browsers always send Origin on POST; a mismatching one is another site spending this project's tokens. */
 function sameOrigin(request: Request): boolean {
@@ -37,8 +30,7 @@ export async function POST(request: Request, context: RouteContext<"/api/agents/
     if (!isAgentName(agent)) return failure(agent, "invalid_request", "Unknown agent.", 404);
     if (!sameOrigin(request)) return failure(agent, "invalid_request", "Cross-origin requests are not accepted.", 403);
     if (!foundryStatus().configured) return failure(agent, "not_configured", "Microsoft Foundry agents are not configured on this server.");
-    const client = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "local";
-    if (limited(client, Date.now())) return failure(agent, "rate_limited", "Too many AI requests. Try again in a few minutes.");
+    if (limiter.limited(clientAddress(request.headers), Date.now())) return failure(agent, "rate_limited", "Too many AI requests. Try again in a few minutes.");
     if (Number(request.headers.get("content-length") ?? 0) > BODY_LIMIT) return failure(agent, "invalid_request", "The request is larger than 10 MB.", 413);
     const text = await request.text();
     if (text.length > BODY_LIMIT) return failure(agent, "invalid_request", "The request is larger than 10 MB.", 413);

@@ -1,0 +1,9 @@
+# Secrets, local config and build output never enter an image; runtime config comes from the Container App.
+.env*
+.claude
+.vscode
+node_modules
+.next
+coverage
+*.log
+.DS_Store

@@ -1,8 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
-/.pnp
+# dependencies (the app lives in src/web, so patterns are not anchored to the repo root)
+node_modules/
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -11,14 +11,14 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage/
 
 # next.js
 .next/
-/out/
+out/
 
 # production
-/build
+build/
 
 # misc
 .DS_Store
@@ -36,6 +36,13 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# azd environments and Terraform state (keep infra/.terraform.lock.hcl)
+.azure
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
 
 # typescript
 *.tsbuildinfo

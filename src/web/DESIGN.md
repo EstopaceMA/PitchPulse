@@ -42,4 +42,4 @@ The library begins with the one bundled synthetic demo. Additional games come fr
 - Insight facts and cautious interpretations remain separate, supported by reached evidence IDs. Local rules are not labeled AI, and AI output is always labeled AI.
 - AI requests pause playback and describe that frozen moment ("As of mm:ss"). Results and chat from a later playhead are hidden after a rewind, like future events. AI evidence opens the same historical inspection as rule evidence. When the evidence list is capped, the full count is stated.
 
-See [README.md](README.md) for the user workflow and upload contract, and [AGENTS.md](AGENTS.md) for development and verification requirements.
+See [README.md](../../README.md) for the user workflow and upload contract, and [AGENTS.md](AGENTS.md) for development and verification requirements.
