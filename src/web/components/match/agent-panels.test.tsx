@@ -25,17 +25,16 @@ const card: Insight = {
     metrics: [{ label: both("Ball losses (Arsenal)"), value: "12" }], eventIds: events.slice(-40).map(event => event.event_id), evidenceTotal: 120,
 };
 const done = (cursor: number): AgentTask<Insight[]> => ({ status: "done", result: [card], cursor, elapsed: 1800 });
-const panel = (overrides: Partial<Parameters<typeof AgentInsights>[0]> = {}) => renderToStaticMarkup(<AgentInsights preferences={preferences} available enabled task={{ status: "idle", cursor: 0, elapsed: 0 }} cursor={events.length} canAnalyze onAnalyze={noop} onEnable={noop} onEvidence={noop} {...overrides} />);
+const panel = (overrides: Partial<Parameters<typeof AgentInsights>[0]> = {}) => renderToStaticMarkup(<AgentInsights preferences={preferences} available task={{ status: "idle", cursor: 0, elapsed: 0 }} cursor={events.length} canAnalyze onAnalyze={noop} onEvidence={noop} {...overrides} />);
 
-test("AI analysis stays labeled, opt-in and unavailable until the server is configured", () => {
+test("AI analysis is available when configured and stays labeled", () => {
     const unavailable = panel({ available: false });
     assert.match(unavailable, /AI · MICROSOFT FOUNDRY/);
     assert.match(unavailable, /isn’t configured on this server/);
     assert.ok(!unavailable.includes("Analyze this moment"));
-    const disabled = panel({ enabled: false });
-    assert.match(disabled, /Turn on AI analysis/);
-    assert.match(disabled, /Off by default/);
-    assert.ok(!disabled.includes("Analyze this moment"));
+    const available = panel();
+    assert.match(available, /Analyze this moment/);
+    assert.doesNotMatch(available, /Turn on AI analysis|Off by default/);
     assert.match(panel({ canAnalyze: false }), /<button[^>]*disabled=""[^>]*>.*Analyze this moment/);
 });
 

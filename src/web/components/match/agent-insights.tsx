@@ -26,13 +26,9 @@ export function agentErrorText(error: AgentErrorCode | undefined, l: Language): 
     }
 }
 
-export const aiDisclosure = (l: Language) => tr(l,
-    "Off by default. When on, only the buttons you press send this match’s reached events to your Microsoft Foundry project, where responses are stored. Local analysis always stays on.",
-    "Naka-off bilang default. Kapag naka-on, ang mga button lamang na pipindutin mo ang magpapadala ng mga naabot na pangyayari ng laban sa iyong Microsoft Foundry project, kung saan naiimbak ang mga sagot. Laging bukas ang lokal na pagsusuri.");
-
-export function AgentInsights({ preferences, available, enabled, task, cursor, canAnalyze, onAnalyze, onEnable, onEvidence }: {
-    preferences: Preferences; available: boolean; enabled: boolean; task: AgentTask<Insight[]>; cursor: number; canAnalyze: boolean;
-    onAnalyze: () => void; onEnable: () => void; onEvidence: (id: string) => void;
+export function AgentInsights({ preferences, available, task, cursor, canAnalyze, onAnalyze, onEvidence }: {
+    preferences: Preferences; available: boolean; task: AgentTask<Insight[]>; cursor: number; canAnalyze: boolean;
+    onAnalyze: () => void; onEvidence: (id: string) => void;
 }) {
     const id = useId();
     const l = preferences.language;
@@ -47,7 +43,6 @@ export function AgentInsights({ preferences, available, enabled, task, cursor, c
     return <section className="panel agent-panel" aria-labelledby={`${id}-heading`}>
         <div className="panel-heading"><div className="heading-icon"><Sparkles size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(l, "AI analysis", "Pagsusuri ng AI")}</h2></div><AiBadge language={l} /></div>
         {!available ? <p className="agent-note">{tr(l, "AI analysis isn’t configured on this server. The rule-based insights are unaffected.", "Hindi naka-configure ang AI sa server na ito. Hindi apektado ang mga pagsusuring batay sa tuntunin.")}</p>
-            : !enabled ? <div className="agent-optin"><p>{aiDisclosure(l)}</p><Button size="sm" variant="outline" onClick={onEnable}><Sparkles size={14} aria-hidden="true" />{tr(l, "Turn on AI analysis", "I-on ang pagsusuri ng AI")}</Button></div>
                 : <>
                     <div className="agent-actions">
                         <Button size="sm" onClick={onAnalyze} disabled={!canAnalyze || task.status === "loading"}><Sparkles size={14} aria-hidden="true" />{tr(l, "Analyze this moment", "Suriin ang sandaling ito")}</Button>

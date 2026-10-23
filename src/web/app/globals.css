@@ -5140,21 +5140,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   padding: 0 16px 16px;
 }
 
-.agent-optin {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 0 16px 16px;
-  color: var(--muted-foreground);
-  font-size: 11px;
-  line-height: 1.7;
-}
-
-.agent-optin p {
-  margin: 0;
-}
-
 .agent-recap-body {
   display: flex;
   flex-direction: column;
@@ -5349,44 +5334,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   line-height: 1.6;
 }
 
-.ai-toggle {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 4px 0 12px;
-  cursor: pointer;
-}
-
-.ai-toggle input {
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
-  flex-shrink: 0;
-  accent-color: var(--ai-accent);
-}
-
-.ai-toggle input:disabled {
-  cursor: not-allowed;
-}
-
-.ai-toggle span {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ai-toggle b {
-  font-size: 12px;
-  font-weight: 550;
-}
-
-.ai-toggle small {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-.studio-shell .ai-toggle input:focus-visible,
 .studio-shell .ask-suggestions button:focus-visible,
 .studio-shell .agent-points button:focus-visible {
   outline: 2px solid var(--ring);
