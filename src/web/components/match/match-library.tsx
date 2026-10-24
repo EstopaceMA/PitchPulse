@@ -14,8 +14,9 @@ export function StudioBrand() {
 }
 export function StorageStatus({ language: l }: { language: Language }) {
     const library = useLibrary();
+    if (!library.storageError && !library.saving) return null;
     return <div className={`save-status ${library.storageError ? "unsaved" : ""}`} role="status">
-        <span className="tiny-dot" />{library.storageError ? tr(l, "Unsaved · this session only", "Hindi na-save · sa sesyong ito lamang") : library.saving ? tr(l, "Saving…", "Sine-save…") : tr(l, "Saved in this browser", "Naka-save sa browser na ito")}
+        <span className="tiny-dot" />{library.storageError ? tr(l, "Unsaved · this session only", "Hindi na-save · sa sesyong ito lamang") : tr(l, "Saving…", "Sine-save…")}
         {library.storageError && <button type="button" onClick={() => void retryLibrary()}>{tr(l, "Retry", "Subukan muli")}</button>}
     </div>;
 }
