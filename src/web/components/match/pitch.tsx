@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Activity, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Crosshair, Info, Radio, Settings2, UserRound, Users, X } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Crosshair, Info, Radio, Settings2, Sparkles, UserRound, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatTime, pitchPosition } from "@/lib/match/playback";
 import { buildMovementTimeline, sampleMovement } from "@/lib/match/movement";
@@ -17,7 +17,7 @@ function subscribeMotion(callback: () => void) {
 const motionPreference = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const serverMotionPreference = () => false;
 
-export function Pitch({ data, events, elapsed, event, pinned, language, onLive, compact = false, actions, panelActions }: { data: MatchData; events: readonly MatchEvent[]; elapsed: number; event?: MatchEvent; pinned: boolean; language: Language; onLive: () => void; compact?: boolean; actions?: ReactNode; panelActions?: ReactNode }) {
+export function Pitch({ data, events, elapsed, event, pinned, language, onLive, compact = false, actions, panelActions, analysis }: { data: MatchData; events: readonly MatchEvent[]; elapsed: number; event?: MatchEvent; pinned: boolean; language: Language; onLive: () => void; compact?: boolean; actions?: ReactNode; panelActions?: ReactNode; analysis?: { onAnalyze: () => void; disabled: boolean; loading: boolean } }) {
     const [view, setView] = useState<"simulation" | "events">("simulation");
     const [sizing, setSizing] = useState<"fit" | "detailed">("fit");
     const [names, setNames] = useState(true);
@@ -83,6 +83,9 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
             <div className="pitch-toolbar"><span style={{ color: teamColor(data.match.away_team_id, home) }}><ArrowLeft size={13} />{awayName}</span><span>{tr(language, "Fixed attacking directions", "Nakapirming direksiyon")}</span><span style={{ color: teamColor(home, home) }}>{homeName}<ArrowRight size={13} /></span></div>
             <p className="pitch-disclosure">{[simulation ? tr(language, "Illustrative movement", "Halimbawang galaw") : tr(language, "Recorded positions only", "Naitalang posisyon lamang"), rosterDisclosure(data, language)].filter(Boolean).join(" · ")}</p>
             <div id="pitch-stage" className={`pitch-stage${simulation ? ` full-team-stage pitch-${sizing}` : ""}`} tabIndex={simulation ? 0 : undefined} role={simulation ? "region" : undefined} aria-label={simulation ? sizing === "fit" ? tr(language, "Full-team pitch. Fit pitch view.", "Pitch ng lahat. Nakaangkop na tanaw ng pitch.") : tr(language, "Full-team pitch. Scroll horizontally on small screens.", "Pitch ng lahat. Mag-scroll pahalang sa maliit na screen.") : undefined}>
+                <div className="pitch-canvas">
+                {analysis && <Button type="button" size="sm" className="pitch-analyze-button" aria-haspopup="dialog" onClick={analysis.onAnalyze} disabled={analysis.disabled || analysis.loading}><Sparkles size={14} aria-hidden="true" />{analysis.loading ? tr(language, "Analyzing…", "Sinusuri…") : tr(language, "Analyze", "Suriin")}</Button>}
+                {analysis?.loading && <div className="pitch-analysis-loading" role="status" aria-live="polite"><span className="pitch-analysis-spinner" aria-hidden="true" /><span>{tr(language, "Analyzing this moment…", "Sinusuri ang sandaling ito…")}</span></div>}
                 <svg viewBox="0 0 760 510" role={simulation ? "group" : "img"} aria-label={simulation ? tr(language, `${frame.players.length} players with illustrative movement and dataset names.`, `${frame.players.length} manlalaro na may halimbawang galaw at mga pangalan mula sa dataset.`) : event ? `${formatTime(event.match_time_seconds)} ${actor?.name ?? ""} ${eventLabel(event, language)}. ${tr(language, "Only recorded event positions are shown.", "Mga naitalang posisyon lamang ang ipinapakita.")}` : tr(language, "Empty pitch. Start playback to see recorded actions.", "Walang aksiyon. Simulan ang laro.")}>
                     <defs>
                         <pattern id="grass" width="137" height="442" patternUnits="userSpaceOnUse"><rect width="68.5" height="442" fill="#ffffff" opacity=".018" /></pattern>
@@ -112,6 +115,7 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
                     </g>}
                     {simulation && <TeamMotion data={data} frame={frame} names={names} selectedPlayer={selectedPlayer} onSelect={selectPlayer} language={language} />}
                 </svg>
+                </div>
             </div>
             <div className="pitch-context">
                 <div className="current-action">

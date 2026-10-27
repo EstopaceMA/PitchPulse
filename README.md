@@ -93,7 +93,7 @@ Four Foundry Agent Service prompt agents add AI analysis. Each runs only on dema
 
 | Agent | Where | What it adds |
 | --- | --- | --- |
-| Tactical Analyst (`pitchpulse-analyst`) | Insights → **Analyze this moment** | One to four insight cards: pressing, build-up, turnovers, flank preference, momentum, player involvement |
+| Tactical Analyst (`pitchpulse-analyst`) | Pitch → **Analyze** (loads on the pitch, then opens a result dialog), or Insights → **Analyze this moment** | One to four insight cards: pressing, build-up, turnovers, flank preference, momentum, player involvement |
 | Recap Writer (`pitchpulse-recap`) | Half/full-time recap → **Write AI recap** | A narrative story, evidence-linked turning points, per-team notes and, at half-time only, questions for the second half |
 | Ask the Analyst (`pitchpulse-ask`) | **Ask** tab, and **Draft with AI** in the note editor | Answers about the reached match. The agent calls PitchPulse function tools, which see only the processed prefix |
 | Live Commentator (`pitchpulse-commentator`) | Live commentary → **Narrate with AI** | One casual line per recent meaningful event, shown under the unchanged templated row |

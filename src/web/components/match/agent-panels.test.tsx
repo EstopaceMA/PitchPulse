@@ -7,7 +7,7 @@ import { isMeaningful } from "@/lib/match/commentary";
 import type { AgentTask, ChatEntry } from "@/lib/match/use-agents";
 import type { Insight, MatchAnnotation, Preferences } from "@/lib/match/types";
 import { validateMatch } from "@/lib/match/validation";
-import { AgentInsights } from "./agent-insights";
+import { AgentAnalysisModal, AgentInsights } from "./agent-insights";
 import { AgentRecapPanel } from "./agent-recap";
 import { AskAnalyst } from "./ask-analyst";
 import { CommentaryPanel } from "./commentary-panel";
@@ -51,6 +51,22 @@ test("AI results from a later playhead are hidden after a rewind", () => {
     const html = panel({ task: done(events.length + 1) });
     assert.match(html, /hidden until playback reaches that moment again/);
     assert.ok(!html.includes(card.headline.en));
+});
+
+test("the analysis dialog shows verified cards, a close action, and hides later results", () => {
+    const render = (task: AgentTask<Insight[]>, cursor = events.length) => renderToStaticMarkup(<AgentAnalysisModal open preferences={preferences} task={task} cursor={cursor} onClose={noop} onEvidence={noop} />);
+    const current = render(done(events.length));
+    assert.match(current, /<dialog[^>]*class="analysis-dialog"[^>]*aria-labelledby=/);
+    assert.match(current, /AI match analysis/);
+    assert.match(current, /class="analysis-dialog-content"/);
+    assert.match(current, /Close analysis/);
+    assert.match(current, /Ball losses cluster in midfield/);
+    assert.ok(!current.includes("Analyze this moment"));
+    const rewound = render(done(events.length + 1));
+    assert.match(rewound, /hidden until playback reaches that moment again/);
+    assert.ok(!rewound.includes(card.headline.en));
+    assert.match(render({ status: "error", error: "timeout", cursor: events.length, elapsed: 1800 }), /took too long/);
+    assert.equal(renderToStaticMarkup(<AgentAnalysisModal open={false} preferences={preferences} task={done(events.length)} cursor={events.length} onClose={noop} onEvidence={noop} />), "");
 });
 
 test("AI analysis controls and status have Filipino labels", () => {

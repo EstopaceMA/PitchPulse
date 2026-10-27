@@ -1,7 +1,7 @@
 "use client";
 
-import { useId } from "react";
-import { Sparkles } from "lucide-react";
+import { useEffect, useId, useRef } from "react";
+import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AgentErrorCode } from "@/lib/agents/contracts";
 import { formatTime } from "@/lib/match/playback";
@@ -26,11 +26,7 @@ export function agentErrorText(error: AgentErrorCode | undefined, l: Language): 
     }
 }
 
-export function AgentInsights({ preferences, available, task, cursor, canAnalyze, onAnalyze, onEvidence }: {
-    preferences: Preferences; available: boolean; task: AgentTask<Insight[]>; cursor: number; canAnalyze: boolean;
-    onAnalyze: () => void; onEvidence: (id: string) => void;
-}) {
-    const id = useId();
+function analysisView(preferences: Preferences, task: AgentTask<Insight[]>, cursor: number) {
     const l = preferences.language;
     // Results from a later playhead stay hidden after a rewind, like every other derived panel.
     const ahead = task.status !== "idle" && task.cursor > cursor;
@@ -40,6 +36,16 @@ export function AgentInsights({ preferences, available, task, cursor, canAnalyze
             : task.status === "error" ? agentErrorText(task.error, l)
                 : task.status === "done" ? (cards.length ? tr(l, `As of ${formatTime(task.elapsed)} · ${cards.length} verified ${cards.length === 1 ? "card" : "cards"}`, `Hanggang ${formatTime(task.elapsed)} · ${cards.length} beripikadong card`) : tr(l, `No well-supported patterns yet at ${formatTime(task.elapsed)}.`, `Wala pang padrong may sapat na batayan sa ${formatTime(task.elapsed)}.`))
                     : tr(l, "Pause on any moment and ask the Tactical Analyst what the events show.", "Huminto sa anumang sandali at itanong sa Tactical Analyst kung ano ang ipinapakita ng mga pangyayari.");
+    return { cards, status };
+}
+
+export function AgentInsights({ preferences, available, task, cursor, canAnalyze, onAnalyze, onEvidence }: {
+    preferences: Preferences; available: boolean; task: AgentTask<Insight[]>; cursor: number; canAnalyze: boolean;
+    onAnalyze: () => void; onEvidence: (id: string) => void;
+}) {
+    const id = useId();
+    const l = preferences.language;
+    const { cards, status } = analysisView(preferences, task, cursor);
     return <section className="panel agent-panel" aria-labelledby={`${id}-heading`}>
         <div className="panel-heading"><div className="heading-icon"><Sparkles size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(l, "AI analysis", "Pagsusuri ng AI")}</h2></div><AiBadge language={l} /></div>
         {!available ? <p className="agent-note">{tr(l, "AI analysis isn’t configured on this server. The rule-based insights are unaffected.", "Hindi naka-configure ang AI sa server na ito. Hindi apektado ang mga pagsusuring batay sa tuntunin.")}</p>
@@ -52,4 +58,32 @@ export function AgentInsights({ preferences, available, task, cursor, canAnalyze
                     <p className="agent-note">{tr(l, "Numbers and evidence come from PitchPulse’s own event counts. Cards that fail verification are removed before display.", "Mula sa sariling bilang ng PitchPulse ang mga numero at ebidensiya. Inaalis ang mga card na hindi pumasa sa beripikasyon bago ipakita.")}</p>
                 </>}
     </section>;
+}
+
+export function AgentAnalysisModal({ open, preferences, task, cursor, onClose, onEvidence }: {
+    open: boolean; preferences: Preferences; task: AgentTask<Insight[]>; cursor: number;
+    onClose: () => void; onEvidence: (id: string) => void;
+}) {
+    const dialogRef = useRef<HTMLDialogElement>(null);
+    const headingId = useId();
+    const l = preferences.language;
+    const { cards, status } = analysisView(preferences, task, cursor);
+    useEffect(() => {
+        if (!open) return;
+        const dialog = dialogRef.current;
+        dialog?.showModal();
+        return () => { if (dialog?.open) dialog.close(); };
+    }, [open]);
+    if (!open) return null;
+    return <dialog ref={dialogRef} className="analysis-dialog" aria-labelledby={headingId} onClose={onClose} style={{ width: "min(820px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}>
+        <header className="analysis-dialog-header">
+            <div className="analysis-dialog-title"><span className="analysis-dialog-icon"><Sparkles size={20} aria-hidden="true" /></span><div><h2 id={headingId}>{tr(l, "AI match analysis", "Pagsusuri ng AI sa laban")}</h2><p>{tr(l, "Patterns from reached match events", "Mga padron mula sa naabot na pangyayari")}</p></div></div>
+            <Button type="button" size="icon" variant="ghost" aria-label={tr(l, "Close analysis", "Isara ang pagsusuri")} onClick={onClose}><X size={18} aria-hidden="true" /></Button>
+        </header>
+        <div className="analysis-dialog-meta"><span role="status">{cards.length ? status : tr(l, `As of ${formatTime(task.elapsed)}`, `Hanggang ${formatTime(task.elapsed)}`)}</span><AiBadge language={l} /></div>
+        <div className="analysis-dialog-content">
+            {cards.length > 0 ? <div className="analysis-dialog-list">{cards.map(card => <InsightCard key={card.id} insight={card} preferences={preferences} onEvidence={onEvidence} />)}</div> : <div className="analysis-dialog-empty"><Sparkles size={22} aria-hidden="true" /><p>{status}</p></div>}
+        </div>
+        <footer className="analysis-dialog-footer">{tr(l, "Numbers and evidence are verified against reached events.", "Sinusuri ang mga bilang at ebidensiya laban sa mga naabot na pangyayari.")}</footer>
+    </dialog>;
 }

@@ -38,6 +38,24 @@ test("pitch sizing and historical controls have Filipino labels", () => {
     for (const label of ["Laki ng pitch", "Iangkop ang pitch", "Detalyadong tanaw", "Sundan ang laro"]) assert.ok(html.includes(label));
 });
 
+test("configured AI adds a pitch Analyze action with available and loading states", () => {
+    const render = (disabled: boolean, loading = false, language: "en" | "fil" = "en") => renderToStaticMarkup(<Pitch data={data} events={data.events.slice(0, 1)} elapsed={0} pinned={false} language={language} onLive={noop} analysis={{ onAnalyze: noop, disabled, loading }} />);
+    const ready = render(false);
+    const stage = ready.indexOf('class="pitch-stage');
+    const button = ready.indexOf('pitch-analyze-button', stage);
+    const field = ready.indexOf('<svg viewBox="0 0 760 510"', stage);
+    assert.ok(stage >= 0 && button > stage && field > button);
+    assert.match(ready.slice(stage, field), /aria-haspopup="dialog"/);
+    assert.match(ready.slice(stage, field), />Analyze<\/button>/);
+    assert.ok(!ready.slice(stage, field).includes('disabled=""'));
+    assert.ok(render(true).slice(stage, field).includes('disabled=""'));
+    const loading = render(false, true);
+    assert.match(loading, /Analyzing…<\/button>/);
+    assert.match(loading, /class="pitch-analysis-loading" role="status" aria-live="polite"/);
+    assert.match(loading, /Analyzing this moment…/);
+    assert.match(render(false, false, "fil"), />Suriin<\/button>/);
+});
+
 function controls(state: PlaybackState, empty = false) {
     return renderToStaticMarkup(<PlaybackControls data={empty ? { ...data, events: [] } : data} state={state} language="en" statusText={state.status} dispatch={noop} onRestart={noop} onSeek={noop} onStep={noop} />);
 }

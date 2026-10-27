@@ -23,7 +23,7 @@ import { StudioSplitter } from "./studio-splitter";
 import { useStudioLayout } from "./use-studio-layout";
 import { StudioTimeline } from "./studio-timeline";
 import { StudioNotes } from "./studio-notes";
-import { AgentInsights, agentErrorText } from "./agent-insights";
+import { AgentAnalysisModal, AgentInsights, agentErrorText } from "./agent-insights";
 import { AgentRecapPanel } from "./agent-recap";
 import { AskAnalyst } from "./ask-analyst";
 
@@ -53,6 +53,8 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
     const [annotations, setAnnotations] = useState(record.annotations);
     const [draft, setDraft] = useState<MatchAnnotation | null>(null);
     const [selectedNote, setSelectedNote] = useState<string | null>(null);
+    const [pitchAnalysisRequested, setPitchAnalysisRequested] = useState(false);
+    const [analysisModalDismissed, setAnalysisModalDismissed] = useState(false);
     const [drafting, setDrafting] = useState(false);
     const [draftStatus, setDraftStatus] = useState("");
     const l = preferences.language;
@@ -63,6 +65,7 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
     const insights = useMemo(() => ruleBasedProvider.generate(data, events, reachedTime), [data, events, reachedTime]);
     const ai = useStudioAgents(record.id, data, events, { elapsed: state.elapsed, secondHalf: state.secondHalf, status: state.status }, preferences);
     const aiOn = aiAvailable;
+    const analysisModalOpen = pitchAnalysisRequested && !analysisModalDismissed && (ai.analyst.status === "done" || ai.analyst.status === "error");
     const activeInspector = inspector === "ask" && !aiOn ? "insights" : inspector;
     const statusText = { ready: tr(l, "Ready", "Handa"), playing: tr(l, "Playing", "Naglalaro"), paused: tr(l, "Paused", "Nakahinto"), "half-time": tr(l, "Half-time", "Pahinga"), "full-time": tr(l, "Full-time", "Tapos na") }[state.status];
     const latest = useRef({ state, annotations });
@@ -119,6 +122,10 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
         if (window.matchMedia("(max-width: 900px)").matches) requestAnimationFrame(() => inspectorRef.current?.scrollIntoView({ block: "start" }));
     };
     const restart = () => { setSelectedId(null); dispatch({ type: "restart" }); };
+    const closeAnalysisModal = () => {
+        setAnalysisModalDismissed(true);
+        requestAnimationFrame(() => viewerRef.current?.querySelector<HTMLButtonElement>(".pitch-analyze-button")?.focus());
+    };
     // Drafts come from the note's own anchor prefix and only fill the editor; saving keeps them user-authored.
     const draftWithAI = (note: MatchAnnotation) => {
         const language = l;
@@ -145,7 +152,7 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
             {layout.desktop && leftOpen && <StudioSplitter {...layout.browser} panelId={`${panelId}-browser`} language={l} cancelKey={layout.cancelKey} />}
             <main ref={viewerRef} id={`${panelId}-viewer`} className="studio-viewer">
 
-                <div className="viewer-content"><Pitch compact panelActions={<><Button size="sm" variant="ghost" aria-expanded={leftOpen} aria-controls={`${panelId}-browser`} onClick={() => setLeftOpen(value => !value)}><ListFilter size={14} />{tr(l, "Browser", "Browser")}{leftOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}</Button><Button size="sm" variant="ghost" aria-expanded={rightOpen} aria-controls={`${panelId}-inspector`} onClick={() => setRightOpen(value => !value)}><FilePenLine size={14} />{tr(l, "Inspector", "Tagasuri")}{rightOpen ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}</Button></>} actions={<><Button size="sm" variant="ghost" onClick={() => createAnnotation("note")}><FilePenLine size={14} />{tr(l, "Note", "Tala")}</Button><Button size="sm" variant="ghost" onClick={() => createAnnotation("bookmark")}><Bookmark size={14} />{tr(l, "Bookmark", "Bookmark")}</Button></>} data={data} events={events} elapsed={state.elapsed} event={selected ?? events.at(-1)} pinned={!!selected} language={l} onLive={() => setSelectedId(null)} />{data.events.length === 0 && <p className="workspace-notice">{tr(l, "This match has no recorded events. Import another dataset to replay a game.", "Walang naitalang pangyayari sa laban. Mag-import ng ibang dataset upang mag-replay.")}</p>}</div>
+                <div className="viewer-content"><Pitch compact panelActions={<><Button size="sm" variant="ghost" aria-expanded={leftOpen} aria-controls={`${panelId}-browser`} onClick={() => setLeftOpen(value => !value)}><ListFilter size={14} />{tr(l, "Browser", "Browser")}{leftOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}</Button><Button size="sm" variant="ghost" aria-expanded={rightOpen} aria-controls={`${panelId}-inspector`} onClick={() => setRightOpen(value => !value)}><FilePenLine size={14} />{tr(l, "Inspector", "Tagasuri")}{rightOpen ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}</Button></>} actions={<><Button size="sm" variant="ghost" onClick={() => createAnnotation("note")}><FilePenLine size={14} />{tr(l, "Note", "Tala")}</Button><Button size="sm" variant="ghost" onClick={() => createAnnotation("bookmark")}><Bookmark size={14} />{tr(l, "Bookmark", "Bookmark")}</Button></>} analysis={aiOn ? { disabled: events.length === 0, loading: ai.analyst.status === "loading", onAnalyze: () => { pause(); setSelectedId(null); setPitchAnalysisRequested(true); setAnalysisModalDismissed(false); ai.analyze(); } } : undefined} data={data} events={events} elapsed={state.elapsed} event={selected ?? events.at(-1)} pinned={!!selected} language={l} onLive={() => setSelectedId(null)} />{data.events.length === 0 && <p className="workspace-notice">{tr(l, "This match has no recorded events. Import another dataset to replay a game.", "Walang naitalang pangyayari sa laban. Mag-import ng ibang dataset upang mag-replay.")}</p>}</div>
 
             </main>
             {layout.desktop && rightOpen && <StudioSplitter {...layout.inspector} panelId={`${panelId}-inspector`} language={l} cancelKey={layout.cancelKey} />}
@@ -166,5 +173,6 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
             </aside>
         </div>
         <StudioTimeline data={data} events={events} state={state} language={l} annotations={annotations} selectedId={selected?.event_id ?? null} onAnnotation={selectNote} onEvent={inspect} dispatch={dispatch} statusText={statusText} onRestart={restart} onSeek={elapsed => { setSelectedId(null); dispatch({ type: "seek", elapsed }); }} onStep={() => { setSelectedId(null); dispatch({ type: "step" }); }} />
+        <AgentAnalysisModal open={analysisModalOpen} preferences={preferences} task={ai.analyst} cursor={events.length} onClose={closeAnalysisModal} onEvidence={id => { setAnalysisModalDismissed(true); inspect(id); }} />
     </div>;
 }
