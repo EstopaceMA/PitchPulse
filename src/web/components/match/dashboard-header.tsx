@@ -7,9 +7,10 @@ import { tr } from "@/lib/match/presentation";
 import type { MatchStatus } from "@/lib/match/playback";
 import type { MatchData, Preferences } from "@/lib/match/types";
 import { PreferencesMenu } from "./view-controls";
+import { FootballMark } from "./football-mark";
 
 export function Brand() {
-    return <a href="#" className="brand" aria-label="PitchPulse home"><span className="brand-mark"><Activity size={24} strokeWidth={2.3} aria-hidden="true" /></span><span>pitch<span className="brand-light">pulse</span><span className="brand-period">.</span></span></a>;
+    return <a href="#" className="brand" aria-label="PitchPulse home"><span className="brand-mark"><Activity size={24} strokeWidth={2.3} aria-hidden="true" /><span className="brand-ball"><FootballMark size={15} /></span></span><span>pitch<span className="brand-light">pulse</span><span className="brand-period">.</span></span></a>;
 }
 
 export function DashboardHeader({ data, preferences, source, sourceKind, loading, status, statusText, onChange, onUpload, onDemo, onInsights }: {

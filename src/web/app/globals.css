@@ -403,6 +403,7 @@ button:disabled {
 }
 
 .brand-mark {
+  position: relative;
   display: grid;
   place-items: center;
   width: 40px;
@@ -3129,6 +3130,7 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 }
 
 .studio-brand-icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 34px;
@@ -3136,6 +3138,20 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   background: var(--primary);
   color: #111915;
   border-radius: 9px;
+}
+
+.brand-ball {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--background);
+  border-radius: 50%;
+  color: #111915;
+  background: #f3f6f2;
 }
 
 .studio-brand strong {

@@ -8,9 +8,10 @@ import { formatTime } from "@/lib/match/playback";
 import { initials, tr } from "@/lib/match/presentation";
 import { importMatch, removeMatch, retryLibrary, setLibraryLanguage, useLibrary } from "@/lib/match/use-library";
 import type { Language, LibraryMatch } from "@/lib/match/types";
+import { FootballMark } from "./football-mark";
 
 export function StudioBrand() {
-    return <Link href="/" className="studio-brand" aria-label="PitchPulse"><span className="studio-brand-icon"><Activity size={22} /></span><strong>pitch<span>pulse</span><i>.</i></strong></Link>;
+    return <Link href="/" className="studio-brand" aria-label="PitchPulse"><span className="studio-brand-icon"><Activity size={22} aria-hidden="true" /><span className="brand-ball"><FootballMark size={15} /></span></span><strong>pitch<span>pulse</span><i>.</i></strong></Link>;
 }
 export function StorageStatus({ language: l }: { language: Language }) {
     const library = useLibrary();
