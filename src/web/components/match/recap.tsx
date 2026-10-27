@@ -102,7 +102,7 @@ export function Recap({ data, events, stats, insights, preferences, kind, onEvid
                 <section className="recap-section" aria-labelledby={`${id}-statistics`}>
                     <h3 id={`${id}-statistics`}>{tr(language, "teamStatistics")}</h3>
                     <Comparison data={data} stats={comparisonStats} language={language} />
-                    <p className="data-note">{tr(language, "goalsCountAsShotsNoPossessionOrDistance")}</p>
+                    <p className="data-note">{tr(language, "statisticsDataNote")}</p>
                 </section>
 
                 <section className="recap-section" aria-labelledby={`${id}-contributions`}>

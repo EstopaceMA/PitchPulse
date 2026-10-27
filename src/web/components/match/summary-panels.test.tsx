@@ -91,13 +91,13 @@ test("statistics comparison follows home/away IDs rather than team array order",
 
 test("statistics never invent possession even for a complete match", () => {
     const html = statistics(aggregate(data, data.events));
-    assert.match(html, /No possession or distance estimates\./);
+    assert.match(html, /No possession or player-distance estimates\./);
     assert.doesNotMatch(html, /<span>Possession<\/span>|data-metric="possession"/);
 });
 
 test("statistics headings and data limitations remain bilingual", () => {
     const html = statistics(createStatistics(data), "fil");
-    for (const label of ["Estadistika ng laban", "Mga tira", "Mga tirang sa target", "Katumpakan ng pasa", "Walang tantiya ng possession o distansiya."]) assert.ok(html.includes(label));
+    for (const label of ["Estadistika ng laban", "Mga tira", "Mga tirang sa target", "Katumpakan ng pasa", "Walang tantiya ng possession o distansiyang natakbo ng manlalaro."]) assert.ok(html.includes(label));
     assert.deepEqual(values(html, "Katumpakan ng pasa"), ["0.0%", "0.0%"]);
 });
 
@@ -218,3 +218,18 @@ test("equal-time half boundaries honor the event cursor, not timestamps or futur
     assert.doesNotMatch(paused, /Second half/);
     assert.deepEqual(listIds(commentary(match.events, "en", match), "commentary-list"), ["SUMMARY-2", "SUMMARY-1"]);
 });
+
+test("statistics add pass-quality and synthetic speed rows from the quality reducer, with dashes before any sample", () => {
+    const empty = statistics();
+    assert.deepEqual(values(empty, "Average pass distance"), ["—", "—"]);
+    assert.deepEqual(values(empty, "Fastest shot"), ["—", "—"]);
+    assert.deepEqual(values(empty, "Long passes completed \\(20 m\\+\\)"), ["0", "0"]);
+    const stats = aggregate(data, data.events);
+    const home = stats.quality.teams[data.match.home_team_id], away = stats.quality.teams[data.match.away_team_id];
+    const html = statistics(stats);
+    assert.deepEqual(values(html, "Fastest shot"), [`${home.shot_speed_max.toFixed(1)} km/h`, `${away.shot_speed_max.toFixed(1)} km/h`]);
+    assert.deepEqual(values(html, "Difficult passes completed"), [String(home.difficult_passes_completed), String(away.difficult_passes_completed)]);
+    assert.match(html, /<p class="comparison-group-heading micro-label">Speed · synthetic<\/p>/);
+    assert.doesNotMatch(html, /NaN|Infinity|undefined/);
+});
+

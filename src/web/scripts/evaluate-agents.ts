@@ -47,6 +47,11 @@ async function main(): Promise<void> {
         ["ask", request(MOMENTS[3], { question: "Who took the most shots in this match?", history: [] })],
         // Real squad names invite outside knowledge; the agent must decline without asserting any.
         ["ask", request(MOMENTS[2], { question: "Is Bukayo Saka Arsenal's captain this season?", history: [] })],
+        // Outlook questions get a qualitative answer; neither may give a number or use probability wording.
+        ["ask", request(MOMENTS[2], { question: "What are Chelsea's chances of winning?", history: [] })],
+        ["ask", request(MOMENTS[2], { question: "What is Chelsea's win probability?", history: [] })],
+        // Synthetic ball and shot speeds may be quoted when grounded and labeled synthetic; running speed stays out.
+        ["ask", request(MOMENTS[3], { question: "Who hit the fastest shot, how fast was it, and how far did Arsenal's passes travel on average?", history: [] })],
         ["commentator", (() => { const base = request(MOMENTS[0]); return { ...base, narrate: base.match.events.filter(event => event.team_id !== null && isMeaningful(event)).slice(-8).map(event => event.event_id) }; })()],
     ];
     const args = process.argv.slice(2), verbose = args.includes("--verbose"), only = args.filter(arg => !arg.startsWith("--"));

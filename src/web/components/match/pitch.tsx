@@ -5,8 +5,11 @@ import { Activity, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Crosshair, 
 import { Button } from "@/components/ui/button";
 import { formatTime, pitchPosition } from "@/lib/match/playback";
 import { buildMovementTimeline, sampleMovement } from "@/lib/match/movement";
-import { eventLabel, outcomeLabel, rosterDisclosure, teamColor, tr } from "@/lib/match/presentation";
-import type { Language, MatchData, MatchEvent, Position } from "@/lib/match/types";
+import { bandLabel, distanceText, eventLabel, highlightText, outcomeLabel, rosterDisclosure, speedText, teamColor, tr } from "@/lib/match/presentation";
+import { difficultyBand } from "@/lib/match/statistics";
+import { activeHighlights, buildHighlights } from "@/lib/match/thresholds";
+import type { Language, MatchData, MatchEvent, Position, Units } from "@/lib/match/types";
+import { PitchLayers, type PitchLayer } from "./pitch-layers";
 import { PlayerRoster, TeamMotion } from "./team-motion";
 
 function subscribeMotion(callback: () => void) {
@@ -16,13 +19,48 @@ function subscribeMotion(callback: () => void) {
 }
 const motionPreference = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const serverMotionPreference = () => false;
+/** The viewer's reduced-motion preference; false during server rendering. */
+export const useReducedMotion = () => useSyncExternalStore(subscribeMotion, motionPreference, serverMotionPreference);
 
-export function Pitch({ data, events, elapsed, event, pinned, language, onLive, compact = false, actions, panelActions, analysis }: { data: MatchData; events: readonly MatchEvent[]; elapsed: number; event?: MatchEvent; pinned: boolean; language: Language; onLive: () => void; compact?: boolean; actions?: ReactNode; panelActions?: ReactNode; analysis?: { onAnalyze: () => void; disabled: boolean; loading: boolean } }) {
+/** Grass, lines and spots in the shared 760 × 510 pitch coordinates (playing area 38–722 × 34–476). */
+export function PitchMarkings() {
+    return <>
+        <defs>
+            <pattern id="grass" width="137" height="442" patternUnits="userSpaceOnUse"><rect width="68.5" height="442" fill="#ffffff" opacity=".018" /></pattern>
+            <radialGradient id="field-glow"><stop offset="0" stopColor="#164333" /><stop offset="1" stopColor="#102a26" /></radialGradient>
+        </defs>
+        <rect x="25" y="21" width="710" height="468" rx="9" fill="url(#field-glow)" />
+        <rect x="38" y="34" width="684" height="442" fill="url(#grass)" />
+        <g fill="none" stroke="#9cbfb0" strokeOpacity=".32" strokeWidth="1.2">
+            <rect x="38" y="34" width="684" height="442" rx="1" /><path d="M380 34V476" /><circle cx="380" cy="255" r="59.3" />
+            <path d="M38 124H145.5V386H38 M722 124H614.5V386H722 M38 195H73.9V315H38 M722 195H686.1V315H722" />
+            <path d="M145.5 208a59.3 59.3 0 0 1 0 94 M614.5 208a59.3 59.3 0 0 0 0 94" />
+            <path d="M38 42a8 8 0 0 0 8-8 M714 34a8 8 0 0 0 8 8 M38 468a8 8 0 0 1 8 8 M714 476a8 8 0 0 1 8-8" />
+            <path d="M38 231H25V279H38 M722 231H735V279H722" strokeOpacity=".7" />
+        </g>
+        <g fill="#b3d2c4" opacity=".5"><circle cx="380" cy="255" r="2.5" /><circle cx="110" cy="255" r="2" /><circle cx="650" cy="255" r="2" /></g>
+    </>;
+}
+
+/** The synthetic per-event quality values worth showing beside an action, joined for one compact chip. */
+export function qualitySummary(event: MatchEvent | undefined, language: Language, units: Units = "metric"): string | null {
+    if (event?.type === "pass") {
+        const parts = [
+            event.distance_m !== undefined ? distanceText(event.distance_m, units) : null,
+            event.difficulty_rating !== undefined ? bandLabel(difficultyBand(event.difficulty_rating), language) : null,
+            event.ball_speed_kmh !== undefined ? speedText(event.ball_speed_kmh, units) : null,
+        ].filter(Boolean);
+        return parts.length ? parts.join(" · ") : null;
+    }
+    return event?.type === "shot" && event.shot_speed_kmh !== undefined ? speedText(event.shot_speed_kmh, units) : null;
+}
+
+export function Pitch({ data, events, elapsed, event, pinned, language, onLive, compact = false, actions, panelActions, analysis, units = "metric", focusPlayer, layer = "none" }: { data: MatchData; events: readonly MatchEvent[]; elapsed: number; event?: MatchEvent; pinned: boolean; language: Language; onLive: () => void; compact?: boolean; actions?: ReactNode; panelActions?: ReactNode; analysis?: { onAnalyze: () => void; disabled: boolean; loading: boolean }; units?: Units; focusPlayer?: string; layer?: PitchLayer }) {
     const [view, setView] = useState<"simulation" | "events">("simulation");
     const [sizing, setSizing] = useState<"fit" | "detailed">("fit");
     const [names, setNames] = useState(true);
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
-    const reducedMotion = useSyncExternalStore(subscribeMotion, motionPreference, serverMotionPreference);
+    const reducedMotion = useReducedMotion();
     const simulation = view === "simulation";
     const prefix = useMemo(() => {
         const index = pinned && event ? events.findIndex(e => e.event_id === event.event_id) : -1;
@@ -33,6 +71,11 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
     // There is no animation timer: the shared simulation clock controls every move.
     const visualTime = pinned || reducedMotion ? prefix.at(-1)?.match_time_seconds ?? 0 : elapsed;
     const frame = useMemo(() => sampleMovement(timeline, visualTime), [timeline, visualTime]);
+    // Built once per prefix; the per-frame window filter walks back only over recent highlights.
+    const highlights = useMemo(() => buildHighlights(prefix), [prefix]);
+    const shownHighlights = activeHighlights(highlights, visualTime);
+    const latestHighlight = shownHighlights.at(-1);
+    const quality = qualitySummary(event, language, units);
     const activeIds = new Set(frame.players.filter(p => p.active).map(p => p.playerId));
     const selectPlayer = (id: string) => setSelectedPlayer(previous => previous === id ? null : id);
     const home = data.match.home_team_id;
@@ -87,21 +130,8 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
                 {analysis && <Button type="button" size="sm" className="pitch-analyze-button" aria-haspopup="dialog" onClick={analysis.onAnalyze} disabled={analysis.disabled || analysis.loading}><Sparkles size={14} aria-hidden="true" />{analysis.loading ? tr(language, "analyzing") : tr(language, "analyze")}</Button>}
                 {analysis?.loading && <div className="pitch-analysis-loading" role="status" aria-live="polite"><span className="pitch-analysis-spinner" aria-hidden="true" /><span>{tr(language, "analyzingThisMoment")}</span></div>}
                 <svg viewBox="0 0 760 510" role={simulation ? "group" : "img"} aria-label={simulation ? tr(language, "illustrativePlayers", { count: frame.players.length }) : event ? `${formatTime(event.match_time_seconds)} ${actor?.name ?? ""} ${eventLabel(event, language)}. ${tr(language, "onlyRecordedEventPositionsAreShown")}` : tr(language, "emptyPitchStartPlaybackToSeeRecordedActions")}>
-                    <defs>
-                        <pattern id="grass" width="137" height="442" patternUnits="userSpaceOnUse"><rect width="68.5" height="442" fill="#ffffff" opacity=".018" /></pattern>
-                        <radialGradient id="field-glow"><stop offset="0" stopColor="#164333" /><stop offset="1" stopColor="#102a26" /></radialGradient>
-                        <marker id="pass-arrow" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke={failed ? "#f4bb63" : color} strokeWidth="1.5" /></marker>
-                    </defs>
-                    <rect x="25" y="21" width="710" height="468" rx="9" fill="url(#field-glow)" />
-                    <rect x="38" y="34" width="684" height="442" fill="url(#grass)" />
-                    <g fill="none" stroke="#9cbfb0" strokeOpacity=".32" strokeWidth="1.2">
-                        <rect x="38" y="34" width="684" height="442" rx="1" /><path d="M380 34V476" /><circle cx="380" cy="255" r="59.3" />
-                        <path d="M38 124H145.5V386H38 M722 124H614.5V386H722 M38 195H73.9V315H38 M722 195H686.1V315H722" />
-                        <path d="M145.5 208a59.3 59.3 0 0 1 0 94 M614.5 208a59.3 59.3 0 0 0 0 94" />
-                        <path d="M38 42a8 8 0 0 0 8-8 M714 34a8 8 0 0 0 8 8 M38 468a8 8 0 0 1 8 8 M714 476a8 8 0 0 1 8-8" />
-                        <path d="M38 231H25V279H38 M722 231H735V279H722" strokeOpacity=".7" />
-                    </g>
-                    <g fill="#b3d2c4" opacity=".5"><circle cx="380" cy="255" r="2.5" /><circle cx="110" cy="255" r="2" /><circle cx="650" cy="255" r="2" /></g>
+                    <defs><marker id="pass-arrow" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke={failed ? "#f4bb63" : color} strokeWidth="1.5" /></marker></defs>
+                    <PitchMarkings />
                     {!simulation && !from && <g><rect x="226" y="218" width="308" height="74" rx="12" fill="#0a1d1b" fillOpacity=".8" stroke="#34564b" /><text x="380" y="249" textAnchor="middle" fill="#e0eee8" fontSize="14" fontWeight="600">{event ? eventLabel(event, language) : tr(language, "theStoryStartsAtKickOff")}</text><text x="380" y="273" textAnchor="middle" fill="#8eada0" fontSize="11">{event ? tr(language, "noLocationRecordedForThisEvent") : tr(language, "pressPlayFollowEveryMoment")}</text></g>}
                     {from && <g key={event?.event_id} className="event-arrival">
                         {event?.type === "pressure" && <><circle cx={from.x} cy={from.y} r="43" fill={color} fillOpacity=".08" stroke={color} strokeOpacity=".4" strokeDasharray="4 5" /><circle cx={from.x} cy={from.y} r="29" fill="none" stroke={color} strokeOpacity=".25" /></>}
@@ -113,7 +143,8 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
                             <g transform={`translate(${Math.max(106, Math.min(654, from.x))},${from.y < 80 ? from.y + 37 : from.y - 34})`}><rect x="-83" y="-15" width="166" height="26" rx="5" fill="#0a141e" fillOpacity=".94" stroke={color} strokeOpacity=".35" /><text textAnchor="middle" y="2" fill="#f0f4f8" fontSize="11" fontWeight="500">{actor?.name ?? tr(language, "recordedAction")}</text></g>
                             {ball && <g transform={`translate(${ball.x},${ball.y})`}><circle r="5.5" fill="#fff" stroke="#0e1a23" strokeWidth="1.5" /><path d="M0-3l3 2-1 3h-4l-1-3Z" fill="#1c2936" /></g>}</>}
                     </g>}
-                    {simulation && <TeamMotion data={data} frame={frame} names={names} selectedPlayer={selectedPlayer} onSelect={selectPlayer} language={language} />}
+                    <PitchLayers data={data} events={prefix} layer={layer} playerId={focusPlayer} language={language} units={units} />
+                    {simulation && <TeamMotion data={data} frame={frame} names={names} selectedPlayer={selectedPlayer} onSelect={selectPlayer} language={language} highlights={shownHighlights} units={units} focusPlayer={focusPlayer} />}
                 </svg>
                 </div>
             </div>
@@ -121,11 +152,12 @@ export function Pitch({ data, events, elapsed, event, pinned, language, onLive, 
                 <div className="current-action">
                     <div className="action-symbol" style={{ color }}><ActionIcon size={20} aria-hidden="true" /></div>
                     <div className="action-copy">
-                        <div className="action-heading"><strong>{event ? eventLabel(event, language) : tr(language, "readyWhenYouAre")}</strong>{event?.outcome && <span className="action-outcome">{outcomeLabel(event, language)}</span>}</div>
+                        <div className="action-heading"><strong>{event ? eventLabel(event, language) : tr(language, "readyWhenYouAre")}</strong>{event?.outcome && <span className="action-outcome">{outcomeLabel(event, language)}</span>}{quality && <span className="action-quality" title={tr(language, "syntheticDatasetValues")}>{quality}</span>}</div>
                         <p>{event ? actor?.name ?? tr(language, "matchEvent") : tr(language, "pressPlayToFollowTheMatch")}</p>
                     </div>
                     {event && <time className="action-time" aria-label={tr(language, "eventTime")}>{formatTime(event.match_time_seconds)}</time>}
                 </div>
+                <p className="sr-only" role="status" aria-live="polite">{simulation && latestHighlight ? `${data.players.find(player => player.player_id === latestHighlight.playerId)?.name ?? ""}: ${highlightText(latestHighlight, language, units)}` : ""}</p>
                 {simulation && selected && <div className="pitch-player-selection" role="status" aria-atomic="true"><UserRound size={16} aria-hidden="true" /><strong>{selected.name}</strong><span>{selected.position ?? tr(language, "player")}{selected.shirt_number !== undefined ? ` · #${selected.shirt_number}` : ""}{selected.nationality ? ` · ${selected.nationality}` : ""}</span></div>}
 
                 <div className="pitch-info-grid">

@@ -15,13 +15,22 @@ Repository layout:
 - Each match opens at `/studio/[id]`. Reopening restores the exact last saved event cursor and clock, paused; ready, half-time, and full-time retain their boundary states. Unknown IDs offer a return to the library.
 - Desktop gives the pitch most of the workspace, with the event browser collapsed initially, a narrow inspector, and compact playback/timeline controls. **Browser** in the pitch toolbar reopens the event list; **Inspector** toggles analysis; **View** in the pitch header opens visualization, fit/detail, and name settings. Narrow screens stack analysis below the pitch and retain one playback dock with safe-area spacing.
 - Above 900px, drag the divider beside Browser or Inspector to resize it. Arrow keys move a focused divider by 10px (Shift: 50px); Home/End select its minimum/maximum width. Enter or double-click restores its responsive default; Escape cancels a drag. Widths are remembered for the mounted studio, including closing/reopening panels, and reset on a fresh visit. Smaller windows temporarily reduce panel widths to keep at least 360px for the pitch; the preferred widths return when space allows. Mobile keeps the stacked layout without splitters.
-- The inspector provides event details, statistics, local insights/commentary, and notes. Half/full-time recaps appear there. New games default to Analyst; Casual Fan and Player Focus remain available under **Preferences → Perspective**, with the active perspective shown above the inspector content. When Foundry is configured, an **Ask** tab appears as well.
+- The inspector provides a plain-language story, event details, statistics, local insights/commentary, and notes. Half/full-time recaps appear there. New games default to Analyst; Casual Fan and Player Focus remain available under **Preferences → Perspective**, with the active perspective shown above the inspector content. When Foundry is configured, an **Ask** tab appears as well.
+- The perspectives are different layouts, not just different wording:
+  - **Casual Fan** opens on **Story**: a large score and the latest goals, big chances and swings in one plain sentence each, with favorite-team moments highlighted. The timeline's dense event tracks are hidden.
+  - **Analyst** adds a **Pitch layer** select (a shot map sized by the illustrative synthetic xG, or long and difficult passes), completion by difficulty band in **Stats**, and a CSV/JSON export of the statistics so far.
+  - **Player Focus** spotlights the followed player on the pitch, dims the others, and adds their own lane to the timeline.
+- **Preferences** also sets favorite players, **My metric** (shots, shots on target, pass accuracy, pressure events, long or difficult passes completed, or fastest shot) and units (metric or imperial). My metric stays in the top bar for the favorite team, or the followed player in Player Focus.
+- The pitch tags a player for 8 match seconds when an action crosses a highlight threshold: a pass of 22 m or more, a completed pass of difficulty 0.35 or more, a ball speed of 67 km/h or more, or a shot of 100 km/h or more. At most one tag shows per event. Speed and distance tags for a player's own running appear only when an import supplies `player_speed_kmh` (25 km/h or more) or `player_distance_m` (each new kilometre); they are never derived from the illustrative movement. The current-action strip shows the action's distance, difficulty band and speed.
+- Reopening a match part-way through shows a **Catch up** card with the score and the moments so far, until playback moves or it is dismissed.
 - Play/pause, restart, step one event, choose 1×/5×/10×/30× from the labeled speed select, or scrub the timeline. Arrow keys, Home, and End work on the native scrubber. The Fit/2×/4×/8× zoom select changes horizontal scale without changing playback.
 - Timeline team tracks show only processed events. Crowded timestamps form selectable groups, with paged event lists. The notes track shows saved user annotations, including moments beyond a rewound playhead.
 - Half-time pauses before period-two events sharing 45:00. **Start second half** explicitly resumes. Full-time stops automatically. Seeking beyond half-time is allowed.
 - Selecting an event or insight evidence inspects its processed-prefix pitch snapshot without changing the live clock or statistics. **Follow live** returns to the playhead. Scrubbing deliberately changes playback and rebuilds the prefix when moving backward.
 - **Note** pauses playback and opens a text editor anchored to the playhead or inspected event. **Bookmark** saves that moment immediately. Notes and bookmarks can be edited or deleted. Selecting an annotation opens its text; **Go to moment** explicitly restores its precise saved prefix, paused. Notes are plain text, up to 4,000 characters.
-- **Preferences** changes perspective, favorite team, player, and language without restarting or changing the match URL. English, Filipino, Spanish, Brazilian Portuguese, Indonesian, Arabic, and Thai are available from the studio and library selectors. The selected language is saved in a browser cookie; other preferences remain session-only. Arabic uses a right-to-left interface while the pitch and timeline keep their fixed physical directions. Player Focus resets feed filters when the focus changes.
+- **Preferences** changes perspective, favorite team, player, favorites, My metric, units and language without restarting or changing the match URL. English, Filipino, Spanish, Brazilian Portuguese, Indonesian, Arabic, and Thai are available from the studio and library selectors. The selected language is saved in a browser cookie.
+- Perspective, favorite clubs and players, My metric and units form a fan profile in this browser's localStorage. Clubs and players are stored by name, so the profile applies to any match that features them. Choosing a player makes them a favorite; auto-explain stays session-only.
+- Arabic uses a right-to-left interface while the pitch and timeline keep their fixed physical directions. Player Focus resets feed filters when the focus changes.
 - Imports validate before rendering: 10 MB maximum and 50,000 events. Invalid uploads leave the current match and library unchanged. Use the top-bar **Library** link to return to the match library to import or switch matches. Empty datasets have a dedicated state.
 - Checkpoints save every two seconds during playback and immediately on pause, seek, and studio navigation. Annotation changes save immediately. Abrupt browser/process termination may lose the latest unsaved interval. **Unsaved · this session only** indicates blocked/unavailable storage; **Retry** attempts persistence without discarding in-memory analysis. Corrupted stored match records are skipped with a recovery message; invalid checkpoints reset safely.
 - Imported games can be removed from their card after confirmation; this also removes their notes and bookmarks. The bundled demo remains available.
@@ -66,6 +75,9 @@ To change the roster:
 | Illustrative movement model | [lib/match/movement.ts](src/web/lib/match/movement.ts) |
 | Named player markers and roster | [components/match/team-motion.tsx](src/web/components/match/team-motion.tsx) |
 | Deterministic localized rules | [lib/match/insights.ts](src/web/lib/match/insights.ts) |
+| Pass-quality and speed thresholds / highlight tags | [lib/match/statistics.ts](src/web/lib/match/statistics.ts), [lib/match/thresholds.ts](src/web/lib/match/thresholds.ts) |
+| Overlay cues / cue API / broadcast view | [lib/match/overlays.ts](src/web/lib/match/overlays.ts), [app/api/match/cues/route.ts](src/web/app/api/match/cues/route.ts), [components/match/broadcast-view.tsx](src/web/components/match/broadcast-view.tsx) |
+| Fan profile / statistics export | [lib/match/fan-profile.ts](src/web/lib/match/fan-profile.ts), [lib/match/export.ts](src/web/lib/match/export.ts) |
 | Locale cookie and message catalogs | [i18n/request.ts](src/web/i18n/request.ts), [messages/](src/web/messages/) |
 | Dataset API | [app/api/match/route.ts](src/web/app/api/match/route.ts) |
 | Game library | [components/match/match-library.tsx](src/web/components/match/match-library.tsx) |
@@ -86,27 +98,33 @@ The movement timeline is built exclusively from the processed prefix, never futu
 
 Insights use 300-second windows, 180-second per-rule/team/player cooldowns, and a bounded 200-card history. Live cards expire after 600 seconds and deduplicate by rule/team/player. Comparison evidence includes both windows. Early comparisons disclose partial windows. Player rules require four actions or a goal. Facts are separate from cautious interpretations.
 
+"Why it matters" rules explain moments instead of only counting them:
+- **Goal context** walks the scoring possession back to its start. It reports the passes in the move, its duration, how and where the ball was won, and the game state (opener, equalizer, go-ahead, lead extended or one pulled back). Every goal gets a card.
+- **Pressing regains** fire when a team wins the ball within 5 seconds of its own pressure at least twice in a window.
+- **Shot droughts** report a team's first shot after 12 minutes or more without one.
+- **Territory shifts** fire when a team's share of both teams' attacking-third actions moves from 45% or less to 60% or more between the two windows, with at least six actions in each.
+
 `InsightProvider` is the Microsoft Foundry boundary. `ruleBasedProvider` is local, deterministic and always on. `foundryInsightProvider` is the remote implementation. It calls a server route that keeps credentials private, accepts only processed events and returns typed, verified evidence. Foundry is called only when AI analysis is configured and a button is pressed.
 
 ## Optional Microsoft Foundry agents
 
-Four Foundry Agent Service prompt agents add AI analysis. Each runs only on demand and pauses playback first:
+Four Foundry Agent Service prompt agents add AI analysis. Each runs only on demand and pauses playback first. The one exception is opt-in: **Preferences → Explain key moments automatically** (off by default, session-only) sends each newly reached goal or shot on target to the Live Commentator without pausing, up to 10 times per studio session.
 
 | Agent | Where | What it adds |
 | --- | --- | --- |
 | Tactical Analyst (`pitchpulse-analyst`) | Pitch → **Analyze** (loads on the pitch, then opens a result dialog), or Insights → **Analyze this moment** | One to four insight cards: pressing, build-up, turnovers, flank preference, momentum, player involvement |
 | Recap Writer (`pitchpulse-recap`) | Half/full-time recap → **Write AI recap** | A narrative story, evidence-linked turning points, per-team notes and, at half-time only, questions for the second half |
-| Ask the Analyst (`pitchpulse-ask`) | **Ask** tab, and **Draft with AI** in the note editor | Answers about the reached match. The agent calls PitchPulse function tools, which see only the processed prefix |
+| Ask the Analyst (`pitchpulse-ask`) | **Ask** tab, and **Draft with AI** in the note editor | Answers about the reached match, including tactical patterns, suggested adjustments and a qualitative outlook for questions about a team's chances, never a number. The agent calls PitchPulse function tools, which see only the processed prefix |
 | Live Commentator (`pitchpulse-commentator`) | Live commentary → **Narrate with AI** | One casual line per recent meaningful event, shown under the unchanged templated row |
 
 How the agents stay honest:
 - The model chooses what to say and writes the text; PitchPulse code supplies every number.
 - Requests carry only the processed prefix. The server re-validates the payload like an upload and asserts that it ends at the playhead.
-- [lib/agents/packet.ts](src/web/lib/agents/packet.ts) derives the metrics with the same reducer as the Stats tab: totals, 15-minute blocks, team-relative thirds, and flanks as drawn. It derives no possession share, distances, speeds or synthetic estimates.
+- [lib/agents/packet.ts](src/web/lib/agents/packet.ts) derives the metrics with the same reducers as the Stats tab: totals, 15-minute blocks, team-relative thirds, flanks as drawn, and pass quality. Pass distances and ball and shot speeds are the dataset's synthetic values, labeled as such for the model. It derives no possession share, running data, xG or difficulty values.
 - [lib/agents/guards.ts](src/web/lib/agents/guards.ts) removes any card, note or line with any of the following:
   - unknown or future evidence;
   - numbers or mm:ss times the model was never shown;
-  - possession percentages, distances, speeds, xG, probabilities or betting language;
+  - possession percentages, running distance or player speed, xG, probabilities or betting language (synthetic ball and shot speeds in km/h are allowed when grounded);
   - outside knowledge about the real clubs and players, such as seasons, transfers, injuries, captaincy or competitions;
   - internal metric keys, block codes or dataset IDs in the prose.
 - Card metrics and evidence come from the packet catalog. When the list of supporting events is capped, the card states the full count.
@@ -124,11 +142,30 @@ Setup (requires Node 22 or later, for example via `nvm use`):
 When a recap or answer fails verification, or every card or line is removed, the agent gets one corrective retry that names the failed checks. The server logs removal reasons as `[agents/<name>] removed by verification: …`. With `gpt-5-mini`, a turn takes roughly 15–45 seconds; the route allows up to 115 seconds.
 
 Data and limits:
-- AI controls are available whenever Foundry is configured. Every AI request requires a button press or question.
+- AI controls are available whenever Foundry is configured. Every AI request requires a button press, a question, or the opt-in auto-explain toggle.
 - When used, the match's reached events, your question and earlier visible answers are sent to your Foundry project, where responses are stored. Note text is never sent.
 - AI results live in session memory only.
 - The route accepts same-origin requests up to 10 MB, with a best-effort per-instance rate limit.
 - Claude models in Foundry are served through the Anthropic Messages API rather than prompt agents, so using them would require a hosted agent.
+
+## Broadcast overlays and cue API
+
+The same intelligence renders as timed graphics beside a live feed. [lib/match/overlays.ts](src/web/lib/match/overlays.ts) turns the processed prefix into cues, each with `id`, `kind` (`scorebug`, `lower_third`, `insight`, `player_tag`, `stat_pop`, `my_metric`), `eventId`, `in`/`out` in match seconds, `priority`, team, player, localized `text`/`detail` and `values`. The same prefix and preferences always give the same cues.
+
+- Goals get a lower third with their goal context, why-it-matters cards become insight cues, and threshold tags become player tags.
+- Every 15 minutes a stat pop compares the teams, and My metric adds a persistent bug plus milestone pings.
+- The perspective changes what is shown: casual viewers skip percentage-point passing comparisons, and player cards appear only for favorite or followed players.
+
+Ways to use them:
+- **Broadcast** in the pitch header opens `/broadcast/<id>?sync=1&bg=preview`: a 16:9 graphics window that follows the studio's clock, language and preferences over `BroadcastChannel` in the same browser.
+  - The **pitch preview** backdrop plays the studio's illustrative full-team simulation full screen as a stand-in for a camera feed. Threshold tags sit on the players, and the disclosure adds "Illustrative movement".
+  - Moving the pointer over the window reveals a **Pitch preview / Chroma key** switch that fades after 2.5 seconds. Chroma key (`bg=chroma`, #00B140) is for window capture with a chroma-key filter.
+- `/broadcast/demo-arsenal-chelsea?autoplay=1&speed=30&mode=casual&metric=shots&lang=es` runs on its own clock for an OBS or vMix browser source, with a transparent background, ready to lay over a real feed.
+  - It also takes `team`, `player`, `units`, `start` (match seconds), `autoplay=0` and `bg=preview` or `bg=chroma`, and it resumes after half-time by itself.
+  - Uploaded matches live in one browser's IndexedDB, so they work only in that browser; use the synced window for them.
+- `GET /api/match/cues?at=1385&lang=en&mode=analyst` returns the bundled demo's cues at a match clock, with the IDs active at that moment; add `half=2` for the 45:00 boundary in the second half. `GET /api/match/cues?schema` returns the cue JSON Schema.
+
+Overlays keep the roster disclosure on screen, and they carry no Foundry output.
 
 ## Compatible uploads and integrity
 
@@ -138,7 +175,7 @@ Players require `player_id`, `name` and a valid `team_id`; `shirt_number`, `posi
 
 Events require unique `event_id` / integer `sequence`, valid `match_time_seconds`, `period` (1 or 2), supported `type`, `team_id`, `player_id`, and `possession_id`. Neutral references may be null. Acting players must belong to the acting team. Sequence timestamps/periods must not move backward. Array order is normalized by sequence.
 
-Supported event types: `match_start`, `kickoff`, `pass`, `shot`, `tackle`, `pressure`, `possession_change`, `half_time`, `second_half_start`, `full_time`. Optional positions, outcomes, recipients, targets, and metrics are validated only when present.
+Supported event types: `match_start`, `kickoff`, `pass`, `shot`, `tackle`, `pressure`, `possession_change`, `half_time`, `second_half_start`, `full_time`. Optional positions, outcomes, recipients, targets, and metrics are validated only when present. Optional `player_speed_kmh` (the acting player's speed at the event) and `player_distance_m` (their cumulative distance so far) must be non-negative numbers; only these fields can trigger player speed and distance tags.
 
 - Coordinates: 0–100, team-relative, x toward the acting team's attacking goal. Away positions rotate **both axes**, giving fixed home-right / away-left attacks in both halves. Missing coordinate documentation assumes this convention; incompatible explicit documentation is rejected.
 - Recorded-event view displays only supplied locations. Full-team view adds clearly labeled illustrative formations and paths, not tracking measurements. Missing shot endpoints are never invented. Neither visualization adds events or statistics.
@@ -148,6 +185,7 @@ Supported event types: `match_start`, `kickoff`, `pass`, `shot`, `tackle`, `pres
 - Recovery rules exclude shot-end possession changes.
 - Final scores, score snapshots, and `final_statistics` are stripped before the API responds. Tests alone compare final statistics against the supplied summary.
 - No possession percentage or player-distance metrics. Pass difficulty / synthetic xG are explicitly illustrative estimates, not calibrated probabilities.
+- Pass distance, ball speed and shot speed are the dataset's sampled synthetic values, shown and aggregated as supplied and labeled synthetic. Long passes are 20 m or more; difficult passes have a difficulty of 0.3 or more (bands: routine below 0.2, moderate, hard from 0.3, elite from 0.4). Averages show "—" until a sample exists.
 - Keyboard focus, skip link, labeled controls, SVG descriptions, responsive stacking, and reduced-motion preferences are supported.
 
 ## Verification and advisory
@@ -159,6 +197,8 @@ From `src/web`, use `npm test`, `npm run lint`, and `npm run build`. For the inf
 - the local tool loop;
 - request rejection and error classification;
 - markup for the labeled AI panels.
+
+Quality tests cover reducer totals against the bundled demo, difficulty band edges, highlight priority and expiry, and optional tracking fields. "Why it matters" tests cover goal context and game states, pressing regains, droughts and territory shifts. [lib/match/overlays.test.ts](src/web/lib/match/overlays.test.ts) covers cue determinism, prefix-only evidence, change-clock memoization, perspectives, localization and My metric milestones. [lib/match/fan-profile.test.ts](src/web/lib/match/fan-profile.test.ts) covers tolerant profile parsing, application by name and export escaping.
 
 Demo roster tests cover lineup checks against the squad snapshot, shot realignment, minimal-diff rewriting of the bundled JSON and the demo refresh that keeps saved progress and notes.
 

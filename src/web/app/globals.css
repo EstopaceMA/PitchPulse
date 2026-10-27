@@ -578,6 +578,81 @@ button:disabled {
   width: 100%;
 }
 
+.favorite-players,
+.checkbox-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.favorite-players>span,
+.favorite-players>p {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.favorite-players ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.favorite-players li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 4px 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.favorite-players li>svg {
+  color: #f3d77a;
+}
+
+.favorite-players li button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  color: var(--muted-foreground);
+}
+
+.favorite-players li button:hover,
+.favorite-players li button:focus-visible {
+  color: var(--foreground);
+  background: var(--hover);
+}
+
+.favorite-players>button {
+  align-self: flex-start;
+}
+
+.checkbox-field {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.checkbox-field input {
+  margin-top: 3px;
+  accent-color: var(--primary);
+}
+
+.checkbox-field small {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
 /* Independent rows: an expanded pitch/roster cannot stretch sidebar spacing. */
 .dashboard {
   max-width: 1600px;
@@ -1855,6 +1930,17 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   margin-bottom: 20px;
 }
 
+.comparison-group+.comparison-group {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.comparison-group-heading {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
 .stat-numbers {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
@@ -1874,6 +1960,7 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .stat-numbers>strong:last-child {
@@ -2258,6 +2345,11 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 .insight-icon.shots,
 .insight-icon.player {
   color: var(--accent);
+}
+
+.insight-icon.goal_context,
+.insight-icon.drought {
+  color: var(--team-home);
 }
 
 .insight-card h3 {
@@ -3860,8 +3952,10 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   align-items: stretch;
   flex-shrink: 0;
   min-height: 44px;
+  overflow-x: auto;
   border-bottom: 1px solid var(--border);
-  padding: 0 10px;
+  padding: 0 8px;
+  scrollbar-width: none;
 }
 
 .studio-tabs button {
@@ -3870,8 +3964,9 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   justify-content: center;
   gap: 6px;
   color: #8c979e;
-  flex: 1;
-  padding: 10px 6px;
+  flex: 1 0 auto;
+  padding: 10px 5px;
+  white-space: nowrap;
   font-size: 11px;
   border-bottom: 2px solid transparent;
   cursor: pointer;
@@ -4427,6 +4522,11 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 .away-track {
   background-color: #23334b42;
   color: var(--team-away);
+}
+
+.player-track {
+  background-color: #4a432442;
+  color: #f3d77a;
 }
 
 .annotation-track {
@@ -5525,6 +5625,70 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   color: #dbc69c;
 }
 
+/* A pending answer sits in the thread as the analyst's next message. */
+.ask-thread .ask-pending {
+  border-style: dashed;
+  border-left-style: solid;
+}
+
+.ask-thread .ask-pending-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #d9d2ff;
+}
+
+.ask-typing {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.ask-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ai-accent);
+  animation: ask-typing 1.2s ease-in-out infinite;
+}
+
+.ask-typing i:nth-child(2) {
+  animation-delay: .15s;
+}
+
+.ask-typing i:nth-child(3) {
+  animation-delay: .3s;
+}
+
+@keyframes ask-typing {
+  0%,
+  70%,
+  100% {
+    opacity: .3;
+    transform: translateY(0);
+  }
+
+  35% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.ask-thread .ask-wait {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.ask-wait time {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask-typing i {
+    animation: none;
+    opacity: .7;
+  }
+}
+
 .ask-suggestions {
   display: flex;
   flex-wrap: wrap;
@@ -5616,4 +5780,488 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   .agent-points button {
     min-height: 44px;
   }
+}
+
+/* Threshold tags and Player Focus spotlight on the illustrative pitch. */
+.sim-player.dimmed,
+.sim-player-name.dimmed {
+  opacity: .45;
+}
+
+.sim-player-tag {
+  animation: tag-arrive .25s ease-out;
+}
+
+@keyframes tag-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sim-player-tag {
+    animation: none;
+  }
+}
+
+.action-quality {
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
+  border-radius: 5px;
+  color: var(--primary);
+  font: 11px/1.4 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Broadcast graphics: a transparent 16:9 layer for OBS/vMix browser sources, scaled to the viewport width. */
+html:has(.broadcast-root),
+html:has(.broadcast-root) body {
+  color-scheme: normal;
+  background: transparent;
+}
+
+/* A popped-out window cannot be transparent to window capture, so it keys on chroma green instead. */
+html:has(.broadcast-root[data-background="chroma"]),
+html:has(.broadcast-root[data-background="chroma"]) body {
+  background: #00b140;
+}
+
+/* Preview: the illustrative simulation stands in for the camera feed under the graphics. */
+html:has(.broadcast-root[data-background="preview"]),
+html:has(.broadcast-root[data-background="preview"]) body {
+  background: #0b1a17;
+}
+
+.broadcast-root>.broadcast-pitch {
+  inset: 0;
+  border-radius: 0;
+  background: radial-gradient(ellipse at center, #12302a, #0b1a17 75%);
+  box-shadow: none;
+}
+
+.broadcast-pitch svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.broadcast-switch {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgb(255 255 255 / .18);
+  border-radius: 999px;
+  background: rgb(8 18 24 / .92);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity .2s ease;
+}
+
+.broadcast-switch[data-visible="true"],
+.broadcast-switch:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.broadcast-switch button {
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: #d7e3ed;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.broadcast-switch button[aria-pressed="true"] {
+  color: #0a1218;
+  background: var(--primary);
+}
+
+.broadcast-switch button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .broadcast-switch {
+    transition: none;
+  }
+}
+
+.broadcast-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: #f4f8f6;
+  font-size: max(12px, 1.05vw);
+  pointer-events: none;
+}
+
+.broadcast-root>* {
+  position: absolute;
+  margin: 0;
+  border-radius: .5em;
+  background: rgb(8 18 24 / .9);
+  box-shadow: 0 .4em 1.4em rgb(0 0 0 / .35);
+}
+
+.broadcast-scorebug {
+  top: 4.5vh;
+  left: 3.5vw;
+  display: flex;
+  align-items: center;
+  gap: .6em;
+  padding: .45em .8em;
+  font-weight: 700;
+}
+
+.broadcast-scorebug b {
+  font: 700 1.25em var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.broadcast-team {
+  padding-bottom: .1em;
+  border-bottom: .2em solid;
+  letter-spacing: .04em;
+}
+
+.broadcast-scorebug time {
+  padding-left: .6em;
+  border-left: 1px solid rgb(255 255 255 / .2);
+  font: 600 .95em var(--font-mono);
+}
+
+.broadcast-scorebug em {
+  color: #f3d77a;
+  font-size: .8em;
+  font-style: normal;
+}
+
+.broadcast-metric {
+  top: 4.5vh;
+  right: 3.5vw;
+  display: grid;
+  gap: .1em;
+  padding: .45em .9em;
+  text-align: end;
+}
+
+.broadcast-metric small {
+  color: #b9c8c6;
+  font-size: .72em;
+}
+
+.broadcast-metric b {
+  color: var(--primary);
+  font: 700 1.35em var(--font-mono);
+}
+
+.broadcast-metric.pinged {
+  outline: .15em solid #f3d77a;
+}
+
+.broadcast-tags {
+  top: 14vh;
+  right: 3.5vw;
+  display: grid;
+  gap: .4em;
+  padding: 0;
+  list-style: none;
+  background: none;
+  box-shadow: none;
+}
+
+.broadcast-tags li,
+.broadcast-pop,
+.broadcast-lower {
+  animation: broadcast-in .35s ease-out;
+}
+
+.broadcast-tags li {
+  display: grid;
+  padding: .35em .75em;
+  border-inline-start: .25em solid;
+  border-radius: .4em;
+  background: rgb(8 18 24 / .9);
+}
+
+.broadcast-tags span {
+  color: var(--primary);
+  font: 600 .8em var(--font-mono);
+}
+
+.broadcast-pop {
+  right: 3.5vw;
+  bottom: 9vh;
+  display: grid;
+  gap: .2em;
+  max-width: 34vw;
+  padding: .6em .9em;
+}
+
+.broadcast-pop span {
+  color: #d7e3ed;
+  font-size: .85em;
+}
+
+.broadcast-lower {
+  bottom: 9vh;
+  left: 3.5vw;
+  max-width: 52vw;
+  padding: .7em 1em;
+  border-inline-start: .35em solid;
+}
+
+.broadcast-lower strong {
+  font-size: 1.15em;
+}
+
+.broadcast-lower p {
+  display: -webkit-box;
+  margin: .3em 0 0;
+  overflow: hidden;
+  color: #d7e3ed;
+  font-size: .9em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.broadcast-lower.lower_third strong {
+  color: #f3d77a;
+}
+
+.broadcast-disclosure {
+  right: 3.5vw;
+  bottom: 3vh;
+  padding: .2em .6em;
+  color: #b9c8c6;
+  font-size: .65em;
+}
+
+@keyframes broadcast-in {
+  from {
+    opacity: 0;
+    transform: translateY(.6em);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .broadcast-tags li,
+  .broadcast-pop,
+  .broadcast-lower {
+    animation: none;
+  }
+}
+
+.analyst-quality {
+  padding: 4px var(--panel-padding) 8px;
+}
+
+.band-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.band-table th,
+.band-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+}
+
+.band-table td {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.band-table thead th {
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.stats-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.stats-export>span {
+  margin-inline-end: auto;
+}
+
+/* Casual Story tab, catch-up card and the My metric bug. */
+.story-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px 14px;
+  padding: 18px var(--panel-padding) 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.story-score b {
+  font: 700 32px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.story-score time {
+  flex-basis: 100%;
+  color: var(--muted-foreground);
+  font: 12px var(--font-mono);
+  text-align: center;
+}
+
+.story-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 4px var(--panel-padding) var(--panel-padding);
+  list-style: none;
+}
+
+.story-list li {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid;
+  border-radius: 10px;
+  background: var(--surface-inset);
+}
+
+.story-list li.favorite {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-inset));
+}
+
+.story-list time {
+  color: var(--muted-foreground);
+  font: 12px var(--font-mono);
+}
+
+.story-icon {
+  color: var(--primary);
+}
+
+.story-list strong {
+  display: block;
+  font-size: 15px;
+}
+
+.story-list p {
+  margin: 4px 0 6px;
+  color: var(--muted-foreground);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.story-empty {
+  padding: 0 var(--panel-padding) var(--panel-padding);
+  color: var(--muted-foreground);
+  font-size: 15px;
+}
+
+.catch-up {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border));
+  border-radius: 10px;
+  background: var(--surface-inset);
+}
+
+.catch-up-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+}
+
+.catch-up-heading h2 {
+  margin: 0 auto 0 0;
+  font-size: 14px;
+}
+
+.catch-up .story-score {
+  padding: 8px 0;
+}
+
+.catch-up .story-score b {
+  font-size: 22px;
+}
+
+.catch-up ul,
+.catch-up p {
+  margin: 0;
+  padding-inline-start: 18px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.catch-up time {
+  font-family: var(--font-mono);
+}
+
+.my-metric-bug {
+  display: grid;
+  min-width: 0;
+  padding: 2px 10px;
+  border-inline-start: 2px solid var(--primary);
+  line-height: 1.25;
+}
+
+.my-metric-bug small {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-metric-bug b {
+  color: var(--primary);
+  font: 700 15px var(--font-mono);
+  animation: metric-pulse .6s ease-out;
+}
+
+@keyframes metric-pulse {
+  from {
+    color: #f3d77a;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .my-metric-bug b {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .my-metric-bug small {
+    max-width: 110px;
+  }
+}
+
+/* Casual perspective: fewer dense controls, so the story and pitch lead. */
+.studio-shell[data-mode="casual"] .track-field .event-track {
+  display: none;
+}
+
+.pitch-layer-select .dropdown-trigger {
+  min-height: 32px;
+  font-size: 12px;
 }

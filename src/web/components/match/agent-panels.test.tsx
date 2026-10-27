@@ -94,6 +94,18 @@ test("Ask the Analyst hides messages from a later playhead and links reached evi
     assert.match(html, /1 later message is hidden until playback reaches 66:40 again/);
     assert.match(html, new RegExp(`<button type="button">${evidence}</button>`));
     assert.match(html, /<label for="[^"]+">Your question<\/label><textarea id="[^"]+"[^>]*maxLength="500"/);
+    assert.doesNotMatch(html, /ask-pending/);
+});
+
+test("a pending question shows the analyst's reply in progress inside the thread, announced once", () => {
+    const entries: ChatEntry[] = [{ id: "1", role: "user", question: "Where is each team winning the ball back?", cursor: 100, elapsed: 1779, language: "en" }];
+    const html = renderToStaticMarkup(<AskAnalyst entries={entries} cursor={100} elapsed={1779} language="en" asking onAsk={noop} onEvidence={noop} />);
+    const thread = html.slice(html.indexOf('<ol class="ask-thread"'), html.indexOf("</ol>"));
+    assert.match(thread, /<li class="ask-assistant ask-pending" aria-hidden="true"><span class="ask-meta">Analyst · AI · <time>29:39<\/time><\/span>/);
+    assert.match(thread, /<span class="ask-typing"><i><\/i><i><\/i><i><\/i><\/span>Checking the recorded events…/);
+    assert.match(thread, /Usually 15–45 seconds; every number is checked before it appears/);
+    assert.match(html, /<p class="sr-only" role="status" aria-live="polite">Checking the recorded events…<\/p>/);
+    assert.match(html, /<button[^>]*type="submit"[^>]*disabled=""/);
 });
 
 test("commentary narration is optional and every AI line is tagged", () => {

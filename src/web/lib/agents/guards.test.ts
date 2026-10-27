@@ -56,6 +56,16 @@ describe("numeric grounding and banned claims", () => {
         for (const text of ["Arsenal won possession back three times", "Possession changes followed interceptions", "chance creation improved"]) assert.ok(!bannedClaim(text), text);
     });
 
+    test("allows grounded synthetic ball and shot speeds but still rejects running data and invented speeds", () => {
+        const fastest = packet.catalog.get(`${home}.total.max_shot_speed`)!.value;
+        for (const text of [`${homeName}'s fastest shot reached ${fastest}, a synthetic dataset value.`, `Tembakan tercepat ${homeName} ${fastest.replace("km/h", "km/jam")}.`]) {
+            assert.equal(bannedClaim(text), null, text);
+            assert.equal(ungrounded(text, grounding), null, text);
+        }
+        assert.equal(ungrounded("a 131.7 km/h strike", grounding), "131.7");
+        for (const text of ["his top speed was impressive", "a sprint speed of 31", "his running speed dropped", "covered 10 km", "ran 9 kilometres"]) assert.ok(bannedClaim(text), text);
+    });
+
     test("rejects outside knowledge about the real clubs and players in English and Filipino", () => {
         for (const text of ["Saka has 9 goals this season", "the best spell of his career", "a summer transfer target", "signed from Newcastle", "his new contract", "back from injury", "the Arsenal captain", "an England international", "a Premier League rivalry", "Champions League nights", "ngayong season", "ang kapitan ng Chelsea", "bagong kontrata", "napinsala noong nakaraang laban", "sa pambansang koponan"]) {
             assert.ok(bannedClaim(text), text);

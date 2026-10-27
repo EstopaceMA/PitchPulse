@@ -19,14 +19,22 @@ export function AskAnalyst({ entries, cursor, elapsed, language: l, asking, onAs
     const id = useId();
     const thread = useRef<HTMLOListElement>(null);
     const [question, setQuestion] = useState("");
+    // Seconds waited for the pending answer; unknown after a remount mid-request, so the counter then stays hidden.
+    const [waited, setWaited] = useState<number | null>(null);
+    useEffect(() => {
+        if (!asking) return;
+        const timer = setInterval(() => setWaited(seconds => seconds === null ? null : seconds + 1), 1000);
+        return () => clearInterval(timer);
+    }, [asking]);
     // Messages produced at a later playhead behave like future events: hidden until replay reaches them.
     const visible = entries.filter(entry => entry.cursor <= cursor);
     // Keep the newest exchange in view above the pinned question box.
-    useEffect(() => { thread.current?.lastElementChild?.scrollIntoView({ block: "nearest" }); }, [visible.length]);
+    useEffect(() => { thread.current?.lastElementChild?.scrollIntoView({ block: "nearest" }); }, [visible.length, asking]);
     const hidden = entries.filter(entry => entry.cursor > cursor);
     const returnsAt = Math.min(...hidden.map(entry => entry.elapsed));
     const submit = (text: string) => {
         if (!text.trim() || asking) return;
+        setWaited(0);
         onAsk(text);
         setQuestion("");
     };
@@ -45,8 +53,13 @@ export function AskAnalyst({ entries, cursor, elapsed, language: l, asking, onAs
                         {entry.answer.eventIds.length > 0 && <div className="evidence-ids" aria-label={tr(l, "supportingEvents2")}>{entry.answer.eventIds.map(eventId => <button type="button" key={eventId} onClick={() => onEvidence(eventId)}>{eventId}</button>)}</div>}
                     </> : <p className="ask-error">{agentErrorText(entry.error, l)}</p>}
             </li>)}
+            {asking && <li className="ask-assistant ask-pending" aria-hidden="true">
+                <span className="ask-meta">{tr(l, "analystAi")} · <time>{formatTime(elapsed)}</time></span>
+                <p className="ask-pending-line"><span className="ask-typing"><i /><i /><i /></span>{tr(l, "checkingTheRecordedEvents")}</p>
+                <p className="ask-wait">{tr(l, "askPendingHint")}{waited !== null && asking && <> · <time dir="ltr">{tr(l, "askWaitedSeconds", { seconds: waited })}</time></>}</p>
+            </li>}
         </ol>
-        <p className="agent-status" role="status" aria-live="polite">{asking ? tr(l, "checkingTheRecordedEvents") : ""}</p>
+        <p className="sr-only" role="status" aria-live="polite">{asking ? tr(l, "checkingTheRecordedEvents") : ""}</p>
         {!visible.length && !asking && <div className="ask-suggestions">{SUGGESTIONS.map(key => <button type="button" key={key} onClick={() => submit(tr(l, key))}>{tr(l, key)}</button>)}</div>}
         <form className="ask-form" onSubmit={event => { event.preventDefault(); submit(question); }}>
             <label htmlFor={`${id}-question`}>{tr(l, "yourQuestion")}</label>

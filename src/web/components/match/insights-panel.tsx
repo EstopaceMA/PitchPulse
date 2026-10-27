@@ -1,12 +1,14 @@
-import { ArrowUpRight, ChevronDown, Lightbulb, ShieldCheck, Sparkles, TrendingUp, UserRound, Zap } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Flame, Goal, Hourglass, Lightbulb, ShieldCheck, Sparkles, TrendingUp, UserRound, Waves, Zap } from "lucide-react";
 import { formatTime } from "@/lib/match/playback";
 import { teamColor, tr } from "@/lib/match/presentation";
 import type { Insight, MatchData, Preferences } from "@/lib/match/types";
 
+const RULE_ICONS: Partial<Record<Insight["rule"], typeof ArrowUpRight>> = { shots: TrendingUp, recoveries: Zap, player: UserRound, goal_context: Goal, drought: Hourglass, pressing: Flame, momentum: Waves };
+
 export function InsightCard({ insight, preferences, onEvidence, compact = false }: { insight: Insight; preferences: Preferences; onEvidence: (id: string) => void; compact?: boolean }) {
     const l = preferences.language, detailed = preferences.mode === "analyst", ai = insight.source === "foundry";
-    const Icon = ai ? Sparkles : insight.rule === "shots" ? TrendingUp : insight.rule === "recoveries" ? Zap : insight.rule === "player" ? UserRound : ArrowUpRight;
-    const label = ai ? tr(l, "aiAnalysis2") : insight.rule === "player" ? tr(l, "playerImpact") : tr(l, "matchPattern");
+    const Icon = ai ? Sparkles : RULE_ICONS[insight.rule] ?? ArrowUpRight;
+    const label = ai ? tr(l, "aiAnalysis2") : insight.rule === "player" ? tr(l, "playerImpact") : insight.rule === "goal_context" || insight.rule === "drought" ? tr(l, "whyItMatters") : tr(l, "matchPattern");
     // A capped evidence list always states the full count instead of implying it is complete.
     const supporting = insight.evidenceTotal && insight.evidenceTotal > insight.eventIds.length
         ? tr(l, "latestSupportingEventsLower", { shown: insight.eventIds.length, total: insight.evidenceTotal })

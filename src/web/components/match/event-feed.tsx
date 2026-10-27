@@ -5,7 +5,8 @@ import { ArrowLeftRight, ArrowUpRight, ChevronDown, Clock3, ListFilter, Target, 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { formatTime } from "@/lib/match/playback";
-import { eventLabel, outcomeLabel, teamColor, tr } from "@/lib/match/presentation";
+import { bandLabel, eventLabel, outcomeLabel, teamColor, tr } from "@/lib/match/presentation";
+import { difficultyBand } from "@/lib/match/statistics";
 import { EVENT_TYPES, type EventType, type Language, type MatchData, type MatchEvent, type Preferences } from "@/lib/match/types";
 
 export interface EventFeedProps {
@@ -85,8 +86,20 @@ export function EventDetails({ data, event, language, id }: { data: MatchData; e
                 {event.difficulty_rating !== undefined && (
                     <div>
                         <dt>{tr(language, "difficultyIllustrativeEstimate")}</dt>
-                        <dd>{event.difficulty_rating}</dd>
+                        <dd>{event.difficulty_rating} · {bandLabel(difficultyBand(event.difficulty_rating), language)}</dd>
                     </div>
+                )}
+                {event.ball_speed_kmh !== undefined && (
+                    <div><dt>{tr(language, "ballSpeedSynthetic")}</dt><dd>{event.ball_speed_kmh} km/h</dd></div>
+                )}
+                {event.shot_speed_kmh !== undefined && (
+                    <div><dt>{tr(language, "shotSpeedSynthetic")}</dt><dd>{event.shot_speed_kmh} km/h</dd></div>
+                )}
+                {event.player_speed_kmh !== undefined && (
+                    <div><dt>{tr(language, "playerSpeedSupplied")}</dt><dd>{event.player_speed_kmh} km/h</dd></div>
+                )}
+                {event.player_distance_m !== undefined && (
+                    <div><dt>{tr(language, "distanceCoveredSupplied")}</dt><dd>{event.player_distance_m} m</dd></div>
                 )}
                 {event.synthetic_xg !== undefined && (
                     <div>
@@ -103,6 +116,12 @@ export function EventDetails({ data, event, language, id }: { data: MatchData; e
             )}
             {event.synthetic_xg !== undefined && (
                 <p className="data-note">{tr(language, "syntheticXgIsAnIllustrativeEstimateNotA")}</p>
+            )}
+            {(event.ball_speed_kmh !== undefined || event.shot_speed_kmh !== undefined) && (
+                <p className="data-note">{tr(language, "speedsAreSyntheticSampledValues")}</p>
+            )}
+            {(event.player_speed_kmh !== undefined || event.player_distance_m !== undefined) && (
+                <p className="data-note">{tr(language, "trackingValuesComeFromTheImport")}</p>
             )}
             <p className="data-note">{tr(language, "valuesComeOnlyFromThisProcessedEventNo")}</p>
         </section>

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useReducer } from "react";
 import type { MatchData, PlaybackCheckpoint } from "./types";
 import { initialPlayback, playbackReducer, restorePlayback, type PlaybackAction } from "./playback";
-import { aggregate, reduceStatistics } from "./statistics";
+import { aggregate, cloneStatistics, reduceStatistics } from "./statistics";
 import type { Statistics } from "./types";
 
 export function useSimulation(data: MatchData, checkpoint?: PlaybackCheckpoint) {
@@ -11,7 +11,7 @@ export function useSimulation(data: MatchData, checkpoint?: PlaybackCheckpoint) 
     const state = playbackReducer(data, previous.state, action);
     if (state.cursor === previous.state.cursor) return { state, stats: previous.stats };
     if (state.cursor < previous.state.cursor) return { state, stats: aggregate(data, data.events.slice(0, state.cursor)) };
-    const stats: Statistics = { teams: Object.fromEntries(Object.entries(previous.stats.teams).map(([id, value]) => [id, { ...value }])), players: Object.fromEntries(Object.entries(previous.stats.players).map(([id, value]) => [id, { ...value }])) };
+    const stats = cloneStatistics(previous.stats);
     for (let i = previous.state.cursor; i < state.cursor; i++) reduceStatistics(stats, data.events[i]);
     return { state, stats };
   }, undefined, () => {

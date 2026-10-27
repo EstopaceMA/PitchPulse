@@ -64,7 +64,7 @@ export function validateMatch(raw: unknown): MatchData {
         for (const key of ["outcome", "reason", "intensity"]) if (event[key] !== undefined) requireValue(text(event[key]), `${at}: ${key} must be text.`);
         const allowedOutcomes: Record<string, string[]> = { pass: ["complete", "intercepted", "incomplete"], shot: ["goal", "saved", "blocked", "off_target", "on_target"], tackle: ["won", "lost"] };
         if (event.outcome !== undefined && allowedOutcomes[event.type]) requireValue(allowedOutcomes[event.type].includes(event.outcome as string), `${at}: unsupported ${event.type} outcome "${event.outcome}".`);
-        for (const key of ["distance_m", "difficulty_rating", "synthetic_xg", "ball_speed_kmh", "shot_speed_kmh"]) if (event[key] !== undefined) requireValue(finite(event[key]) && event[key] >= 0, `${at}: ${key} must be a non-negative number.`);
+        for (const key of ["distance_m", "difficulty_rating", "synthetic_xg", "ball_speed_kmh", "shot_speed_kmh", "player_speed_kmh", "player_distance_m"]) if (event[key] !== undefined) requireValue(finite(event[key]) && event[key] >= 0, `${at}: ${key} must be a non-negative number.`);
         if (event.type === "half_time") requireValue(event.period === 1 && event.match_time_seconds === match.period_seconds, `${at}: half_time must be at the end of period 1.`);
         if (event.type === "second_half_start") requireValue(event.period === 2 && event.match_time_seconds === match.period_seconds, `${at}: second_half_start must be at the start of period 2.`);
         if (event.type === "full_time") requireValue(event.period === 2 && event.match_time_seconds === match.duration_seconds, `${at}: full_time must be at the end of period 2.`);

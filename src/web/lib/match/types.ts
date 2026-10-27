@@ -2,6 +2,7 @@ export const EVENT_TYPES = ["match_start", "kickoff", "pass", "shot", "tackle", 
 export type EventType = (typeof EVENT_TYPES)[number];
 export type Language = "en" | "fil" | "es" | "pt-BR" | "id" | "ar" | "th";
 export type ViewMode = "casual" | "analyst" | "player";
+export type Units = "metric" | "imperial";
 export type Position = { x: number; y: number };
 export interface Team { team_id: string; name: string }
 export interface Player { player_id: string; team_id: string; name: string; shirt_number?: number; position?: string; nationality?: string; fictional?: boolean }
@@ -28,6 +29,10 @@ export interface MatchEvent {
     synthetic_xg?: number;
     ball_speed_kmh?: number;
     shot_speed_kmh?: number;
+    /** Optional tracking supplied by an import: the acting player's speed at this event. Never derived from movement. */
+    player_speed_kmh?: number;
+    /** Optional tracking supplied by an import: the acting player's cumulative distance covered so far. */
+    player_distance_m?: number;
 }
 export interface MatchData {
     schema_version?: string;
@@ -44,8 +49,25 @@ export interface Metrics {
     passes_attempted: number; passes_completed: number;
     tackles_won: number; pressure_events: number; actions: number;
 }
-export interface Statistics { teams: Record<string, Metrics>; players: Record<string, Metrics> }
-export interface Preferences { mode: ViewMode; language: Language; team: string; player: string }
+/** Sums and maxima of the dataset's per-event synthetic quality fields; averages are derived when displayed. */
+export interface Quality {
+    pass_distance_total: number; pass_distance_count: number;
+    long_passes_attempted: number; long_passes_completed: number;
+    difficult_passes_attempted: number; difficult_passes_completed: number;
+    ball_speed_total: number; ball_speed_count: number; ball_speed_max: number;
+    shot_speed_total: number; shot_speed_count: number; shot_speed_max: number;
+}
+export interface Statistics { teams: Record<string, Metrics>; players: Record<string, Metrics>; quality: { teams: Record<string, Quality>; players: Record<string, Quality> } }
+/** The single performance number a viewer chose to keep on screen. */
+export const FOCUS_METRICS = ["shots", "shots_on_target", "pass_accuracy", "pressure_events", "long_passes", "difficult_passes", "fastest_shot"] as const;
+export type FocusMetric = (typeof FOCUS_METRICS)[number];
+/**
+ * `team` and `player` are the primary favourite team and focus player that agents receive. `favorites` lists every
+ * favourite player in this match (the focus player first). Agents and older callers ignore the optional fields.
+ */
+export interface Preferences { mode: ViewMode; language: Language; team: string; player: string; favorites?: string[]; metric?: FocusMetric | null; units?: Units; autoExplain?: boolean }
+/** Cross-match fan profile, by club and player name so it applies to any dataset. Most recent choice first. */
+export interface FanProfile { mode: ViewMode; clubs: string[]; players: string[]; metric: FocusMetric | null; units: Units }
 export interface PlaybackCheckpoint {
     elapsed: number;
     cursor: number;
@@ -74,7 +96,7 @@ export interface LibraryMatch {
 export const AGENT_TOPICS = ["pressing", "build_up", "chance_creation", "turnovers", "flank_preference", "momentum", "player_involvement", "defensive_actions"] as const;
 export type AgentTopic = (typeof AGENT_TOPICS)[number];
 export interface Insight {
-    id: string; rule: "recoveries" | "shots" | "passing" | "player" | "agent";
+    id: string; rule: "recoveries" | "shots" | "passing" | "player" | "goal_context" | "pressing" | "drought" | "momentum" | "agent";
     teamId: string; playerId?: string; at: number; from: number;
     /** Set only on Microsoft Foundry agent cards. Local rule cards are never labeled AI. */
     source?: "foundry"; topic?: AgentTopic;

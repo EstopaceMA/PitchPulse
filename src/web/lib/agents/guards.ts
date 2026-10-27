@@ -64,10 +64,11 @@ const BANNED = [
     /\d+(?:[.,]\d+)?\s*%\s+(?:of\s+(?:the\s+)?)?(?:ball\s+)?possession\b/i,
     /\bpossession\s+(?:of\s+|at\s+|was\s+|is\s+|stood\s+at\s+|share\s+of\s+)?\d+(?:[.,]\d+)?\s*%/i,
     /porsiyento\s+ng\s+(?:possession|pag-aari)/i,
-    /\b(?:km|kms|kilomet(?:er|re)s?|kilometro)\b/i,
+    // Kilometres are running data; km/h (and km/jam) is allowed for the dataset's synthetic ball and shot speeds.
+    /\b(?:km|kms|kilomet(?:er|re)s?|kilometro)\b(?!\s*\/\s*(?:h|jam)\b)/i,
     /\b(?:distance|distansiya|layo)\s+(?:covered|run|natakbo|tinakbo)/i,
     /\bmet(?:er|re)s?\s+(?:run|covered|natakbo)/i,
-    /\b(?:km\/h|kph|mph|top speed|sprint speed)\b|bilis ng takbo/i,
+    /\b(?:top speed|sprint(?:ing)? speed|running speed)\b|bilis ng takbo/i,
     /\bx\s?G\b|\bexpected goals?\b|inaasahang gol/i,
     /\b(?:probabilit(?:y|ies)|likelihood|odds|betting|bets?|wagers?)\b|probabilidad|pusta/i,
     /\d+(?:[.,]\d+)?\s*%\s*(?:chance|likely|probability|na\s+tsansa)|tsansa\s+na\s+\d/i,

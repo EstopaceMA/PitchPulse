@@ -2,8 +2,8 @@ import { isKeyMoment, isMeaningful } from "@/lib/match/commentary";
 import { translate } from "@/lib/i18n/translate";
 import { ruleBasedProvider } from "@/lib/match/insights";
 import { formatTime, pitchPosition, type MatchStatus } from "@/lib/match/playback";
-import { accuracy, addEvent, emptyMetrics } from "@/lib/match/statistics";
-import type { Insight, Language, MatchData, MatchEvent, Metrics, Position, Preferences } from "@/lib/match/types";
+import { accuracy, addEvent, addQuality, emptyMetrics, emptyQuality } from "@/lib/match/statistics";
+import type { Insight, Language, MatchData, MatchEvent, Metrics, Position, Preferences, Quality } from "@/lib/match/types";
 import type { Bilingual } from "./contracts";
 
 const BLOCK_SECONDS = 900;
@@ -19,10 +19,15 @@ export type Third = (typeof THIRDS)[number];
 export type Flank = (typeof FLANKS)[number];
 export type ZoneType = (typeof ZONE_TYPES)[number];
 const COUNTED = ["goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "tackles_won", "pressure_events", "actions"] as const satisfies readonly (keyof Metrics)[];
-type MetricName = (typeof COUNTED)[number] | "pass_accuracy" | "high_pressure" | "recoveries" | "turnovers";
-const TEAM_TOTALS: readonly MetricName[] = ["goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "tackles_won", "pressure_events", "high_pressure", "recoveries", "turnovers"];
+const QUALITY_COUNTED = ["long_passes_attempted", "long_passes_completed", "difficult_passes_attempted", "difficult_passes_completed"] as const satisfies readonly (keyof Quality)[];
+/** Averages and maxima of the dataset's synthetic per-event values. Emitted only once an owner has a sample. */
+const SAMPLED = ["avg_pass_distance", "avg_ball_speed", "avg_shot_speed", "max_shot_speed"] as const;
+type SampledName = (typeof SAMPLED)[number];
+type MetricName = (typeof COUNTED)[number] | (typeof QUALITY_COUNTED)[number] | SampledName | "pass_accuracy" | "high_pressure" | "recoveries" | "turnovers";
+const QUALITY_TOTALS: readonly MetricName[] = [...QUALITY_COUNTED, ...SAMPLED];
+const TEAM_TOTALS: readonly MetricName[] = ["goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "tackles_won", "pressure_events", "high_pressure", "recoveries", "turnovers", ...QUALITY_TOTALS];
 const BLOCK_METRICS: readonly MetricName[] = ["goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "pressure_events", "recoveries", "turnovers"];
-const PLAYER_TOTALS: readonly MetricName[] = ["actions", "goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "tackles_won", "pressure_events", "recoveries"];
+const PLAYER_TOTALS: readonly MetricName[] = ["actions", "goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "tackles_won", "pressure_events", "recoveries", ...QUALITY_TOTALS];
 
 const b = (en: string, fil: string): Bilingual => ({ en, fil });
 const LABELS: Record<MetricName, Bilingual> = {
@@ -38,6 +43,14 @@ const LABELS: Record<MetricName, Bilingual> = {
     recoveries: b("Recoveries (interceptions and tackles)", "Mga pagbawi (interception at tackle)"),
     turnovers: b("Ball losses (interceptions and tackles)", "Mga nawalang bola (interception at tackle)"),
     actions: b("Recorded actions", "Naitalang aksyon"),
+    long_passes_attempted: b("Long passes attempted (20 m or more)", "Mga sinubukang mahabang pasa (20 m pataas)"),
+    long_passes_completed: b("Long passes completed (20 m or more)", "Mga kumpletong mahabang pasa (20 m pataas)"),
+    difficult_passes_attempted: b("Difficult passes attempted (illustrative difficulty 0.3 or more)", "Mga sinubukang mahirap na pasa (ilustratibong hirap 0.3 pataas)"),
+    difficult_passes_completed: b("Difficult passes completed (illustrative difficulty 0.3 or more)", "Mga kumpletong mahirap na pasa (ilustratibong hirap 0.3 pataas)"),
+    avg_pass_distance: b("Average pass distance (synthetic)", "Karaniwang haba ng pasa (synthetic)"),
+    avg_ball_speed: b("Average ball speed on passes (synthetic)", "Karaniwang bilis ng bola sa pasa (synthetic)"),
+    avg_shot_speed: b("Average shot speed (synthetic)", "Karaniwang bilis ng tira (synthetic)"),
+    max_shot_speed: b("Fastest shot (synthetic)", "Pinakamabilis na tira (synthetic)"),
 };
 const METRIC_KEYS: Record<MetricName, string> = {
     goals: "agentMetricGoals", shots: "agentMetricShots", shots_on_target: "agentMetricShotsOnTarget",
@@ -45,6 +58,10 @@ const METRIC_KEYS: Record<MetricName, string> = {
     pass_accuracy: "agentMetricPassAccuracy", tackles_won: "agentMetricTacklesWon",
     pressure_events: "agentMetricPressureEvents", high_pressure: "agentMetricHighPressure",
     recoveries: "agentMetricRecoveries", turnovers: "agentMetricTurnovers", actions: "agentMetricActions",
+    long_passes_attempted: "agentMetricLongPassesAttempted", long_passes_completed: "agentMetricLongPassesCompleted",
+    difficult_passes_attempted: "agentMetricDifficultPassesAttempted", difficult_passes_completed: "agentMetricDifficultPassesCompleted",
+    avg_pass_distance: "agentMetricAvgPassDistance", avg_ball_speed: "agentMetricAvgBallSpeed",
+    avg_shot_speed: "agentMetricAvgShotSpeed", max_shot_speed: "agentMetricMaxShotSpeed",
 };
 const ZONE_LABELS: Record<ZoneType, Bilingual> = {
     passes: b("Passes started", "Mga pasang nagsimula"),
@@ -117,11 +134,29 @@ class Tally {
     readonly ids: string[] = [];
     add(id: string): void { this.ids.push(id); }
 }
+class Sample {
+    readonly ids: string[] = [];
+    total = 0;
+    max = -Infinity;
+    maxId = "";
+    add(value: number, id: string): void {
+        this.ids.push(id);
+        this.total += value;
+        if (value > this.max) { this.max = value; this.maxId = id; }
+    }
+}
+const SAMPLE_SOURCE: Record<SampledName, { total: keyof Quality; count: keyof Quality; unit: string; max?: true }> = {
+    avg_pass_distance: { total: "pass_distance_total", count: "pass_distance_count", unit: "m" },
+    avg_ball_speed: { total: "ball_speed_total", count: "ball_speed_count", unit: "km/h" },
+    avg_shot_speed: { total: "shot_speed_total", count: "shot_speed_count", unit: "km/h" },
+    max_shot_speed: { total: "shot_speed_total", count: "shot_speed_count", unit: "km/h", max: true },
+};
 
 /**
- * Deterministic features over the processed prefix only. Values reuse the statistics reducer (addEvent),
- * so every AI-cited number matches the Stats tab. No possession share, durations, distances, speeds or
- * synthetic estimates are derived. Each event is visited once: O(n + metrics).
+ * Deterministic features over the processed prefix only. Values reuse the statistics reducers (addEvent and
+ * addQuality), so every AI-cited number matches the Stats tab. Pass distances and ball and shot speeds are the
+ * dataset's synthetic per-event values, aggregated as supplied. No possession share, durations, running data,
+ * xG or difficulty values are derived or exposed. Each event is visited once: O(n + metrics).
  */
 export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[], context: PacketContext): MatchPacket {
     const { elapsed } = context;
@@ -142,6 +177,12 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
         return found;
     };
     const ids = (key: string): string[] => tallies.get(key)?.ids ?? [];
+    const samples = new Map<string, Sample>();
+    const sample = (key: string, value: number, id: string): void => {
+        let found = samples.get(key);
+        if (!found) samples.set(key, found = new Sample());
+        found.add(value, id);
+    };
     let blockCount = Math.ceil(elapsed / BLOCK_SECONDS);
 
     for (const event of events) {
@@ -160,6 +201,19 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
                 tally(`${teamId}.b${block}.${metric}`).add(id);
             }
             if (player) tally(`${player}.total.${metric}`).add(id);
+        }
+        const quality = emptyQuality();
+        addQuality(quality, event);
+        for (const metric of QUALITY_COUNTED) {
+            if (!quality[metric]) continue;
+            tally(`${teamId}.total.${metric}`).add(id);
+            if (player) tally(`${player}.total.${metric}`).add(id);
+        }
+        for (const metric of SAMPLED) {
+            const source = SAMPLE_SOURCE[metric];
+            if (!quality[source.count]) continue;
+            sample(`${teamId}.total.${metric}`, quality[source.total], id);
+            if (player) sample(`${player}.total.${metric}`, quality[source.total], id);
         }
         if (event.type === "pressure" && event.intensity === "high") tally(`${teamId}.total.high_pressure`).add(id);
         const loser = isRecovery(event) && event.from_team_id && event.from_team_id !== teamId && teams.has(event.from_team_id) ? event.from_team_id : null;
@@ -186,7 +240,12 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
         catalog.set(key, { label, value, evidence, from, to, ...owner });
     };
     const emitMetric = (prefix: string, metric: MetricName, label: string, from: number, to: number, owner: { teamId?: string; playerId?: string }) => {
-        if (metric === "pass_accuracy") {
+        if ((SAMPLED as readonly string[]).includes(metric)) {
+            const found = samples.get(`${prefix}.${metric}`), source = SAMPLE_SOURCE[metric as SampledName];
+            if (!found) return;
+            const value = source.max ? found.max : found.total / found.ids.length;
+            emit(`${prefix}.${metric}`, label, `${value.toFixed(1)} ${source.unit}`, source.max ? [found.maxId] : found.ids, from, to, owner);
+        } else if (metric === "pass_accuracy") {
             const attempted = ids(`${prefix}.passes_attempted`);
             const rate = accuracy({ ...emptyMetrics(), passes_attempted: attempted.length, passes_completed: ids(`${prefix}.passes_completed`).length });
             emit(`${prefix}.${metric}`, label, `${rate.toFixed(1)}%`, attempted, from, to, owner);
@@ -262,6 +321,8 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
             areas: "defensive, middle and attacking third are relative to the team's own attacking direction; top flank, centre channel and bottom flank are as drawn on the studio pitch",
             recoveries: "possession won by interception or tackle; turnovers are the same events counted for the team that lost the ball",
             pass_accuracy: "passes completed divided by passes attempted, already formatted",
+            pass_quality: "long passes are 20 m or more; difficult passes have an illustrative difficulty of 0.3 or more, which is not a completion probability",
+            synthetic_values: "pass distances, ball speeds and shot speeds are synthetic values sampled by the dataset, not tracking measurements; say so when citing them, and never describe player running speed or distance",
         },
         key_moments: keyMoments.map(describe),
         recent_events: recent.map(describe),

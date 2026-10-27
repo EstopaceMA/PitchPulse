@@ -815,3 +815,157 @@ describe("studio persistence and annotation anchors", () => {
     assert.equal(groupTimelineEvents([], end, 40).length, 0);
   });
 });
+
+import { addQuality, averagePassDistance, difficultyBand, emptyQuality, LONG_PASS_METRES } from "./statistics";
+import { activeHighlights, buildHighlights, HIGHLIGHT_SECONDS, HIGHLIGHT_THRESHOLDS } from "./thresholds";
+
+describe("pass quality, synthetic speeds and threshold highlights", () => {
+  const teamEvents = (teamId: string) => data.events.filter((event) => event.team_id === teamId);
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+
+  test("team quality totals match values computed directly from the bundled demo", () => {
+    const stats = aggregate(data, data.events);
+    for (const team of data.teams) {
+      const passes = teamEvents(team.team_id).filter((event) => event.type === "pass");
+      const shots = teamEvents(team.team_id).filter((event) => event.type === "shot");
+      const quality = stats.quality.teams[team.team_id];
+      const long = passes.filter((event) => event.distance_m! >= LONG_PASS_METRES);
+      const difficult = passes.filter((event) => event.difficulty_rating! >= 0.3);
+      assert.equal(quality.pass_distance_count, passes.length);
+      assert.equal(quality.pass_distance_total, sum(passes.map((event) => event.distance_m!)));
+      assert.equal(quality.long_passes_attempted, long.length);
+      assert.equal(quality.long_passes_completed, long.filter((event) => event.outcome === "complete").length);
+      assert.equal(quality.difficult_passes_attempted, difficult.length);
+      assert.equal(quality.difficult_passes_completed, difficult.filter((event) => event.outcome === "complete").length);
+      assert.equal(quality.ball_speed_max, Math.max(...passes.map((event) => event.ball_speed_kmh!)));
+      assert.equal(quality.shot_speed_count, shots.length);
+      assert.equal(quality.shot_speed_max, Math.max(...shots.map((event) => event.shot_speed_kmh!)));
+      assert.ok(averagePassDistance(quality) > 0);
+    }
+    assert.ok(stats.quality.teams[data.match.home_team_id].long_passes_attempted > 0, "the demo needs long passes");
+  });
+
+  test("missing quality fields count nowhere and other event types never add quality", () => {
+    const quality = emptyQuality();
+    addQuality(quality, { ...eventOf(data, "pass"), distance_m: undefined, difficulty_rating: undefined, ball_speed_kmh: undefined });
+    addQuality(quality, { ...eventOf(data, "shot"), shot_speed_kmh: undefined });
+    addQuality(quality, { ...eventOf(data, "tackle"), distance_m: 40, ball_speed_kmh: 90 });
+    assert.deepEqual(quality, emptyQuality());
+    assert.equal(averagePassDistance(quality), 0);
+  });
+
+  test("difficulty bands have inclusive lower edges", () => {
+    assert.deepEqual([0, 0.1999, 0.2, 0.2999, 0.3, 0.3999, 0.4, 0.8].map(difficultyBand), ["routine", "routine", "moderate", "moderate", "hard", "hard", "elite", "elite"]);
+  });
+
+  test("forward folding keeps quality equal to a fresh aggregate after seeks", () => {
+    const accumulator = new StatisticsAccumulator(data);
+    for (const count of [300, 900, 120, data.events.length]) assert.deepEqual(accumulator.at(count).quality, aggregate(data, data.events.slice(0, count)).quality, `cursor ${count}`);
+  });
+
+  test("highlights are prefix-only, one per event, in priority order", () => {
+    const all = buildHighlights(data.events);
+    assert.ok(all.length > 20 && all.length < 200, `${all.length} highlights should stay occasional`);
+    assert.equal(new Set(all.map((highlight) => highlight.eventId)).size, all.length);
+    for (const count of [200, 600, 1000]) {
+      const prefix = data.events.slice(0, count);
+      const ids = new Set(prefix.map((event) => event.event_id));
+      assert.deepEqual(buildHighlights(prefix), all.filter((highlight) => ids.has(highlight.eventId)), `prefix ${count}`);
+    }
+    const fastShot = data.events.find((event) => event.type === "shot" && event.shot_speed_kmh! >= HIGHLIGHT_THRESHOLDS.shotKmh)!;
+    assert.equal(all.find((highlight) => highlight.eventId === fastShot.event_id)?.kind, "shot_speed");
+    const both = { ...eventOf(data, "pass"), outcome: "complete", distance_m: 25, difficulty_rating: 0.45, ball_speed_kmh: 70 };
+    assert.deepEqual(buildHighlights([both]).map((highlight) => [highlight.kind, highlight.value]), [["difficult_pass", 0.45]]);
+    assert.deepEqual(buildHighlights([{ ...both, outcome: "intercepted" }]).map((highlight) => highlight.kind), ["long_pass"]);
+  });
+
+  test("a highlight shows for a fixed window of match time and never before its event", () => {
+    const pass = { ...eventOf(data, "pass"), match_time_seconds: 100, distance_m: 24 };
+    const highlights = buildHighlights([pass]);
+    assert.equal(activeHighlights(highlights, 99.9).length, 0);
+    assert.equal(activeHighlights(highlights, 100).length, 1);
+    assert.equal(activeHighlights(highlights, 100 + HIGHLIGHT_SECONDS - 0.1).length, 1);
+    assert.equal(activeHighlights(highlights, 100 + HIGHLIGHT_SECONDS).length, 0);
+  });
+
+  test("player speed and distance tags need supplied tracking fields; distance fires once per new step", () => {
+    assert.ok(buildHighlights(data.events).every((highlight) => highlight.kind !== "player_speed" && highlight.kind !== "player_distance"));
+    const tackle = eventOf(data, "tackle");
+    const tracked = [900, 1100, 1500, 2050].map((distance, index) => ({ ...tackle, event_id: `T-${index}`, match_time_seconds: index * 30, player_distance_m: distance }));
+    assert.deepEqual(buildHighlights(tracked).map((highlight) => [highlight.eventId, highlight.kind, highlight.value]), [["T-1", "player_distance", 1000], ["T-3", "player_distance", 2000]]);
+    assert.deepEqual(buildHighlights([{ ...tackle, player_speed_kmh: 27.4 }]).map((highlight) => highlight.kind), ["player_speed"]);
+  });
+
+  test("uploads accept optional non-negative tracking fields", () => {
+    const event = { ...data.events[1], player_speed_kmh: 26.1, player_distance_m: 4200 };
+    assert.equal(validateMatch({ ...data, events: [data.events[0], event] }).events[1].player_speed_kmh, 26.1);
+    assert.throws(() => validateMatch({ ...data, events: [data.events[0], { ...event, player_distance_m: -1 }] }), /player_distance_m/);
+  });
+});
+
+describe("why-it-matters rules", () => {
+  const home = data.match.home_team_id, away = data.match.away_team_id;
+  const homePlayer = data.players.find((player) => player.team_id === home)!.player_id;
+  const awayPlayer = data.players.find((player) => player.team_id === away)!.player_id;
+  const at = (time: number, fields: Partial<MatchEvent>, index: number): MatchEvent => ({ event_id: `W-${index}`, sequence: index + 1, match_time_seconds: time, period: 1, type: "pass", team_id: home, player_id: homePlayer, possession_id: 1, ...fields });
+  const run = (events: Partial<MatchEvent & { time: number }>[]) => {
+    const match = validateMatch({ ...data, events: events.map(({ time = 0, ...fields }, index) => at(time, fields, index)) });
+    return ruleBasedProvider.generate(match, match.events, match.events.at(-1)!.match_time_seconds);
+  };
+  const goal = (time: number, team: string, possession: number): Partial<MatchEvent & { time: number }> => ({ time, type: "shot", outcome: "goal", team_id: team, player_id: team === home ? homePlayer : awayPlayer, possession_id: possession });
+
+  test("goal context walks the scoring possession back to how the ball was won", () => {
+    const prefix = data.events.filter((event) => event.match_time_seconds <= 1500);
+    const cards = ruleBasedProvider.generate(data, prefix, 1500).filter((insight) => insight.rule === "goal_context");
+    assert.equal(cards.length, 1);
+    const scored = prefix.find((event) => event.type === "shot" && event.outcome === "goal")!;
+    const move = prefix.filter((event) => event.possession_id === scored.possession_id && event.team_id === scored.team_id);
+    assert.deepEqual(cards[0].eventIds, move.map((event) => event.event_id));
+    assert.equal(cards[0].headline, "Arsenal open the scoring");
+    assert.match(cards[0].explanation, /making it Arsenal 1–0 Chelsea\. The move lasted 43 seconds, included 3 completed passes and began when .+ won the ball with a tackle in the middle third\./);
+    assert.deepEqual(cards[0].metrics.slice(0, 3).map((metric) => metric.value), ["1–0", "43 s", "3"]);
+  });
+
+  test("goal headlines follow the game state and every goal gets a card despite cooldowns", () => {
+    const cards = run([goal(10, home, 1), goal(20, away, 2), goal(30, away, 3), goal(40, away, 4), goal(50, home, 5), goal(60, home, 6)]).filter((insight) => insight.rule === "goal_context");
+    assert.deepEqual(cards.map((card) => card.headline), ["Arsenal open the scoring", "Chelsea draw level", "Chelsea go ahead", "Chelsea extend their lead", "Arsenal pull one back", "Arsenal draw level"]);
+    assert.match(cards[0].explanation, /without a completed pass and began after a change of possession/);
+  });
+
+  test("pressing regains need the same team's pressure within five seconds", () => {
+    const recovery = (time: number, possession: number) => ({ time, type: "possession_change" as const, reason: "interception", from_team_id: away, possession_id: possession });
+    const pressed = run([{ time: 10, type: "pressure", intensity: "high" }, recovery(14, 2), { time: 40, type: "pressure", intensity: "high" }, recovery(45, 3)]);
+    const card = pressed.find((insight) => insight.rule === "pressing");
+    assert.ok(card);
+    assert.deepEqual(card.eventIds, ["W-0", "W-1", "W-2", "W-3"]);
+    assert.ok(!run([{ time: 10, type: "pressure" }, recovery(16, 2), { time: 40, type: "pressure" }, recovery(45, 3)]).some((insight) => insight.rule === "pressing"), "a regain six seconds later does not count");
+    assert.ok(!run([{ time: 10, type: "pressure", team_id: away, player_id: awayPlayer }, recovery(12, 2), { time: 40, type: "pressure", team_id: away, player_id: awayPlayer }, recovery(42, 3)]).some((insight) => insight.rule === "pressing"), "the opponent's pressure does not count");
+  });
+
+  test("a shot drought is reported once, when it ends, from kick-off or the previous shot", () => {
+    const shot = (time: number) => ({ time, type: "shot" as const, outcome: "saved" });
+    const droughts = run([shot(800), shot(900), shot(1700)]).filter((insight) => insight.rule === "drought");
+    assert.deepEqual(droughts.map((card) => card.metrics.map((metric) => metric.value)), [["13", "00:00"], ["13", "15:00"]]);
+    assert.match(droughts[0].explanation, /first since kick-off, after 13 minutes/);
+    assert.ok(!run([shot(700), shot(1400)]).some((insight) => insight.rule === "drought"));
+  });
+
+  test("a territory shift needs a clear swing in both teams' attacking-third actions", () => {
+    const high = (time: number, team: string) => ({ time, start_position: { x: 80, y: 50 }, outcome: "complete", team_id: team, player_id: team === home ? homePlayer : awayPlayer });
+    const swing = [...[10, 40, 70, 100, 130, 160].map((time) => high(time, away)), high(200, home), ...[320, 350, 380, 410, 440, 470].map((time) => high(time, home)), high(480, away)];
+    const card = run(swing).find((insight) => insight.rule === "momentum" && insight.teamId === home);
+    assert.ok(card);
+    // First window with six actions on both sides: (02:50, 07:50] against (00:00, 02:50].
+    assert.deepEqual(card.metrics.slice(0, 2).map((metric) => metric.value), ["7/7", "0/6"]);
+    assert.ok(!run(swing.slice(0, 7)).some((insight) => insight.rule === "momentum"));
+  });
+
+  test("new rules cite only reached events and stay bounded on the full demo", () => {
+    const all = ruleBasedProvider.generate(data, data.events, end);
+    const reached = new Set(data.events.map((event) => event.event_id));
+    for (const rule of ["goal_context", "pressing", "drought", "momentum"] as const) {
+      for (const card of all.filter((insight) => insight.rule === rule)) for (const id of card.eventIds) assert.ok(reached.has(id), `${rule} ${id}`);
+    }
+    assert.ok(all.length <= 200);
+  });
+});

@@ -1,4 +1,6 @@
-import type { Language, MatchData, MatchEvent } from "./types";
+import type { Language, MatchData, MatchEvent, Units } from "./types";
+import { difficultyBand, type DifficultyBand } from "./statistics";
+import type { Highlight } from "./thresholds";
 import { translate } from "@/lib/i18n/translate";
 
 export function tr(language: Language, key: string): string;
@@ -34,3 +36,18 @@ export function eventLabel(event: Pick<MatchEvent, "type" | "outcome">, language
 export function outcomeLabel(event: MatchEvent, language: Language): string { const raw = event.outcome ?? event.intensity ?? event.reason; if (!raw) return "—"; return outcomes[raw] ? tr(language, outcomes[raw]) : raw.replaceAll("_", " "); }
 export function teamColor(id: string | null, home: string): string { return id === home ? "#ff6276" : id ? "#669cff" : "#9aa8c0"; }
 export function initials(name: string): string { return name.length <= 3 ? name.toUpperCase() : name.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase(); }
+/** Synthetic dataset speeds and distances, one decimal, in the viewer's units. Digits stay Latin in every locale. */
+export const speedText = (kmh: number, units: Units = "metric"): string => units === "imperial" ? `${(kmh / 1.609344).toFixed(1)} mph` : `${kmh.toFixed(1)} km/h`;
+export const distanceText = (metres: number, units: Units = "metric"): string => units === "imperial" ? `${(metres * 1.0936133).toFixed(1)} yd` : `${metres.toFixed(1)} m`;
+const bands: Record<DifficultyBand, string> = { routine: "bandRoutine", moderate: "bandModerate", hard: "bandHard", elite: "bandElite" };
+export const bandLabel = (band: DifficultyBand, language: Language): string => tr(language, bands[band]);
+export function highlightText(highlight: Highlight, language: Language, units: Units = "metric"): string {
+    switch (highlight.kind) {
+        case "shot_speed": return tr(language, "highlightShotSpeed", { value: speedText(highlight.value, units) });
+        case "ball_speed": return tr(language, "highlightBallSpeed", { value: speedText(highlight.value, units) });
+        case "player_speed": return tr(language, "highlightPlayerSpeed", { value: speedText(highlight.value, units) });
+        case "long_pass": return tr(language, "highlightLongPass", { value: distanceText(highlight.value, units) });
+        case "difficult_pass": return tr(language, "highlightDifficultPass", { band: bandLabel(difficultyBand(highlight.value), language) });
+        case "player_distance": return tr(language, "highlightPlayerDistance", { value: units === "imperial" ? `${(highlight.value / 1609.344).toFixed(1)} mi` : `${highlight.value / 1000} km` });
+    }
+}

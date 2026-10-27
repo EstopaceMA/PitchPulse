@@ -1,5 +1,5 @@
 import { formatTime } from "@/lib/match/playback";
-import { accuracy, aggregate } from "@/lib/match/statistics";
+import { accuracy, aggregate, averageBallSpeed, averagePassDistance, averageShotSpeed } from "@/lib/match/statistics";
 import { EVENT_TYPES, type MatchData, type MatchEvent } from "@/lib/match/types";
 import { FLANKS, THIRDS, ZONE_TYPES, isRecovery, zonesOf, type Flank, type MatchPacket, type Third, type ZoneType } from "./packet";
 
@@ -11,7 +11,7 @@ const ROW_LIMIT = 50;
 const DEFAULT_ROWS = 20;
 const TOOL_EVIDENCE = 20;
 const WINDOWS = [300, 600, 900] as const;
-const COMPARABLE = ["goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "pressure_events", "recoveries", "turnovers"] as const;
+const COMPARABLE = ["goals", "shots", "shots_on_target", "passes_attempted", "passes_completed", "pass_accuracy", "pressure_events", "recoveries", "turnovers", "long_passes_completed", "difficult_passes_completed"] as const;
 
 const seconds = { type: ["number", "null"], description: "Seconds from kick-off, or null" };
 const tool = (name: string, description: string, properties: Record<string, unknown>): FunctionToolDefinition => ({
@@ -21,7 +21,7 @@ const tool = (name: string, description: string, properties: Record<string, unkn
 
 export const ASK_TOOLS: FunctionToolDefinition[] = [
     tool("get_match_context", "Every reached-match metric (key → formatted value) with its glossary, key moments, recent meaningful events and PitchPulse's rule-based insights.", {}),
-    tool("get_stats", "Recorded statistics for one team or player in a time window: after from_seconds up to and including to_seconds. Kick-off events count when from_seconds is 0 or null; null to_seconds means the current clock.", {
+    tool("get_stats", "Recorded statistics for one team or player in a time window: after from_seconds up to and including to_seconds. Kick-off events count when from_seconds is 0 or null; null to_seconds means the current clock. Pass distances and ball and shot speeds are synthetic dataset values (null when none were recorded); long passes are 20 m or more and difficult passes have an illustrative difficulty of 0.3 or more.", {
         scope: { type: "string", enum: ["team", "player"] },
         id: { type: "string", description: "team_id or player_id" },
         from_seconds: seconds,
@@ -71,6 +71,8 @@ function teamId(context: ToolContext, value: unknown): string {
 function statsOf(context: ToolContext, scope: "team" | "player", id: string, events: readonly MatchEvent[]) {
     const stats = aggregate(context.data, events);
     const metrics = scope === "team" ? stats.teams[id] : stats.players[id];
+    const quality = scope === "team" ? stats.quality.teams[id] : stats.quality.players[id];
+    const sampled = (count: number, value: number, unit: string) => count ? `${value.toFixed(1)} ${unit}` : null;
     const recoveries = events.filter(event => isRecovery(event) && (scope === "team" ? event.team_id === id : event.player_id === id)).length;
     return {
         ...(scope === "player" ? { actions: metrics.actions } : {}),
@@ -79,6 +81,12 @@ function statsOf(context: ToolContext, scope: "team" | "player", id: string, eve
         pass_accuracy: `${accuracy(metrics).toFixed(1)}%`,
         tackles_won: metrics.tackles_won, pressure_events: metrics.pressure_events, recoveries,
         ...(scope === "team" ? { turnovers: events.filter(event => isRecovery(event) && event.from_team_id === id && event.team_id !== id).length } : {}),
+        long_passes_attempted: quality.long_passes_attempted, long_passes_completed: quality.long_passes_completed,
+        difficult_passes_attempted: quality.difficult_passes_attempted, difficult_passes_completed: quality.difficult_passes_completed,
+        avg_pass_distance: sampled(quality.pass_distance_count, averagePassDistance(quality), "m"),
+        avg_ball_speed: sampled(quality.ball_speed_count, averageBallSpeed(quality), "km/h"),
+        avg_shot_speed: sampled(quality.shot_speed_count, averageShotSpeed(quality), "km/h"),
+        max_shot_speed: sampled(quality.shot_speed_count, quality.shot_speed_max, "km/h"),
     };
 }
 

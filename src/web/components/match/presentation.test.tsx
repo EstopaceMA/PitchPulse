@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { initialPlayback, type PlaybackState } from "@/lib/match/playback";
+import { countReached, initialPlayback, type PlaybackState } from "@/lib/match/playback";
 import { validateMatch } from "@/lib/match/validation";
 import { Pitch } from "./pitch";
 import { PlaybackControls } from "./playback-controls";
@@ -256,3 +256,101 @@ test("pitch keeps disclosures visible, help collapsed and event IDs in details o
         assert.ok(!action.includes(event.event_id));
     }
 });
+
+test("the pitch tags a threshold-crossing action beside the player and shows its synthetic quality", () => {
+    const shot = data.events.find(event => event.type === "shot" && event.shot_speed_kmh! >= 100)!;
+    const events = data.events.slice(0, data.events.indexOf(shot) + 1);
+    const html = renderToStaticMarkup(<Pitch data={data} events={events} elapsed={shot.match_time_seconds + 2} event={shot} pinned={false} language="en" onLive={noop} />);
+    assert.match(html, new RegExp(`data-highlight="shot_speed" data-tag-for="${shot.player_id}"`));
+    assert.ok(html.includes(`Shot ${shot.shot_speed_kmh!.toFixed(1)} km/h`));
+    assert.match(html, /class="action-quality" title="Synthetic dataset values, not measurements"/);
+    const later = renderToStaticMarkup(<Pitch data={data} events={events} elapsed={shot.match_time_seconds + 30} event={shot} pinned={false} language="en" onLive={noop} />);
+    assert.doesNotMatch(later, /data-highlight=/, "tags expire with match time");
+    const focus = renderToStaticMarkup(<Pitch data={data} events={[]} elapsed={0} pinned={false} language="en" onLive={noop} focusPlayer={data.players[3].player_id} />);
+    assert.match(focus, new RegExp(`class="sim-player spotlight" data-player-id="${data.players[3].player_id}"`));
+    assert.match(focus, /class="sim-player dimmed"/);
+});
+
+import { BroadcastOverlay, PitchBackdrop } from "./broadcast-view";
+import { MyMetricBug, StoryPanel } from "./fan-widgets";
+import { StatisticsPanel } from "./statistics-panel";
+import { buildCues } from "@/lib/match/overlays";
+import { ruleBasedProvider } from "@/lib/match/insights";
+import { aggregate } from "@/lib/match/statistics";
+
+const reachedBy = (at: number) => data.events.slice(0, countReached(data.events, at, at > data.match.period_seconds));
+const viewer: Preferences = { mode: "casual", language: "en", team: data.match.home_team_id, player: "" };
+
+test("the broadcast overlay shows the scorebug, a goal lower third and the roster disclosure, and stays transparent", () => {
+    const goal = data.events.find(event => event.type === "shot" && event.outcome === "goal")!;
+    const at = goal.match_time_seconds + 3, events = reachedBy(at);
+    const html = renderToStaticMarkup(<BroadcastOverlay data={data} cues={buildCues(data, events, at, { ...viewer, metric: "shots" })} at={at} status="playing" language="en" />);
+    assert.match(html, /class="broadcast-root"/);
+    assert.match(html, /<b>1–0<\/b>/);
+    assert.ok(html.includes(`data-cue="goal:${goal.event_id}"`));
+    assert.ok(html.includes("Goal! "));
+    assert.ok(html.includes("Arsenal open the scoring"));
+    assert.ok(html.includes("Simulated match · real squad names"));
+    assert.match(html, /class="broadcast-metric"/);
+    const arabic = renderToStaticMarkup(<BroadcastOverlay data={data} cues={buildCues(data, events, at, { ...viewer, language: "ar" })} at={at} status="playing" language="ar" />);
+    assert.match(arabic, /class="broadcast-scorebug" dir="ltr"/);
+    assert.match(arabic, /class="broadcast-lower lower_third"[^>]*dir="rtl"/);
+});
+
+test("the casual story leads with the score and plain-language moments, favourites marked", () => {
+    const events = reachedBy(1500);
+    const html = renderToStaticMarkup(<StoryPanel data={data} events={events} stats={aggregate(data, events)} insights={ruleBasedProvider.generate(data, events, 1500)} preferences={viewer} elapsed={1500} onEvidence={noop} />);
+    assert.match(html, /<h2 id="story-heading">The story so far<\/h2>/);
+    assert.match(html, /<b>1–0<\/b>/);
+    assert.ok(html.includes("Arsenal open the scoring"));
+    assert.ok(html.includes("at the end of a 43-second move."));
+    assert.match(html, /<li class="favorite"/);
+    const empty = renderToStaticMarkup(<StoryPanel data={data} events={[]} stats={aggregate(data, [])} insights={[]} preferences={viewer} elapsed={0} onEvidence={noop} />);
+    assert.ok(empty.includes("will appear here in plain words"));
+});
+
+test("My metric follows the focus player in Player Focus and shows a dash before any sample", () => {
+    const stats = aggregate(data, data.events);
+    const player = data.players.find(entry => stats.players[entry.player_id].shots > 0)!;
+    const html = renderToStaticMarkup(<MyMetricBug data={data} stats={stats} preferences={{ ...viewer, mode: "player", player: player.player_id, metric: "fastest_shot" }} />);
+    assert.ok(html.includes(`Fastest shot · ${player.name}`));
+    assert.ok(html.includes(`${stats.quality.players[player.player_id].shot_speed_max.toFixed(1)} km/h`));
+    assert.ok(renderToStaticMarkup(<MyMetricBug data={data} stats={aggregate(data, [])} preferences={{ ...viewer, metric: "pass_accuracy" }} />).includes("<b dir=\"ltr\">—</b>"));
+    assert.equal(renderToStaticMarkup(<MyMetricBug data={data} stats={stats} preferences={viewer} />), "");
+});
+
+test("analysts get difficulty bands and an export; other perspectives do not", () => {
+    const stats = aggregate(data, data.events);
+    const analyst = renderToStaticMarkup(<StatisticsPanel data={data} stats={stats} preferences={{ ...viewer, mode: "analyst" }} events={data.events} elapsed={5400} />);
+    assert.match(analyst, /Pass completion by difficulty/);
+    assert.match(analyst, /<th scope="row">Elite<\/th>/);
+    assert.match(analyst, /Export statistics so far/);
+    assert.doesNotMatch(renderToStaticMarkup(<StatisticsPanel data={data} stats={stats} preferences={viewer} events={data.events} elapsed={5400} />), /band-table/);
+    const imperial = renderToStaticMarkup(<StatisticsPanel data={data} stats={stats} preferences={viewer} units="imperial" />);
+    assert.match(imperial, /\d+\.\d mph/);
+    assert.match(imperial, /\d+\.\d yd/);
+});
+
+test("Player Focus adds the followed player's lane to the timeline", () => {
+    const player = data.players[9];
+    const events = reachedBy(1800);
+    const html = renderToStaticMarkup(<StudioTimeline data={data} events={events} state={{ ...initialPlayback(), elapsed: 1800, cursor: events.length }} language="en" annotations={[]} selectedId={null} onAnnotation={noop} onEvent={noop} dispatch={noop} onSeek={noop} onRestart={noop} onStep={noop} statusText="Paused" focusPlayer={player.player_id} />);
+    assert.match(html, new RegExp(`class="event-track player-track" aria-label="${player.name}"`));
+    assert.doesNotMatch(renderToStaticMarkup(<StudioTimeline data={data} events={events} state={{ ...initialPlayback(), elapsed: 1800, cursor: events.length }} language="en" annotations={[]} selectedId={null} onAnnotation={noop} onEvent={noop} dispatch={noop} onSeek={noop} onRestart={noop} onStep={noop} statusText="Paused" />), /player-track/);
+});
+
+test("the broadcast preview draws the simulated pitch under the graphics, with tags on the players", () => {
+    const shot = data.events.find(event => event.type === "shot" && event.shot_speed_kmh! >= 100)!;
+    const at = shot.match_time_seconds + 2, events = reachedBy(at);
+    const backdrop = <PitchBackdrop data={data} events={events} at={at} preferences={viewer} />;
+    const html = renderToStaticMarkup(<BroadcastOverlay data={data} cues={buildCues(data, events, at, viewer)} at={at} status="playing" language="en" background="preview" backdrop={backdrop} />);
+    assert.match(html, /^<div class="broadcast-root" data-testid="broadcast-overlay" data-background="preview" lang="en"><div class="broadcast-pitch" inert="" aria-hidden="true"><svg viewBox="-73 0 906 510"/);
+    assert.equal((html.match(/class="sim-player[ "]/g) ?? []).length, data.players.length);
+    assert.match(html, new RegExp(`data-highlight="shot_speed" data-tag-for="${shot.player_id}"`));
+    assert.doesNotMatch(html, /broadcast-tags/, "tags sit on the players instead of the side stack");
+    assert.ok(html.includes("Illustrative movement · Simulated match · real squad names"));
+    const overFeed = renderToStaticMarkup(<BroadcastOverlay data={data} cues={buildCues(data, events, at, viewer)} at={at} status="playing" language="en" />);
+    assert.doesNotMatch(overFeed, /broadcast-pitch|data-background/);
+    assert.match(overFeed, /class="broadcast-tags"/);
+});
+

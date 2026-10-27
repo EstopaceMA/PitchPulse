@@ -1,4 +1,4 @@
-import type { LibraryMatch, MatchAnnotation, PlaybackCheckpoint } from "./types";
+import type { FanProfile, LibraryMatch, MatchAnnotation, PlaybackCheckpoint } from "./types";
 
 type StoredMatch = Pick<LibraryMatch, "id" | "data" | "source" | "kind" | "createdAt">;
 export interface StoredReview { id: string; checkpoint: PlaybackCheckpoint; annotations: MatchAnnotation[]; updatedAt: number }
@@ -58,3 +58,16 @@ export const libraryStorage: LibraryStorage = {
     async saveReview(review) { await transaction(["reviews"], "readwrite", tx => { tx.objectStore("reviews").put(review); }); },
     async remove(id) { await transaction(["matches", "reviews"], "readwrite", tx => { tx.objectStore("matches").delete(id); tx.objectStore("reviews").delete(id); }); },
 };
+
+// The fan profile is a few hundred bytes of per-browser preferences, so it lives in localStorage beside the library.
+const PROFILE_KEY = "pitchpulse-fan-profile";
+/** The stored profile as parsed JSON, or null when absent, unreadable or blocked. Validate before use. */
+export function loadFanProfile(): unknown {
+    try {
+        const raw = localStorage.getItem(PROFILE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+export function saveFanProfile(profile: FanProfile): boolean {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); return true; } catch { return false; }
+}

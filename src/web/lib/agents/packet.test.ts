@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import { countReached } from "../match/playback";
-import { accuracy, aggregate } from "../match/statistics";
+import { accuracy, aggregate, averageBallSpeed, averagePassDistance, averageShotSpeed } from "../match/statistics";
 import type { MatchData, MatchEvent } from "../match/types";
 import { validateMatch } from "../match/validation";
 import { buildMatchPacket, type PacketContext } from "./packet";
@@ -94,7 +94,32 @@ describe("agent match packet", () => {
         assert.deepEqual(packet.catalog.get(`${home}.total.turnovers`)!.evidence, ["P-1"]);
     });
 
-    test("derives no possession share, durations, distances, speeds or synthetic estimates", () => {
+    test("pass-quality counts and synthetic speed averages equal the quality reducer and cite their events", () => {
+        const events = prefix(end, true);
+        const packet = buildMatchPacket(data, events, context(end, true, "full-time"));
+        const stats = aggregate(data, events);
+        for (const [id, quality] of [...Object.entries(stats.quality.teams), ...Object.entries(stats.quality.players).filter(([, value]) => value.pass_distance_count > 0)]) {
+            for (const key of ["long_passes_attempted", "long_passes_completed", "difficult_passes_attempted", "difficult_passes_completed"] as const) {
+                assert.equal(packet.catalog.get(`${id}.total.${key}`)?.value, String(quality[key]), `${id}.total.${key}`);
+                assert.equal(packet.catalog.get(`${id}.total.${key}`)?.evidence.length, quality[key]);
+            }
+            assert.equal(packet.catalog.get(`${id}.total.avg_pass_distance`)?.value, `${averagePassDistance(quality).toFixed(1)} m`);
+            assert.equal(packet.catalog.get(`${id}.total.avg_ball_speed`)?.value, `${averageBallSpeed(quality).toFixed(1)} km/h`);
+        }
+        for (const [id, quality] of Object.entries(stats.quality.teams)) {
+            assert.equal(packet.catalog.get(`${id}.total.avg_shot_speed`)?.value, `${averageShotSpeed(quality).toFixed(1)} km/h`);
+            const fastest = packet.catalog.get(`${id}.total.max_shot_speed`)!;
+            assert.equal(fastest.value, `${quality.shot_speed_max.toFixed(1)} km/h`);
+            assert.equal(fastest.evidence.length, 1);
+            assert.equal(events.find(event => event.event_id === fastest.evidence[0])?.shot_speed_kmh, quality.shot_speed_max);
+        }
+        const unsampled = synthetic([{}]);
+        const bare = buildMatchPacket(unsampled, unsampled.events, context(200, false));
+        assert.equal(bare.catalog.get(`${home}.total.shots`)!.value, "1");
+        assert.ok(!bare.catalog.has(`${home}.total.avg_shot_speed`), "no average without a sample");
+    });
+
+    test("exposes no raw synthetic fields, possession share, durations, xG or final summaries", () => {
         const events = prefix(end, true);
         const serialized = JSON.stringify(buildMatchPacket(data, events, context(end, true, "full-time")).facts);
         for (const banned of ["synthetic_xg", "difficulty_rating", "distance_m", "speed_kmh", "possession_share", "possession_pct", "final_score", "final_statistics"]) assert.ok(!serialized.includes(banned), banned);
