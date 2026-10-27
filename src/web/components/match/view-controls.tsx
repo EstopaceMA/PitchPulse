@@ -13,10 +13,7 @@ type ViewControlsProps = {
     onChange: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void;
 };
 
-/** Session-only and off by default, like the other preferences. */
-export interface AiPreference { available: boolean; enabled: boolean; onChange: (enabled: boolean) => void }
-
-export function PreferencesMenu({ data, preferences, onChange, compact = false, ai }: ViewControlsProps & { compact?: boolean; ai?: AiPreference }) {
+export function PreferencesMenu({ data, preferences, onChange, compact = false }: ViewControlsProps & { compact?: boolean }) {
     const [settings, setSettings] = useState(false);
     const settingsRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -62,13 +59,6 @@ export function PreferencesMenu({ data, preferences, onChange, compact = false, 
                 <span>{tr(l, "Language", "Wika")}</span>
                 <Select label={tr(l, "Language", "Wika")} value={l} onValueChange={value => onChange("language", value as Language)} options={[{ value: "en", label: "English" }, { value: "fil", label: "Filipino" }]} portalContainer={settingsRef} />
             </label>
-            {ai && <label className="ai-toggle">
-                <input type="checkbox" checked={ai.enabled} disabled={!ai.available} onChange={event => ai.onChange(event.target.checked)} aria-describedby={`${id}-ai-note`} />
-                <span><b>{tr(l, "AI analysis (Microsoft Foundry)", "Pagsusuri ng AI (Microsoft Foundry)")}</b><small id={`${id}-ai-note`}>{ai.available
-                    ? tr(l, "Off by default. When on, only the AI buttons you press send this match’s reached events to your Foundry project, where responses are stored.", "Naka-off bilang default. Kapag naka-on, ang mga AI button lamang na pipindutin mo ang magpapadala ng mga naabot na pangyayari ng laban sa iyong Foundry project, kung saan naiimbak ang mga sagot.")
-                    : tr(l, "Not configured on this server. Local analysis is unaffected.", "Hindi naka-configure sa server na ito. Hindi apektado ang lokal na pagsusuri.")}</small></span>
-            </label>}
-            <p>{tr(l, "Preferences update instantly. Your match keeps its place.", "Agad na magbabago ang pananaw. Hindi magsisimulang muli ang laban.")}</p>
             <Button variant="secondary" onClick={() => { setSettings(false); triggerRef.current?.focus(); }}><Check size={14} aria-hidden="true" />{tr(l, "Done", "Tapos")}</Button>
         </div>}
     </div>;

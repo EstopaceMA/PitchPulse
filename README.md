@@ -1,6 +1,6 @@
 # PitchPulse
 
-A working event-driven football simulator using Next.js, TypeScript, Tailwind, shadcn/ui, Lucide, and self-hosted Inter and JetBrains Mono. No continuous tracking is involved. Optional [Microsoft Foundry analysis agents](#optional-microsoft-foundry-agents) are off by default; without them, no AI connection or credentials are involved.
+A working event-driven football simulator using Next.js, TypeScript, Tailwind, shadcn/ui, Lucide, and self-hosted Inter and JetBrains Mono. No continuous tracking is involved. Optional [Microsoft Foundry analysis agents](#optional-microsoft-foundry-agents) are available when configured; without them, no AI connection or credentials are involved.
 
 The visual specification is maintained in [DESIGN.md](src/web/DESIGN.md): a charcoal match library and an editor-style analysis studio with green accents and red/blue team identity. The built-in insights are local and rule-based; the optional agents add separately labeled AI analysis.
 
@@ -15,7 +15,7 @@ Repository layout:
 - Each match opens at `/studio/[id]`. Reopening restores the exact last saved event cursor and clock, paused; ready, half-time, and full-time retain their boundary states. Unknown IDs offer a return to the library.
 - Desktop gives the pitch most of the workspace, with the event browser collapsed initially, a narrow inspector, and compact playback/timeline controls. **Browser** in the pitch toolbar reopens the event list; **Inspector** toggles analysis; **View** in the pitch header opens visualization, fit/detail, and name settings. Narrow screens stack analysis below the pitch and retain one playback dock with safe-area spacing.
 - Above 900px, drag the divider beside Browser or Inspector to resize it. Arrow keys move a focused divider by 10px (Shift: 50px); Home/End select its minimum/maximum width. Enter or double-click restores its responsive default; Escape cancels a drag. Widths are remembered for the mounted studio, including closing/reopening panels, and reset on a fresh visit. Smaller windows temporarily reduce panel widths to keep at least 360px for the pitch; the preferred widths return when space allows. Mobile keeps the stacked layout without splitters.
-- The inspector provides event details, statistics, local insights/commentary, and notes. Half/full-time recaps appear there. New games default to Analyst; Casual Fan and Player Focus remain available under **Preferences → Perspective**, with the active perspective shown above the inspector content. When AI analysis is on, an **Ask** tab appears as well.
+- The inspector provides event details, statistics, local insights/commentary, and notes. Half/full-time recaps appear there. New games default to Analyst; Casual Fan and Player Focus remain available under **Preferences → Perspective**, with the active perspective shown above the inspector content. When Foundry is configured, an **Ask** tab appears as well.
 - Play/pause, restart, step one event, choose 1×/5×/10×/30× from the labeled speed select, or scrub the timeline. Arrow keys, Home, and End work on the native scrubber. The Fit/2×/4×/8× zoom select changes horizontal scale without changing playback.
 - Timeline team tracks show only processed events. Crowded timestamps form selectable groups, with paged event lists. The notes track shows saved user annotations, including moments beyond a rewound playhead.
 - Half-time pauses before period-two events sharing 45:00. **Start second half** explicitly resumes. Full-time stops automatically. Seeking beyond half-time is allowed.
@@ -85,7 +85,7 @@ The movement timeline is built exclusively from the processed prefix, never futu
 
 Insights use 300-second windows, 180-second per-rule/team/player cooldowns, and a bounded 200-card history. Live cards expire after 600 seconds and deduplicate by rule/team/player. Comparison evidence includes both windows. Early comparisons disclose partial windows. Player rules require four actions or a goal. Facts are separate from cautious interpretations.
 
-`InsightProvider` is the Microsoft Foundry boundary. `ruleBasedProvider` is local, deterministic and always on. `foundryInsightProvider` is the remote implementation. It calls a server route that keeps credentials private, accepts only processed events and returns typed, verified evidence. Foundry is called only when AI analysis is configured, switched on, and a button is pressed.
+`InsightProvider` is the Microsoft Foundry boundary. `ruleBasedProvider` is local, deterministic and always on. `foundryInsightProvider` is the remote implementation. It calls a server route that keeps credentials private, accepts only processed events and returns typed, verified evidence. Foundry is called only when AI analysis is configured and a button is pressed.
 
 ## Optional Microsoft Foundry agents
 
@@ -123,7 +123,7 @@ Setup (requires Node 22 or later, for example via `nvm use`):
 When a recap or answer fails verification, or every card or line is removed, the agent gets one corrective retry that names the failed checks. The server logs removal reasons as `[agents/<name>] removed by verification: …`. With `gpt-5-mini`, a turn takes roughly 15–45 seconds; the route allows up to 115 seconds.
 
 Data and limits:
-- AI analysis is opt-in per session, under Preferences or in the Insights tab.
+- AI controls are available whenever Foundry is configured. Every AI request requires a button press or question.
 - When used, the match's reached events, your question and earlier visible answers are sent to your Foundry project, where responses are stored. Note text is never sent.
 - AI results live in session memory only.
 - The route accepts same-origin requests up to 10 MB, with a best-effort per-instance rate limit.
@@ -205,7 +205,7 @@ Afterwards:
 
 Notes:
 - **Region:** use the Foundry project's region for `--location`, to keep agent calls short.
-- **Access:** the app is public. AI stays opt-in per visitor and on demand, and the agents route rate-limits each visitor by the client address that Container Apps supplies. The single replica keeps that in-memory limit accurate.
+- **Access:** the app is public. AI requests stay on demand, and the agents route rate-limits each visitor by the client address that Container Apps supplies. The single replica keeps that in-memory limit accurate.
 - **Cost:** roughly US$15 a month (one idle replica about US$10, the registry about US$5) plus Foundry token usage.
 - **State:** Terraform state stays local in `.azure/<environment>`. Configure remote state before sharing an environment. azd's Terraform support is in beta.
 - **Troubleshooting:**

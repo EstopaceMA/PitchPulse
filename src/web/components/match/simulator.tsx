@@ -53,8 +53,6 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
     const [annotations, setAnnotations] = useState(record.annotations);
     const [draft, setDraft] = useState<MatchAnnotation | null>(null);
     const [selectedNote, setSelectedNote] = useState<string | null>(null);
-    // AI is opt-in per session and every agent call is on demand.
-    const [aiEnabled, setAiEnabled] = useState(false);
     const [drafting, setDrafting] = useState(false);
     const [draftStatus, setDraftStatus] = useState("");
     const l = preferences.language;
@@ -64,7 +62,7 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
     const reachedTime = events.at(-1)?.match_time_seconds ?? 0;
     const insights = useMemo(() => ruleBasedProvider.generate(data, events, reachedTime), [data, events, reachedTime]);
     const ai = useStudioAgents(record.id, data, events, { elapsed: state.elapsed, secondHalf: state.secondHalf, status: state.status }, preferences);
-    const aiOn = aiAvailable && aiEnabled;
+    const aiOn = aiAvailable;
     const activeInspector = inspector === "ask" && !aiOn ? "insights" : inspector;
     const statusText = { ready: tr(l, "Ready", "Handa"), playing: tr(l, "Playing", "Naglalaro"), paused: tr(l, "Paused", "Nakahinto"), "half-time": tr(l, "Half-time", "Pahinga"), "full-time": tr(l, "Full-time", "Tapos na") }[state.status];
     const latest = useRef({ state, annotations });
@@ -121,7 +119,6 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
         if (window.matchMedia("(max-width: 900px)").matches) requestAnimationFrame(() => inspectorRef.current?.scrollIntoView({ block: "start" }));
     };
     const restart = () => { setSelectedId(null); dispatch({ type: "restart" }); };
-    const setAi = (enabled: boolean) => { setAiEnabled(enabled); if (!enabled && inspector === "ask") setInspector("insights"); };
     // Drafts come from the note's own anchor prefix and only fill the editor; saving keeps them user-authored.
     const draftWithAI = (note: MatchAnnotation) => {
         const language = l;
@@ -138,7 +135,7 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
             <div className="studio-match-title"><h1><span className="match-team-home">{home.name}</span> <span className="match-versus">vs</span> <span className="match-team-away">{away.name}</span></h1></div>
             <div className="studio-score" aria-label={`${home.name} ${stats.teams[home.team_id].goals}, ${away.name} ${stats.teams[away.team_id].goals}`} data-testid="score"><span>{stats.teams[home.team_id].goals}</span><b>:</b><span>{stats.teams[away.team_id].goals}</span></div>
             <div className="studio-clock"><time data-testid="match-clock">{formatTime(state.elapsed)}</time><span>{statusText}</span></div>
-            <div className="studio-topbar-actions"><StorageStatus language={l} /><PreferencesMenu data={data} preferences={preferences} onChange={update} compact ai={{ available: aiAvailable, enabled: aiEnabled, onChange: setAi }} /></div>
+            <div className="studio-topbar-actions"><StorageStatus language={l} /><PreferencesMenu data={data} preferences={preferences} onChange={update} compact /></div>
         </header>
 
         <div ref={bodyRef} className="studio-body" style={layout.style}>
@@ -160,7 +157,7 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
                 <div className="studio-pane-scroll">
                     {activeInspector === "details" && <>{selected ? <EventDetails data={data} event={selected} language={l} id="studio-event-details" /> : <div className="workspace-empty"><ListFilter size={28} /><h2>{tr(l, "A closer look", "Mas malapit na pagtingin")}</h2><p>{tr(l, "Select a reached event in the browser or timeline to inspect its recorded details.", "Pumili ng naabot na pangyayari sa browser o timeline upang suriin ang mga detalye.")}</p></div>}</>}
                     {activeInspector === "statistics" && <><StatisticsPanel data={data} stats={stats} preferences={preferences} /></>}
-                    {activeInspector === "insights" && <><InsightsPanel data={data} insights={insights} elapsed={state.elapsed} preferences={preferences} onEvidence={inspect} aiConnected={aiOn} /><AgentInsights preferences={preferences} available={aiAvailable} enabled={aiEnabled} task={ai.analyst} cursor={events.length} canAnalyze={events.length > 0} onAnalyze={() => { pause(); ai.analyze(); }} onEnable={() => setAi(true)} onEvidence={inspect} /><CommentaryPanel data={data} events={events} preferences={preferences} onEvidence={inspect} narration={aiOn ? { lines: ai.lines, pending: ai.pending, loading: ai.narrating.loading, errorText: ai.narrating.error ? agentErrorText(ai.narrating.error, l) : undefined, onNarrate: () => { pause(); ai.narrate(); } } : undefined} /></>}
+                    {activeInspector === "insights" && <><InsightsPanel data={data} insights={insights} elapsed={state.elapsed} preferences={preferences} onEvidence={inspect} aiConnected={aiOn} /><AgentInsights preferences={preferences} available={aiAvailable} task={ai.analyst} cursor={events.length} canAnalyze={events.length > 0} onAnalyze={() => { pause(); ai.analyze(); }} onEvidence={inspect} /><CommentaryPanel data={data} events={events} preferences={preferences} onEvidence={inspect} narration={aiOn ? { lines: ai.lines, pending: ai.pending, loading: ai.narrating.loading, errorText: ai.narrating.error ? agentErrorText(ai.narrating.error, l) : undefined, onNarrate: () => { pause(); ai.narrate(); } } : undefined} /></>}
                     {activeInspector === "ask" && <AskAnalyst entries={ai.chat} cursor={events.length} elapsed={state.elapsed} language={l} asking={ai.asking} onAsk={question => { pause(); ai.ask(question); }} onEvidence={inspect} />}
                     {activeInspector === "notes" && <StudioNotes annotations={annotations} language={l} selectedId={selectedNote} draft={draft} onDraftWithAI={aiOn ? draftWithAI : undefined} drafting={drafting} draftStatus={draftStatus} onSelect={selectNote} onDraft={setDraft} onCreate={createAnnotation} onSave={note => { setAnnotations(previous => previous.some(a => a.id === note.id) ? previous.map(a => a.id === note.id ? note : a) : [...previous, note]); setDraft(null); setSelectedNote(note.id); }} onDelete={id => { setAnnotations(previous => previous.filter(a => a.id !== id)); setSelectedNote(null); }} onGo={note => { dispatch({ type: "restore", checkpoint: note.anchor }); setSelectedId(note.eventId ?? null); }} />}
                     {showRecap && <Recap data={data} events={events} stats={stats} insights={insights} preferences={preferences} kind={state.status === "half-time" ? "half-time" : "full-time"} onEvidence={inspect} onContinue={() => state.status === "half-time" ? dispatch({ type: "toggle" }) : restart()} />}
