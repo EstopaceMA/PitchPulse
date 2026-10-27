@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Bookmark, FolderOpen, Search, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { formatTime } from "@/lib/match/playback";
 import { initials, tr } from "@/lib/match/presentation";
 import { importMatch, removeMatch, retryLibrary, useLibrary } from "@/lib/match/use-library";
@@ -74,7 +75,7 @@ export default function MatchLibrary() {
     const matches = library.matches.filter(m => `${m.data.teams.map(t => t.name).join(" ")} ${m.source}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => b.updatedAt - a.updatedAt);
     return <div className="library-shell">
         <a className="skip-link" href="#library-content">{tr(l, "skipToLibrary")}</a>
-        <header className="library-header" inert={!!removing}><StudioBrand /><div className="library-header-actions"><label className="language-control"><span className="sr-only">{tr(l, "language")}</span><select value={l} onChange={e => { if (isLocale(e.target.value)) setLocale(e.target.value); }}>{LOCALES.map(locale => <option key={locale} value={locale}>{LOCALE_NAMES[locale]}</option>)}</select></label><StorageStatus language={l} /></div></header>
+        <header className="library-header" inert={!!removing}><StudioBrand /><div className="library-header-actions"><div className="language-control"><Select label={tr(l, "language")} value={l} onValueChange={value => { if (isLocale(value)) setLocale(value); }} options={LOCALES.map(locale => ({ value: locale, label: LOCALE_NAMES[locale] }))} /></div><StorageStatus language={l} /></div></header>
         <main id="library-content" className="library-main" inert={!!removing}>
             <div className="library-toolbar">
                 <h1><FolderOpen size={20} />{tr(l, "matchLibrary")}<span>{library.matches.length}</span></h1>

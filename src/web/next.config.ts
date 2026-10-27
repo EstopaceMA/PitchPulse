@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   // Set per image build so open tabs hard-reload after a redeploy instead of requesting missing assets.
   deploymentId: process.env.DEPLOYMENT_VERSION,
   cacheComponents: true,
+  // Hide the on-screen Next.js badge in development; compile and runtime errors still surface.
+  devIndicators: false,
   partialPrefetching: true,
   turbopack: {
     rules: {

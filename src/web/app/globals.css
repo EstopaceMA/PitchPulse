@@ -3226,10 +3226,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 .library-shell input:focus-visible,
 .studio-shell input:focus-visible,
 .studio-shell textarea:focus-visible,
-.language-control select:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 3px;
-}
 
 .studio-brand {
   display: inline-flex;
@@ -3301,13 +3297,12 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   margin-left: auto;
 }
 
-.language-control select {
-  border: 1px solid var(--border);
-  background: var(--card);
-  border-radius: 6px;
-  padding: 8px;
-  color: #c2c9cb;
-  font-size: 12px;
+/* The library's language selector uses the shared dropdown, sized for the longest name ("Português (Brasil)"). */
+.language-control .dropdown-trigger {
+  width: max-content;
+  min-width: 168px;
+  min-height: 38px;
+  font-size: 13px;
 }
 
 .save-status {
@@ -5207,6 +5202,12 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 
 .playback-options .timeline-zoom .dropdown-trigger {
   width: 112px;
+}
+
+/* Fit the widest speed ("30×") at any font size instead of truncating to "1…". */
+.playback-options .speed-control .dropdown-trigger {
+  width: max-content;
+  min-width: 84px;
 }
 
 .studio-shell .playback-top {
