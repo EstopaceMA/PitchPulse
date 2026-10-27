@@ -67,23 +67,23 @@ export function Recap({ data, events, stats, insights, preferences, kind, onEvid
             <header className="recap-header">
                 <div>
                     <h2 id={`${id}-title`}>{halfTime
-                        ? tr(language, "Half-time recap", "Buod ng unang hati")
-                        : tr(language, "Full-time recap", "Buod ng buong laban")}</h2>
+                        ? tr(language, "halfTimeRecap")
+                        : tr(language, "fullTimeRecap")}</h2>
                     <p>{teamNames.get(homeId) ?? homeId} <strong>{home.goals} – {away.goals}</strong> {teamNames.get(awayId) ?? awayId}</p>
-                    <p className="data-note">{tr(language, "Processed events only, through", "Mga naprosesong aksiyon lamang, hanggang")} {formatTime(boundary)}.</p>
+                    <p className="data-note">{tr(language, "processedEventsOnlyThrough")} {formatTime(boundary)}.</p>
                 </div>
                 <button type="button" className="primary-action" onClick={onContinue}>
                     {halfTime
-                        ? tr(language, "Start second half", "Simulan ang ikalawang hati")
-                        : tr(language, "Restart replay", "Ulitin ang replay")}
+                        ? tr(language, "startSecondHalf")
+                        : tr(language, "restartReplay")}
                 </button>
             </header>
 
             <div className="recap-grid">
                 <section className="recap-section" aria-labelledby={`${id}-goals`}>
-                    <h3 id={`${id}-goals`}>{tr(language, "Goal moments", "Mga sandali ng gol")}</h3>
+                    <h3 id={`${id}-goals`}>{tr(language, "goalMoments")}</h3>
                     {goals.length ? <ul>{goals.map(event => {
-                        const scorer = playerNames.get(event.player_id ?? "") ?? tr(language, "Unknown scorer", "Hindi nakatalang umiskor");
+                        const scorer = playerNames.get(event.player_id ?? "") ?? tr(language, "unknownScorer");
                         const team = teamNames.get(event.team_id ?? "") ?? event.team_id;
                         const time = formatTime(event.match_time_seconds);
                         return (
@@ -91,43 +91,42 @@ export function Recap({ data, events, stats, insights, preferences, kind, onEvid
                                 <time dateTime={`PT${event.match_time_seconds}S`}>{time}</time>
                                 <div><strong>{scorer}</strong>{team && <span> · {team}</span>}</div>
                                 <button type="button" onClick={() => onEvidence(event.event_id)}
-                                    aria-label={`${tr(language, "View evidence", "Tingnan ang ebidensiya")}: ${scorer}, ${time}`}>
-                                    {tr(language, "View evidence", "Tingnan ang ebidensiya")}
+                                    aria-label={`${tr(language, "viewEvidence")}: ${scorer}, ${time}`}>
+                                    {tr(language, "viewEvidence")}
                                 </button>
                             </li>
                         );
-                    })}</ul> : <p>{tr(language, "No goals recorded.", "Wala pang naitalang gol.")}</p>}
+                    })}</ul> : <p>{tr(language, "noGoalsRecorded")}</p>}
                 </section>
 
                 <section className="recap-section" aria-labelledby={`${id}-statistics`}>
-                    <h3 id={`${id}-statistics`}>{tr(language, "Team statistics", "Estadistika ng mga koponan")}</h3>
+                    <h3 id={`${id}-statistics`}>{tr(language, "teamStatistics")}</h3>
                     <Comparison data={data} stats={comparisonStats} language={language} />
-                    <p className="data-note">{tr(language, "Goals count as shots. No possession or distance estimates.", "Kasama ang gol sa mga tira. Walang tantiya ng possession o distansiya.")}</p>
+                    <p className="data-note">{tr(language, "goalsCountAsShotsNoPossessionOrDistance")}</p>
                 </section>
 
                 <section className="recap-section" aria-labelledby={`${id}-contributions`}>
-                    <h3 id={`${id}-contributions`}>{tr(language, "Notable player contributions", "Mga naitalang ambag ng manlalaro")}</h3>
+                    <h3 id={`${id}-contributions`}>{tr(language, "notablePlayerContributions")}</h3>
                     <p className="data-note">{tr(language,
-                        "Up to three players by recorded action count; ties use player ID. This is not a performance rating. Goals, shots and passes are included in actions, not added together.",
-                        "Hanggang tatlong manlalaro ayon sa bilang ng naitalang aksiyon; player ID ang batayan kapag tabla. Hindi ito rating ng pagganap. Kasama na sa mga aksiyon ang gol, tira, at pasa; hindi pinagsasama ang mga bilang.")}</p>
+                        "upToThreePlayersByRecordedActionCount")}</p>
                     {contributors.length ? <ul>{contributors.map(({ player, metrics }) => (
                         <li className="contribution-row" key={player.player_id}>
                             <div><strong>{player.name}</strong><span> · {teamNames.get(player.team_id) ?? player.team_id}</span></div>
                             <div className="personal-numbers">
-                                <span><b>{metrics.actions}</b> {tr(language, "actions", "aksiyon")}</span>
-                                <span><b>{metrics.goals}</b> {tr(language, "goals", "gol")}</span>
-                                <span><b>{metrics.shots}</b> {tr(language, "shots", "tira")}</span>
-                                <span><b>{metrics.passes_completed}/{metrics.passes_attempted}</b> {tr(language, "passes completed / attempted", "kumpleto / sinubukang pasa")}</span>
+                                <span><b>{metrics.actions}</b> {tr(language, "actions")}</span>
+                                <span><b>{metrics.goals}</b> {tr(language, "goals")}</span>
+                                <span><b>{metrics.shots}</b> {tr(language, "shots")}</span>
+                                <span><b>{metrics.passes_completed}/{metrics.passes_attempted}</b> {tr(language, "passesCompletedAttempted")}</span>
                             </div>
                         </li>
-                    ))}</ul> : <p>{tr(language, "No player actions recorded.", "Wala pang naitalang aksiyon ng manlalaro.")}</p>}
+                    ))}</ul> : <p>{tr(language, "noPlayerActionsRecorded")}</p>}
                 </section>
 
                 <section className="recap-section" aria-labelledby={`${id}-patterns`}>
-                    <h3 id={`${id}-patterns`}>{tr(language, "Key patterns", "Mahahalagang padron")}</h3>
+                    <h3 id={`${id}-patterns`}>{tr(language, "keyPatterns")}</h3>
                     {patterns.length ? patterns.map(insight => (
                         <InsightCard key={insight.id} insight={insight} preferences={preferences} onEvidence={onEvidence} compact />
-                    )) : <p>{tr(language, "No supported patterns recorded yet.", "Wala pang naitalang padron na may sapat na ebidensiya.")}</p>}
+                    )) : <p>{tr(language, "noSupportedPatternsRecordedYet")}</p>}
                 </section>
             </div>
         </section>

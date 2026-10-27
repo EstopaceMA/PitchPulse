@@ -5,8 +5,8 @@ import type { AgentName } from "./contracts";
  * Strict Structured Outputs schemas for `text.format`. Strict mode requires every property and
  * forbids extras, so optional values are nullable instead. Counts and lengths are enforced by guards.ts.
  */
-const bilingual = { type: "object", properties: { en: { type: "string" }, fil: { type: "string" } }, required: ["en", "fil"], additionalProperties: false };
-const nullableBilingual = { anyOf: [bilingual, { type: "null" }] };
+const localizedText = { type: "string" };
+const nullableLocalizedText = { anyOf: [localizedText, { type: "null" }] };
 const strings = { type: "array", items: { type: "string" } };
 const object = (properties: Record<string, unknown>) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
 
@@ -17,10 +17,10 @@ const ANALYST = object({
             topic: { type: "string", enum: [...AGENT_TOPICS] },
             team_id: { type: "string" },
             player_id: { type: ["string", "null"] },
-            headline: bilingual,
-            observed: bilingual,
-            casual: bilingual,
-            interpretation: bilingual,
+            headline: localizedText,
+            observed: localizedText,
+            casual: localizedText,
+            interpretation: localizedText,
             metric_keys: strings,
             evidence_event_ids: strings,
         }),
@@ -28,21 +28,21 @@ const ANALYST = object({
 });
 
 const RECAP = object({
-    story: bilingual,
-    turning_points: { type: "array", items: object({ event_id: { type: "string" }, caption: bilingual }) },
-    team_notes: { type: "array", items: object({ team_id: { type: "string" }, observed: bilingual, interpretation: bilingual, metric_keys: strings }) },
-    watch_next: nullableBilingual,
+    story: localizedText,
+    turning_points: { type: "array", items: object({ event_id: { type: "string" }, caption: localizedText }) },
+    team_notes: { type: "array", items: object({ team_id: { type: "string" }, observed: localizedText, interpretation: localizedText, metric_keys: strings }) },
+    watch_next: nullableLocalizedText,
 });
 
 const ASK = object({
-    answer: bilingual,
+    answer: localizedText,
     evidence_event_ids: strings,
-    caveat: nullableBilingual,
+    caveat: nullableLocalizedText,
     out_of_scope: { type: "boolean" },
 });
 
 const COMMENTATOR = object({
-    lines: { type: "array", items: object({ event_id: { type: "string" }, text: bilingual }) },
+    lines: { type: "array", items: object({ event_id: { type: "string" }, text: localizedText }) },
 });
 
 export const OUTPUT_SCHEMAS: Record<AgentName, { name: string; schema: Record<string, unknown> }> = {

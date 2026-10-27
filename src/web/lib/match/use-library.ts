@@ -4,10 +4,10 @@ import { useEffect, useSyncExternalStore } from "react";
 import { createLibraryMatch, DEMO_ID, refreshDemo, validateLibraryMatch } from "./library";
 import { libraryStorage } from "./library-storage";
 import { validateMatch } from "./validation";
-import type { Language, LibraryMatch, MatchAnnotation, PlaybackCheckpoint } from "./types";
+import type { LibraryMatch, MatchAnnotation, PlaybackCheckpoint } from "./types";
 
-interface LibrarySnapshot { matches: LibraryMatch[]; ready: boolean; saving: boolean; storageError: boolean; loadError: boolean; corruptCount: number; language: Language }
-const empty: LibrarySnapshot = { matches: [], ready: false, saving: false, storageError: false, loadError: false, corruptCount: 0, language: "en" };
+interface LibrarySnapshot { matches: LibraryMatch[]; ready: boolean; saving: boolean; storageError: boolean; loadError: boolean; corruptCount: number }
+const empty: LibrarySnapshot = { matches: [], ready: false, saving: false, storageError: false, loadError: false, corruptCount: 0 };
 let snapshot = empty;
 const listeners = new Set<() => void>();
 const dirty = new Map<string, "match" | "review" | "delete">();
@@ -76,10 +76,8 @@ function flush(force = false) {
 export function useLibrary() {
     const state = useSyncExternalStore(subscribe, () => snapshot, () => empty);
     useEffect(() => { initialization ??= initialize(); }, []);
-    useEffect(() => { document.documentElement.lang = state.language; }, [state.language]);
     return state;
 }
-export function setLibraryLanguage(language: Language) { publish({ language }); }
 export async function importMatch(file: File) {
     if (file.size > 10 * 1024 * 1024) throw new Error("Please choose a JSON file smaller than 10 MB.");
     let raw: unknown;

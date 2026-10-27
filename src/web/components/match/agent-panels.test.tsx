@@ -17,7 +17,7 @@ import { StudioNotes } from "./studio-notes";
 const data = validateMatch(JSON.parse(readFileSync(new URL("../../public/arsenal-vs-chelsea-match.json", import.meta.url), "utf8")));
 const preferences: Preferences = { mode: "analyst", language: "en", team: data.match.home_team_id, player: data.players[0].player_id };
 const events = data.events.slice(0, 300);
-const both = (en: string, fil = en) => ({ en, fil });
+const both = (en: string, fil = en) => { void fil; return en; };
 const noop = () => { };
 const card: Insight = {
     id: "ai-1", rule: "agent", source: "foundry", topic: "turnovers", teamId: data.match.home_team_id, at: 1800, from: 0,
@@ -50,7 +50,7 @@ test("verified AI cards carry the AI label, catalog metrics and an honest eviden
 test("AI results from a later playhead are hidden after a rewind", () => {
     const html = panel({ task: done(events.length + 1) });
     assert.match(html, /hidden until playback reaches that moment again/);
-    assert.ok(!html.includes(card.headline.en));
+    assert.ok(!html.includes(card.headline));
 });
 
 test("the analysis dialog shows verified cards, a close action, and hides later results", () => {
@@ -64,14 +64,14 @@ test("the analysis dialog shows verified cards, a close action, and hides later 
     assert.ok(!current.includes("Analyze this moment"));
     const rewound = render(done(events.length + 1));
     assert.match(rewound, /hidden until playback reaches that moment again/);
-    assert.ok(!rewound.includes(card.headline.en));
+    assert.ok(!rewound.includes(card.headline));
     assert.match(render({ status: "error", error: "timeout", cursor: events.length, elapsed: 1800 }), /took too long/);
     assert.equal(renderToStaticMarkup(<AgentAnalysisModal open={false} preferences={preferences} task={done(events.length)} cursor={events.length} onClose={noop} onEvidence={noop} />), "");
 });
 
 test("AI analysis controls and status have Filipino labels", () => {
     const html = panel({ preferences: { ...preferences, language: "fil" }, task: done(events.length) });
-    for (const label of ["Pagsusuri ng AI", "Suriin ang sandaling ito", "PAGSUSURI NG AI", "huling 40 sa 120 batayang aksiyon", card.headline.fil]) assert.ok(html.includes(label), label);
+    for (const label of ["Pagsusuri ng AI", "Suriin ang sandaling ito", "PAGSUSURI NG AI", "huling 40 sa 120 batayang aksiyon", card.headline]) assert.ok(html.includes(label), label);
 });
 
 test("the rule-based footer stays accurate when AI is connected", () => {
@@ -84,9 +84,9 @@ test("the rule-based footer stays accurate when AI is connected", () => {
 test("Ask the Analyst hides messages from a later playhead and links reached evidence", () => {
     const evidence = events.at(-1)!.event_id;
     const entries: ChatEntry[] = [
-        { id: "1", role: "user", question: "Who is busiest?", cursor: 100, elapsed: 600 },
-        { id: "2", role: "assistant", answer: { answer: both("Arsenal 10 leads."), eventIds: [evidence], caveat: both("Counts only."), outOfScope: false }, cursor: 100, elapsed: 600 },
-        { id: "3", role: "user", question: "Later question", cursor: 900, elapsed: 4000 },
+        { id: "1", role: "user", question: "Who is busiest?", cursor: 100, elapsed: 600, language: "en" },
+        { id: "2", role: "assistant", answer: { answer: both("Arsenal 10 leads."), eventIds: [evidence], caveat: both("Counts only."), outOfScope: false }, cursor: 100, elapsed: 600, language: "en" },
+        { id: "3", role: "user", question: "Later question", cursor: 900, elapsed: 4000, language: "en" },
     ];
     const html = renderToStaticMarkup(<AskAnalyst entries={entries} cursor={200} elapsed={1200} language="en" asking={false} onAsk={noop} onEvidence={noop} />);
     assert.match(html, /Arsenal 10 leads\./);

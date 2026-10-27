@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ASK_HISTORY_LIMIT, NARRATE_LIMIT, PROMPT_VERSION, type AgentAnswer, type AgentChatTurn, type AgentErrorCode, type AgentName, type AgentOutputs, type AgentRecap, type AgentRequest, type AgentResult, type Bilingual } from "@/lib/agents/contracts";
+import { ASK_HISTORY_LIMIT, NARRATE_LIMIT, PROMPT_VERSION, type AgentAnswer, type AgentChatTurn, type AgentErrorCode, type AgentName, type AgentOutputs, type AgentRecap, type AgentRequest, type AgentResult } from "@/lib/agents/contracts";
 import { isMeaningful } from "./commentary";
 import type { MatchStatus } from "./playback";
 import type { Insight, InsightProvider, InsightRequestOptions, MatchData, MatchEvent, PlaybackCheckpoint, Preferences } from "./types";
@@ -49,15 +49,23 @@ export const foundryInsightProvider = {
     },
 } satisfies InsightProvider;
 
-export interface AgentTask<T> { status: "idle" | "loading" | "done" | "error"; result?: T; error?: AgentErrorCode; cursor: number; elapsed: number }
-export interface ChatEntry { id: string; role: "user" | "assistant"; cursor: number; elapsed: number; question?: string; answer?: AgentAnswer; error?: AgentErrorCode }
+export interface AgentTask<T> { status: "idle" | "loading" | "done" | "error"; result?: T; error?: AgentErrorCode; cursor: number; elapsed: number; key?: string }
+export interface ChatEntry { id: string; role: "user" | "assistant"; cursor: number; elapsed: number; language: Preferences["language"]; question?: string; answer?: AgentAnswer; error?: AgentErrorCode }
 const IDLE: AgentTask<never> = { status: "idle", cursor: 0, elapsed: 0 };
-const EMPTY_LINES: ReadonlyMap<string, Bilingual> = new Map();
+const EMPTY_LINES: ReadonlyMap<string, string> = new Map();
 const NOTE_QUESTION = "Summarize this moment for my match notes in two or three sentences: what just happened and the pattern behind it. Facts first.";
 
 // Session memory only: results are never persisted, and a reopened studio reuses them without a new call.
 const results = new Map<string, unknown>();
-const narration = new Map<string, ReadonlyMap<string, Bilingual>>();
+const narration = new Map<string, ReadonlyMap<string, string>>();
+
+export function agentCacheKeys(id: string, cursor: number, status: MatchStatus, preferences: Preferences) {
+    return {
+        analyst: `${id}:analyst:${cursor}:${preferences.mode}:${preferences.team}:${preferences.player}:${preferences.language}:${PROMPT_VERSION}`,
+        recap: `${id}:recap:${status}:${cursor}:${preferences.language}:${PROMPT_VERSION}`,
+        narration: `${id}:${preferences.language}:${PROMPT_VERSION}`,
+    };
+}
 
 /** One cancellable request per task: a newer request or unmount aborts the older one. */
 function useAgentTask<T>() {
@@ -66,15 +74,15 @@ function useAgentTask<T>() {
     useEffect(() => () => controller.current?.abort(), []);
     const start = useCallback((key: string, moment: { cursor: number; elapsed: number }, request: (signal: AbortSignal) => Promise<T>) => {
         controller.current?.abort();
-        if (results.has(key)) { setTask({ status: "done", result: results.get(key) as T, ...moment }); return; }
+        if (results.has(key)) { setTask({ status: "done", result: results.get(key) as T, ...moment, key }); return; }
         const current = controller.current = new AbortController();
-        setTask({ status: "loading", ...moment });
+        setTask({ status: "loading", ...moment, key });
         request(current.signal).then(result => {
             if (current.signal.aborted) return;
             results.set(key, result);
-            setTask({ status: "done", result, ...moment });
+            setTask({ status: "done", result, ...moment, key });
         }, (error: unknown) => {
-            if (!current.signal.aborted) setTask({ status: "error", error: errorCode(error), ...moment });
+            if (!current.signal.aborted) setTask({ status: "error", error: errorCode(error), ...moment, key });
         });
     }, []);
     return [task, start] as const;
@@ -82,8 +90,8 @@ function useAgentTask<T>() {
 
 /** A finished task for this exact key, or one cached earlier in the session. */
 function view<T>(task: AgentTask<T>, key: string, moment: { cursor: number; elapsed: number }): AgentTask<T> {
-    if (task.status !== "idle") return task;
-    return results.has(key) ? { status: "done", result: results.get(key) as T, ...moment } : IDLE;
+    if (task.status !== "idle" && task.key === key) return task;
+    return results.has(key) ? { status: "done", result: results.get(key) as T, ...moment, key } : IDLE;
 }
 
 /**
@@ -97,15 +105,16 @@ export function useStudioAgents(id: string, data: MatchData, events: readonly Ma
     const [recapTask, startRecap] = useAgentTask<AgentRecap>();
     const [chat, setChat] = useState<ChatEntry[]>([]);
     const [asking, setAsking] = useState(false);
-    const [narrating, setNarrating] = useState<{ loading: boolean; error?: AgentErrorCode }>({ loading: false });
+    const [askingLocale, setAskingLocale] = useState<Preferences["language"] | null>(null);
+    const [narrating, setNarrating] = useState<{ loading: boolean; error?: AgentErrorCode; key?: string }>({ loading: false });
     const [, setRevision] = useState(0);
     const askController = useRef<AbortController | null>(null);
     const narrateController = useRef<AbortController | null>(null);
     useEffect(() => () => { askController.current?.abort(); narrateController.current?.abort(); }, []);
 
-    const analystKey = `${id}:analyst:${cursor}:${preferences.mode}:${preferences.team}:${preferences.player}:${PROMPT_VERSION}`;
-    const recapKey = `${id}:recap:${position.status}:${cursor}:${PROMPT_VERSION}`;
-    const lines = narration.get(id) ?? EMPTY_LINES;
+    const { analyst: analystKey, recap: recapKey, narration: narrationKey } = agentCacheKeys(id, cursor, position.status, preferences);
+    const localizedChat = chat.filter(entry => entry.language === preferences.language);
+    const lines = narration.get(narrationKey) ?? EMPTY_LINES;
     const pending = events.filter(event => event.team_id !== null && isMeaningful(event) && !lines.has(event.event_id)).slice(-NARRATE_LIMIT);
 
     const analyze = () => startAnalyst(analystKey, moment, signal => foundryInsightProvider.generate(data, events, position.elapsed, { signal, preferences }));
@@ -113,53 +122,55 @@ export function useStudioAgents(id: string, data: MatchData, events: readonly Ma
 
     const ask = (question: string) => {
         const text = question.trim();
-        if (!text || asking) return;
+        if (!text || (asking && askingLocale === preferences.language)) return;
         // Only exchanges produced at or before this playhead are context; later ones would leak future events.
         const history: AgentChatTurn[] = [];
-        for (let index = 1; index < chat.length; index++) {
-            const asked = chat[index - 1], reply = chat[index];
-            if (asked.role === "user" && asked.question && reply.role === "assistant" && reply.answer && reply.cursor <= cursor) {
-                history.push({ role: "user", text: asked.question, cursor: asked.cursor }, { role: "assistant", text: reply.answer.answer[preferences.language], cursor: reply.cursor });
+        for (let index = 1; index < localizedChat.length; index++) {
+            const asked = localizedChat[index - 1], reply = localizedChat[index];
+            if (asked.role === "user" && asked.question && asked.language === preferences.language && reply.role === "assistant" && reply.answer && reply.language === preferences.language && reply.cursor <= cursor) {
+                history.push({ role: "user", text: asked.question, cursor: asked.cursor }, { role: "assistant", text: reply.answer.answer, cursor: reply.cursor });
             }
         }
-        setChat(previous => [...previous, { id: crypto.randomUUID(), role: "user", question: text, ...moment }]);
+        const language = preferences.language;
+        setChat(previous => [...previous, { id: crypto.randomUUID(), role: "user", question: text, language, ...moment }]);
         setAsking(true);
+        setAskingLocale(language);
         askController.current?.abort();
         const controller = askController.current = new AbortController();
         postAgent("ask", agentRequest(data, events, position, preferences, { question: text, history: history.slice(-ASK_HISTORY_LIMIT) }), controller.signal).then(answer => {
-            if (!controller.signal.aborted) setChat(previous => [...previous, { id: crypto.randomUUID(), role: "assistant", answer, ...moment }]);
+            if (!controller.signal.aborted) setChat(previous => [...previous, { id: crypto.randomUUID(), role: "assistant", answer, language, ...moment }]);
         }, (error: unknown) => {
-            if (!controller.signal.aborted) setChat(previous => [...previous, { id: crypto.randomUUID(), role: "assistant", error: errorCode(error), ...moment }]);
+            if (!controller.signal.aborted) setChat(previous => [...previous, { id: crypto.randomUUID(), role: "assistant", error: errorCode(error), language, ...moment }]);
         }).finally(() => {
             if (askController.current === controller) setAsking(false);
         });
     };
 
     const narrate = () => {
-        if (!pending.length || narrating.loading) return;
+        if (!pending.length || (narrating.loading && narrating.key === narrationKey)) return;
         narrateController.current?.abort();
         const controller = narrateController.current = new AbortController();
-        setNarrating({ loading: true });
+        setNarrating({ loading: true, key: narrationKey });
         postAgent("commentator", agentRequest(data, events, position, preferences, { narrate: pending.map(event => event.event_id) }), controller.signal).then(result => {
             if (controller.signal.aborted) return;
-            const next = new Map(narration.get(id) ?? EMPTY_LINES);
+            const next = new Map(narration.get(narrationKey) ?? EMPTY_LINES);
             for (const line of result) next.set(line.eventId, line.text);
-            narration.set(id, next);
+            narration.set(narrationKey, next);
             setRevision(revision => revision + 1);
-            setNarrating({ loading: false });
+            setNarrating({ loading: false, key: narrationKey });
         }, (error: unknown) => {
-            if (!controller.signal.aborted) setNarrating({ loading: false, error: errorCode(error) });
+            if (!controller.signal.aborted) setNarrating({ loading: false, error: errorCode(error), key: narrationKey });
         });
     };
 
     /** A note draft from the annotation's own saved prefix, never the live playhead. */
-    const draftNote = (anchor: PlaybackCheckpoint): Promise<Bilingual> => postAgent("ask", agentRequest(data, data.events.slice(0, anchor.cursor), anchor, preferences, { question: NOTE_QUESTION, history: [] })).then(answer => answer.answer);
+    const draftNote = (anchor: PlaybackCheckpoint): Promise<string> => postAgent("ask", agentRequest(data, data.events.slice(0, anchor.cursor), anchor, preferences, { question: NOTE_QUESTION, history: [] })).then(answer => answer.answer);
 
     return {
         analyst: view(analystTask, analystKey, moment), analyze,
-        recap: recapTask.status !== "idle" && recapTask.cursor !== cursor ? IDLE : view(recapTask, recapKey, moment), writeRecap,
-        chat, asking, ask,
-        lines, pending: pending.length, narrating, narrate,
+        recap: view(recapTask, recapKey, moment), writeRecap,
+        chat: localizedChat, asking: asking && askingLocale === preferences.language, ask,
+        lines, pending: pending.length, narrating: narrating.key === narrationKey ? narrating : { loading: false }, narrate,
         draftNote,
     };
 }

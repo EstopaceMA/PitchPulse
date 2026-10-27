@@ -38,11 +38,11 @@ export function StudioSplitter({ side, panelId, language: l, value, max, cancelK
     }, []);
     // Panel closure/unmount, viewport changes and layout changes all end the gesture.
     useEffect(() => () => finish(true), [cancelKey, finish]);
-    const help = tr(l, "Drag or use Left/Right arrows to resize. Shift moves faster. Home/End set minimum/maximum. Enter or double-click resets. Escape cancels dragging.", "I-drag o gamitin ang kaliwa/kanang arrow upang baguhin ang lapad. Mas mabilis sa Shift. Home/End para sa pinakamaliit/pinakamalaki. Enter o dobleng click upang i-reset. Escape upang kanselahin ang pag-drag.");
+    const help = tr(l, "dragOrUseLeftRightArrowsToResize");
     return <div className="studio-splitter" role="separator" tabIndex={0} aria-orientation="vertical"
-        aria-label={side === "browser" ? tr(l, "Resize browser panel", "Baguhin ang lapad ng browser") : tr(l, "Resize inspector panel", "Baguhin ang lapad ng tagasuri")}
+        aria-label={side === "browser" ? tr(l, "resizeBrowserPanel") : tr(l, "resizeInspectorPanel")}
         aria-controls={panelId} aria-valuemin={PANEL_LIMITS[side].min} aria-valuemax={max} aria-valuenow={value}
-        aria-valuetext={tr(l, `${Math.round(value)} pixels wide`, `${Math.round(value)} pixel ang lapad`)} aria-describedby={helpId}
+        aria-valuetext={tr(l, "pixelsWide", { count: Math.round(value) })} aria-describedby={helpId}
         data-side={side} data-dragging={dragging} title={help}
         onPointerDown={event => {
             if (!event.isPrimary || event.button !== 0 || drag.current || document.documentElement.classList.contains("studio-resizing")) return;

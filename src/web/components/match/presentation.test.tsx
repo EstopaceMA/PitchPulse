@@ -168,7 +168,7 @@ test("library cards show local progress and annotations without a final result",
     assert.equal((html.match(/href="\/studio\/local-1"/g) ?? []).length, 1);
     const link = html.slice(html.indexOf('<a '), html.indexOf('</a>'));
     assert.match(link, /class="game-preview"/);
-    assert.match(link, /<h2>/);
+    assert.match(link, /<h2 dir="ltr">/);
     assert.doesNotMatch(link, /<button/);
     assert.doesNotMatch(html, /class="open-studio"/);
     assert.match(html, /Ready to analyze/);
@@ -182,7 +182,7 @@ test("match titles assign team colors by home/away identity and leave vs neutral
         for (const teams of [data.teams, [...data.teams].reverse()]) {
             const match = createLibraryMatch("team-colors", { ...data, teams }, "review.json", "upload", 1);
             const html = renderToStaticMarkup(<MatchCard match={match} language={language} />);
-            assert.match(html, /<h2><span class="match-team-home">Arsenal<\/span> <span class="match-versus">vs<\/span> <span class="match-team-away">Chelsea<\/span><\/h2>/);
+            assert.match(html, /<h2 dir="ltr"><span class="match-team-home">Arsenal<\/span> <span class="match-versus">vs<\/span> <span class="match-team-away">Chelsea<\/span><\/h2>/);
             assert.ok(html.includes(`${language === "en" ? "Open studio" : "Buksan ang studio"}: Arsenal vs Chelsea`));
         }
     }

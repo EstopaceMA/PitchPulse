@@ -1,5 +1,5 @@
 import { AGENT_TOPICS, type AgentTopic, type Insight } from "@/lib/match/types";
-import type { AgentAnswer, AgentCommentaryLine, AgentRecap, AgentRecapNote, Bilingual } from "./contracts";
+import type { AgentAnswer, AgentCommentaryLine, AgentRecap, AgentRecapNote } from "./contracts";
 import type { MatchPacket } from "./packet";
 
 export const SHOWN_EVIDENCE = 40;
@@ -58,7 +58,7 @@ export function ungrounded(text: string, grounding: Grounding): string | null {
     return null;
 }
 
-// Claims this event data cannot support, in English and Filipino. Plain mentions of possession changes stay allowed.
+// Claims this event data cannot support in every selectable language. Plain possession changes stay allowed.
 const BANNED = [
     /\bpossession\s*(?:share|percentage|rate|%)/i,
     /\d+(?:[.,]\d+)?\s*%\s+(?:of\s+(?:the\s+)?)?(?:ball\s+)?possession\b/i,
@@ -72,6 +72,11 @@ const BANNED = [
     /\b(?:probabilit(?:y|ies)|likelihood|odds|betting|bets?|wagers?)\b|probabilidad|pusta/i,
     /\d+(?:[.,]\d+)?\s*%\s*(?:chance|likely|probability|na\s+tsansa)|tsansa\s+na\s+\d/i,
     /\b(?:tracking data|heat ?maps?|gps)\b/i,
+    /(?:porcentaje de posesión|\d+(?:[.,]\d+)?\s*%\s*de\s*posesión|posesión(?: del balón)?[^.!?]{0,25}%|distancia recorrida|velocidad de carrera|goles esperados|probabilidad|apuestas?|mapa de calor)/iu,
+    /(?:percentual de posse|\d+(?:[.,]\d+)?\s*%\s*de\s*posse|posse de bola[^.!?]{0,25}%|distância percorrida|velocidade de corrida|gols esperados|probabilidade|apostas?|mapa de calor)/iu,
+    /(?:persentase penguasaan bola|penguasaan bola[^.!?]{0,25}%|jarak tempuh|kecepatan lari|gol yang diharapkan|probabilitas|taruhan|peta panas)/iu,
+    /(?:نسبة الاستحواذ|الاستحواذ[^.!?]{0,25}%|المسافة المقطوعة|سرعة الجري|الأهداف المتوقعة|احتمال|رهان|خريطة حرارية)/u,
+    /(?:เปอร์เซ็นต์การครองบอล|ครองบอล[^.!?]{0,25}%|ระยะทางวิ่ง|ความเร็ววิ่ง|ประตูที่คาดหวัง|ความน่าจะเป็น|เดิมพัน|แผนที่ความร้อน)/u,
 ];
 // Outside knowledge about real clubs and people: the data is one simulated match, with no history behind it.
 const OUTSIDE_KNOWLEDGE = [
@@ -81,6 +86,11 @@ const OUTSIDE_KNOWLEDGE = [
     /\b(?:captain|vice-captain|captaincy|skipper)\b|\bkapitan\b/i,
     /\b(?:international|national team)\b|\bpambansang koponan\b/i,
     /\b(?:Premier League|Champions League|Europa League|Conference League|FA Cup|League Cup|Carabao Cup|World Cup|Euros?|Ballon d'Or|Golden Boot)\b/i,
+    /(?:trayectoria profesional|carrera deportiva|fichajes?|traspasos?|lesiones?|capitán|selección nacional|liga de campeones|copa del mundo)/iu,
+    /(?:carreira|transferências?|contratos?|lesões?|capitão|seleção nacional|liga dos campeões|copa do mundo)/iu,
+    /(?:karier|transfer pemain|kontrak|cedera|kapten|tim nasional|liga champions|piala dunia)/iu,
+    /(?:مسيرة مهنية|انتقالات|عقود|إصابة|قائد الفريق|المنتخب الوطني|دوري أبطال|كأس العالم)/u,
+    /(?:อาชีพ|ย้ายทีม|สัญญา|บาดเจ็บ|กัปตัน|ทีมชาติ|แชมเปียนส์ลีก|ฟุตบอลโลก)/u,
 ];
 /**
  * The first unsupported claim in the text, or null. An answer that declines an out-of-scope question may name the
@@ -126,6 +136,7 @@ function text(value: unknown, limit: number, grounding: Grounding, field: string
     const trimmed = typeof value === "string" ? stripCitations(value, grounding).trim() : "";
     if (!trimmed) return reject(`${field} is missing`);
     if (trimmed.length > limit) return reject(`${field} is longer than ${limit} characters`);
+    if (/[\u0660-\u0669\u06F0-\u06F9\u0E50-\u0E59]/u.test(trimmed)) return reject(`${field} must keep numbers in the supplied digit format`);
     const claim = bannedClaim(trimmed, declining);
     if (claim !== null) return reject(`${field} makes a claim this data cannot support: ${quote(claim)}`);
     const reference = internalReference(trimmed, grounding);
@@ -133,9 +144,8 @@ function text(value: unknown, limit: number, grounding: Grounding, field: string
     const unseen = ungrounded(trimmed, grounding);
     return unseen === null ? trimmed : reject(`${field} uses ${unseen}, which does not appear in the data`);
 }
-function bilingual(value: unknown, limit: number, grounding: Grounding, field: string, declining = false): Bilingual {
-    if (!object(value)) return reject(`${field} is missing`);
-    return { en: text(value.en, limit, grounding, `${field}.en`, declining), fil: text(value.fil, limit, grounding, `${field}.fil`, declining) };
+function verifiedText(value: unknown, limit: number, grounding: Grounding, field: string, declining = false): string {
+    return text(value, limit, grounding, field, declining);
 }
 /** Known catalog keys only; at least one must survive. */
 function metricKeys(value: unknown, packet: MatchPacket): string[] {
@@ -166,8 +176,8 @@ function toInsight(card: unknown, packet: MatchPacket, grounding: Grounding, mat
     const playerId = card.player_id ?? null;
     if (playerId !== null && (typeof playerId !== "string" || packet.playerTeams.get(playerId) !== teamId)) return reject(`player_id ${String(playerId)} is not a ${teamId} player`);
     const keys = metricKeys(card.metric_keys, packet), cited = citedIds(card.evidence_event_ids, packet);
-    const headline = bilingual(card.headline, LIMITS.headline, grounding, "headline"), observed = bilingual(card.observed, LIMITS.observed, grounding, "observed");
-    const casual = bilingual(card.casual, LIMITS.casual, grounding, "casual"), interpretation = bilingual(card.interpretation, LIMITS.interpretation, grounding, "interpretation");
+    const headline = verifiedText(card.headline, LIMITS.headline, grounding, "headline"), observed = verifiedText(card.observed, LIMITS.observed, grounding, "observed");
+    const casual = verifiedText(card.casual, LIMITS.casual, grounding, "casual"), interpretation = verifiedText(card.interpretation, LIMITS.interpretation, grounding, "interpretation");
     const { eventIds, total } = evidence(packet, keys, cited);
     if (eventIds.length === 0) return reject("its metrics have no supporting events");
     return {
@@ -195,7 +205,7 @@ export function toAgentInsights(raw: unknown, packet: MatchPacket, grounding: Gr
 export function toAgentRecap(raw: unknown, packet: MatchPacket, grounding: Grounding, kind: AgentRecap["kind"]): Verified<AgentRecap> {
     if (!object(raw)) throw new UnverifiableOutput("The output must be an object.");
     const reasons: string[] = [];
-    const story = attempt(reasons, "story", () => bilingual(raw.story, LIMITS.story, grounding, "story"));
+    const story = attempt(reasons, "story", () => verifiedText(raw.story, LIMITS.story, grounding, "story"));
     if (!story) throw new UnverifiableOutput(reasons[0]);
     const points = Array.isArray(raw.turning_points) ? raw.turning_points : [];
     const turningPoints: AgentRecap["turningPoints"] = [];
@@ -205,7 +215,7 @@ export function toAgentRecap(raw: unknown, packet: MatchPacket, grounding: Groun
             if (!object(point)) return reject("it is not an object");
             const eventId = typeof point.event_id === "string" && packet.order.has(point.event_id) ? point.event_id : reject(`event_id ${String(point.event_id)} is not a reached event`);
             if (turningPoints.some(existing => existing.eventId === eventId)) return reject(`${eventId} is listed twice`);
-            return { eventId, caption: bilingual(point.caption, LIMITS.caption, grounding, "caption") };
+            return { eventId, caption: verifiedText(point.caption, LIMITS.caption, grounding, "caption") };
         });
         if (entry) turningPoints.push(entry);
     }
@@ -218,7 +228,7 @@ export function toAgentRecap(raw: unknown, packet: MatchPacket, grounding: Groun
             const teamId = typeof note.team_id === "string" && packet.teams.has(note.team_id) ? note.team_id : reject(`team_id ${String(note.team_id)} is unknown`);
             if (teamNotes.some(existing => existing.teamId === teamId)) return reject(`${teamId} has two notes`);
             const keys = metricKeys(note.metric_keys, packet);
-            const observed = bilingual(note.observed, LIMITS.note, grounding, "observed"), interpretation = bilingual(note.interpretation, LIMITS.interpretation, grounding, "interpretation");
+            const observed = verifiedText(note.observed, LIMITS.note, grounding, "observed"), interpretation = verifiedText(note.interpretation, LIMITS.interpretation, grounding, "interpretation");
             const { eventIds, total } = evidence(packet, keys, []);
             if (eventIds.length === 0) return reject("its metrics have no supporting events");
             return { teamId, observed, interpretation, metrics: metricsOf(packet, keys), eventIds, evidenceTotal: total };
@@ -227,30 +237,30 @@ export function toAgentRecap(raw: unknown, packet: MatchPacket, grounding: Groun
     }
     // Questions for the second half belong to half-time only; they are never predictions.
     const watchNext = kind === "half-time" && raw.watch_next !== null && raw.watch_next !== undefined
-        ? attempt(reasons, "watch_next", () => bilingual(raw.watch_next, LIMITS.watch, grounding, "watch_next")) ?? null : null;
+        ? attempt(reasons, "watch_next", () => verifiedText(raw.watch_next, LIMITS.watch, grounding, "watch_next")) ?? null : null;
     return { result: { kind, story, turningPoints, teamNotes, watchNext }, dropped: reasons.length, reasons };
 }
 
 export function toAgentAnswer(raw: unknown, packet: MatchPacket, grounding: Grounding): Verified<AgentAnswer> {
     if (!object(raw)) throw new UnverifiableOutput("The output must be an object.");
     const reasons: string[] = [], declining = raw.out_of_scope === true;
-    const answer = attempt(reasons, "answer", () => bilingual(raw.answer, LIMITS.answer, grounding, "answer", declining));
+    const answer = attempt(reasons, "answer", () => verifiedText(raw.answer, LIMITS.answer, grounding, "answer", declining));
     const cited = answer && attempt(reasons, "answer", () => citedIds(raw.evidence_event_ids, packet));
     if (!answer || !cited) throw new UnverifiableOutput(reasons[0]);
     // An unverifiable caveat is removed; the answer stands on its own.
-    const caveat = raw.caveat === null || raw.caveat === undefined ? null : attempt(reasons, "caveat", () => bilingual(raw.caveat, LIMITS.caveat, grounding, "caveat", declining)) ?? null;
+    const caveat = raw.caveat === null || raw.caveat === undefined ? null : attempt(reasons, "caveat", () => verifiedText(raw.caveat, LIMITS.caveat, grounding, "caveat", declining)) ?? null;
     return { result: { answer, eventIds: cited.sort(byOrder(packet)).slice(-SHOWN_EVIDENCE), caveat, outOfScope: declining }, dropped: reasons.length, reasons };
 }
 
 export function toCommentaryLines(raw: unknown, grounding: Grounding, requested: readonly string[]): Verified<AgentCommentaryLine[]> {
     if (!object(raw) || !Array.isArray(raw.lines)) throw new UnverifiableOutput("The output must contain a lines array.");
-    const wanted = new Set(requested), lines = new Map<string, Bilingual>(), reasons: string[] = [];
+    const wanted = new Set(requested), lines = new Map<string, string>(), reasons: string[] = [];
     for (const [index, line] of raw.lines.entries()) {
         const entry = attempt(reasons, `line ${index + 1}`, () => {
             if (!object(line)) return reject("it is not an object");
             const eventId = typeof line.event_id === "string" && wanted.has(line.event_id) ? line.event_id : reject(`event_id ${String(line.event_id)} was not requested`);
             if (lines.has(eventId)) return reject(`${eventId} is narrated twice`);
-            return { eventId, text: bilingual(line.text, LIMITS.line, grounding, "text") };
+            return { eventId, text: verifiedText(line.text, LIMITS.line, grounding, "text") };
         });
         if (entry) lines.set(entry.eventId, entry.text);
     }

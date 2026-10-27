@@ -18,7 +18,7 @@ const shots = packet.catalog.get(`${home}.total.shots`)!;
 const passes = packet.catalog.get(`${home}.total.passes_attempted`)!;
 const homeName = data.teams.find(team => team.team_id === home)!.name;
 const homePlayer = data.players.find(player => player.team_id === home && packet.catalog.has(`${player.player_id}.total.actions`))!;
-const both = (en: string, fil = en) => ({ en, fil });
+const both = (en: string, fil = en) => { void fil; return en; };
 
 function card(overrides: Record<string, unknown> = {}) {
     return {
@@ -33,6 +33,14 @@ function card(overrides: Record<string, unknown> = {}) {
 }
 
 describe("numeric grounding and banned claims", () => {
+    test("keeps grounding and unsupported-claim checks in all added languages", () => {
+        for (const claim of ["Arsenal tuvo 60% de posesión", "Arsenal tuvo 3 goles esperados", "Chelsea teve 60% de posse de bola", "Chelsea teve gols esperados", "Arsenal memiliki persentase penguasaan bola 60%", "Chelsea memiliki gol yang diharapkan", "نسبة الاستحواذ 60% لأرسنال", "الأهداف المتوقعة لتشيلسي", "อาร์เซนอลครองบอล 60%", "ประตูที่คาดหวังของเชลซี"]) {
+            assert.ok(bannedClaim(claim), claim);
+        }
+        for (const statement of ["Arsenal tuvo 987 tiros", "Arsenal teve 987 finalizações", "Arsenal mencatat 987 tembakan", "سدد أرسنال 987 تسديدة", "อาร์เซนอลยิง 987 ครั้ง"]) {
+            assert.equal(ungrounded(statement, grounding), "987", statement);
+        }
+    });
     test("allows shown numbers and times, strips names and IDs, and normalizes mm:ss", () => {
         assert.equal(ungrounded(`${homePlayer.name} took ${shots.value} shots by 30:00`, grounding), null);
         assert.equal(ungrounded("Event EVT-00002 and player ARS10 are references, not numbers", grounding), null);

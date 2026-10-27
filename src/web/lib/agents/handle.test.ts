@@ -12,7 +12,7 @@ const data = validateMatch(raw);
 const half = data.match.period_seconds, end = data.match.duration_seconds;
 const home = data.match.home_team_id, away = data.match.away_team_id;
 const homeName = data.teams.find(team => team.team_id === home)!.name;
-const both = (en: string, fil = en) => ({ en, fil });
+const both = (en: string, fil = en) => { void fil; return en; };
 
 function body(elapsed: number, secondHalf: boolean, status: MatchStatus = "paused", extra: Record<string, unknown> = {}) {
     const cursor = countReached(data.events, elapsed, secondHalf);
@@ -26,6 +26,19 @@ function fake(respond: (input: Record<string, unknown>[], tool?: (name: string, 
 const prefixStats = (elapsed: number, secondHalf: boolean) => aggregate(data, data.events.slice(0, countReached(data.events, elapsed, secondHalf)));
 
 describe("agent request handling", () => {
+    test("passes each validated locale to Foundry and returns one verified response in that language", async () => {
+        const headlines = { en: "Shots so far", fil: "Mga tira sa ngayon", es: "Tiros hasta ahora", "pt-BR": "Finalizações até agora", id: "Tembakan sejauh ini", ar: "التسديدات حتى الآن", th: "การยิงจนถึงตอนนี้" } as const;
+        const request = body(1800, false);
+        for (const language of Object.keys(headlines) as (keyof typeof headlines)[]) {
+            const runner = fake(() => JSON.stringify({ cards: [{ topic: "chance_creation", team_id: home, player_id: null, headline: headlines[language], observed: homeName, casual: headlines[language], interpretation: headlines[language], metric_keys: [`${home}.total.shots`], evidence_event_ids: [] }] }));
+            const result = await handleAgentRequest("analyst", { ...request, preferences: { ...request.preferences, language } }, { run: runner.run });
+            assert.ok(result.ok, `${language}: ${JSON.stringify(result)}`);
+            assert.equal(result.result[0].headline, headlines[language]);
+            assert.ok(runner.calls[0].input.some(entry => String(entry.content).includes(`"language":"${language}"`)), `${language} was omitted from the Foundry payload`);
+        }
+        const invalid = await handleAgentRequest("analyst", { ...request, preferences: { ...request.preferences, language: "de" } }, { run: fake(() => { throw new Error("must not run"); }).run });
+        assert.equal(!invalid.ok && invalid.error, "invalid_request");
+    });
     test("returns verified analyst cards stamped with the request cursor", async () => {
         const shots = prefixStats(1800, false).teams[home].shots;
         const runner = fake(() => JSON.stringify({ cards: [{ topic: "chance_creation", team_id: home, player_id: null, headline: both(`${homeName} shots`), observed: both(`${homeName} have ${shots} shots.`), casual: both("They keep shooting."), interpretation: both("This may show attacking intent."), metric_keys: [`${home}.total.shots`], evidence_event_ids: [] }] }));
@@ -116,9 +129,9 @@ describe("agent request handling", () => {
         assert.ok(result.ok, JSON.stringify(result));
         assert.equal(result.result.length, 1);
         assert.equal(runner.calls.length, 2);
-        assert.match(JSON.stringify(runner.calls[1].input.at(-1)), /observed\.en contains the internal reference ARS\.total\.shots/);
+        assert.match(JSON.stringify(runner.calls[1].input.at(-1)), /observed contains the internal reference ARS\.total\.shots/);
         assert.equal(reported.length, 1);
-        assert.match(reported[0], /^first attempt, card 1: observed\.en contains the internal reference ARS\.total\.shots/);
+        assert.match(reported[0], /^first attempt, card 1: observed contains the internal reference ARS\.total\.shots/);
     });
 
     test("classifies failures without exposing upstream details", async () => {

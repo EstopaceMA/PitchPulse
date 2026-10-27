@@ -1,6 +1,6 @@
 export const EVENT_TYPES = ["match_start", "kickoff", "pass", "shot", "tackle", "pressure", "possession_change", "half_time", "second_half_start", "full_time"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
-export type Language = "en" | "fil";
+export type Language = "en" | "fil" | "es" | "pt-BR" | "id" | "ar" | "th";
 export type ViewMode = "casual" | "analyst" | "player";
 export type Position = { x: number; y: number };
 export interface Team { team_id: string; name: string }
@@ -78,11 +78,11 @@ export interface Insight {
     teamId: string; playerId?: string; at: number; from: number;
     /** Set only on Microsoft Foundry agent cards. Local rule cards are never labeled AI. */
     source?: "foundry"; topic?: AgentTopic;
-    headline: Record<Language, string>;
-    explanation: Record<Language, string>;
-    casual: Record<Language, string>;
-    interpretation: Record<Language, string>;
-    metrics: { label: Record<Language, string>; value: string }[];
+    headline: string;
+    explanation: string;
+    casual: string;
+    interpretation: string;
+    metrics: { label: string; value: string }[];
     eventIds: string[];
     /** When larger than eventIds.length, eventIds lists only the most recent supporting events. */
     evidenceTotal?: number;

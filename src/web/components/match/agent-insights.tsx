@@ -12,17 +12,17 @@ import { InsightCard } from "./insights-panel";
 
 /** AI output is always labeled; local rules never carry this badge. */
 export function AiBadge({ language: l }: { language: Language }) {
-    return <span className="ai-badge">{tr(l, "AI · MICROSOFT FOUNDRY", "AI · MICROSOFT FOUNDRY")}</span>;
+    return <span className="ai-badge">{tr(l, "aiMicrosoftFoundry")}</span>;
 }
 
 export function agentErrorText(error: AgentErrorCode | undefined, l: Language): string {
     switch (error) {
-        case "not_configured": return tr(l, "AI analysis isn’t configured on this server.", "Hindi naka-configure ang AI sa server na ito.");
-        case "invalid_request": return tr(l, "This moment couldn’t be sent for analysis.", "Hindi maipadala ang sandaling ito para suriin.");
-        case "rate_limited": return tr(l, "Too many AI requests. Try again in a few minutes.", "Masyadong maraming kahilingan sa AI. Subukang muli makalipas ang ilang minuto.");
-        case "unverifiable_output": return tr(l, "The AI response didn’t match the recorded events, so it isn’t shown. Try again.", "Hindi tumugma ang sagot ng AI sa mga naitalang pangyayari, kaya hindi ito ipinapakita. Subukang muli.");
-        case "timeout": return tr(l, "The AI request took too long. Try again.", "Masyadong natagalan ang kahilingan sa AI. Subukang muli.");
-        default: return tr(l, "Microsoft Foundry didn’t respond. Local analysis is unaffected.", "Hindi tumugon ang Microsoft Foundry. Hindi apektado ang lokal na pagsusuri.");
+        case "not_configured": return tr(l, "aiAnalysisIsnTConfiguredOnThisServer");
+        case "invalid_request": return tr(l, "thisMomentCouldnTBeSentForAnalysis");
+        case "rate_limited": return tr(l, "tooManyAiRequestsTryAgainInA");
+        case "unverifiable_output": return tr(l, "theAiResponseDidnTMatchTheRecorded");
+        case "timeout": return tr(l, "theAiRequestTookTooLongTryAgain");
+        default: return tr(l, "microsoftFoundryDidnTRespondLocalAnalysisIs");
     }
 }
 
@@ -31,11 +31,11 @@ function analysisView(preferences: Preferences, task: AgentTask<Insight[]>, curs
     // Results from a later playhead stay hidden after a rewind, like every other derived panel.
     const ahead = task.status !== "idle" && task.cursor > cursor;
     const cards = task.status === "done" && !ahead ? (task.result ?? []).filter(card => preferences.mode !== "player" || !card.playerId || card.playerId === preferences.player) : [];
-    const status = ahead ? tr(l, `Analysis from ${formatTime(task.elapsed)} is hidden until playback reaches that moment again.`, `Nakatago ang pagsusuri mula ${formatTime(task.elapsed)} hanggang maabot muli ang sandaling iyon.`)
-        : task.status === "loading" ? tr(l, `Analyzing ${formatTime(task.elapsed)}…`, `Sinusuri ang ${formatTime(task.elapsed)}…`)
+    const status = ahead ? tr(l, "analysisHiddenUntil", { time: formatTime(task.elapsed) })
+        : task.status === "loading" ? tr(l, "analysisLoadingAt", { time: formatTime(task.elapsed) })
             : task.status === "error" ? agentErrorText(task.error, l)
-                : task.status === "done" ? (cards.length ? tr(l, `As of ${formatTime(task.elapsed)} · ${cards.length} verified ${cards.length === 1 ? "card" : "cards"}`, `Hanggang ${formatTime(task.elapsed)} · ${cards.length} beripikadong card`) : tr(l, `No well-supported patterns yet at ${formatTime(task.elapsed)}.`, `Wala pang padrong may sapat na batayan sa ${formatTime(task.elapsed)}.`))
-                    : tr(l, "Pause on any moment and ask the Tactical Analyst what the events show.", "Huminto sa anumang sandali at itanong sa Tactical Analyst kung ano ang ipinapakita ng mga pangyayari.");
+                : task.status === "done" ? (cards.length ? tr(l, cards.length === 1 ? "analysisVerifiedCard" : "analysisVerifiedCards", { time: formatTime(task.elapsed), count: cards.length }) : tr(l, "analysisNoPatternsAt", { time: formatTime(task.elapsed) }))
+                    : tr(l, "pauseOnAnyMomentAndAskTheTactical");
     return { cards, status };
 }
 
@@ -47,15 +47,15 @@ export function AgentInsights({ preferences, available, task, cursor, canAnalyze
     const l = preferences.language;
     const { cards, status } = analysisView(preferences, task, cursor);
     return <section className="panel agent-panel" aria-labelledby={`${id}-heading`}>
-        <div className="panel-heading"><div className="heading-icon"><Sparkles size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(l, "AI analysis", "Pagsusuri ng AI")}</h2></div><AiBadge language={l} /></div>
-        {!available ? <p className="agent-note">{tr(l, "AI analysis isn’t configured on this server. The rule-based insights are unaffected.", "Hindi naka-configure ang AI sa server na ito. Hindi apektado ang mga pagsusuring batay sa tuntunin.")}</p>
+        <div className="panel-heading"><div className="heading-icon"><Sparkles size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(l, "aiAnalysis")}</h2></div><AiBadge language={l} /></div>
+        {!available ? <p className="agent-note">{tr(l, "aiAnalysisIsnTConfiguredOnThisServer2")}</p>
             : <>
                     <div className="agent-actions">
-                        <Button size="sm" onClick={onAnalyze} disabled={!canAnalyze || task.status === "loading"}><Sparkles size={14} aria-hidden="true" />{tr(l, "Analyze this moment", "Suriin ang sandaling ito")}</Button>
+                        <Button size="sm" onClick={onAnalyze} disabled={!canAnalyze || task.status === "loading"}><Sparkles size={14} aria-hidden="true" />{tr(l, "analyzeThisMoment")}</Button>
                         <p className="agent-status" role="status" aria-live="polite">{status}</p>
                     </div>
                     {cards.length > 0 && <div className="insight-list">{cards.map(card => <InsightCard key={card.id} insight={card} preferences={preferences} onEvidence={onEvidence} />)}</div>}
-                    <p className="agent-note">{tr(l, "Numbers and evidence come from PitchPulse’s own event counts. Cards that fail verification are removed before display.", "Mula sa sariling bilang ng PitchPulse ang mga numero at ebidensiya. Inaalis ang mga card na hindi pumasa sa beripikasyon bago ipakita.")}</p>
+                    <p className="agent-note">{tr(l, "numbersAndEvidenceComeFromPitchpulseSOwn")}</p>
                 </>}
     </section>;
 }
@@ -77,13 +77,13 @@ export function AgentAnalysisModal({ open, preferences, task, cursor, onClose, o
     if (!open) return null;
     return <dialog ref={dialogRef} className="analysis-dialog" aria-labelledby={headingId} onClose={onClose} style={{ width: "min(820px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}>
         <header className="analysis-dialog-header">
-            <div className="analysis-dialog-title"><span className="analysis-dialog-icon"><Sparkles size={20} aria-hidden="true" /></span><div><h2 id={headingId}>{tr(l, "AI match analysis", "Pagsusuri ng AI sa laban")}</h2><p>{tr(l, "Patterns from reached match events", "Mga padron mula sa naabot na pangyayari")}</p></div></div>
-            <Button type="button" size="icon" variant="ghost" aria-label={tr(l, "Close analysis", "Isara ang pagsusuri")} onClick={onClose}><X size={18} aria-hidden="true" /></Button>
+            <div className="analysis-dialog-title"><span className="analysis-dialog-icon"><Sparkles size={20} aria-hidden="true" /></span><div><h2 id={headingId}>{tr(l, "aiMatchAnalysis")}</h2><p>{tr(l, "patternsFromReachedMatchEvents")}</p></div></div>
+            <Button type="button" size="icon" variant="ghost" aria-label={tr(l, "closeAnalysis")} onClick={onClose}><X size={18} aria-hidden="true" /></Button>
         </header>
-        <div className="analysis-dialog-meta"><span role="status">{cards.length ? status : tr(l, `As of ${formatTime(task.elapsed)}`, `Hanggang ${formatTime(task.elapsed)}`)}</span><AiBadge language={l} /></div>
+        <div className="analysis-dialog-meta"><span role="status">{cards.length ? status : tr(l, "asOfTime", { time: formatTime(task.elapsed) })}</span><AiBadge language={l} /></div>
         <div className="analysis-dialog-content">
             {cards.length > 0 ? <div className="analysis-dialog-list">{cards.map(card => <InsightCard key={card.id} insight={card} preferences={preferences} onEvidence={onEvidence} />)}</div> : <div className="analysis-dialog-empty"><Sparkles size={22} aria-hidden="true" /><p>{status}</p></div>}
         </div>
-        <footer className="analysis-dialog-footer">{tr(l, "Numbers and evidence are verified against reached events.", "Sinusuri ang mga bilang at ebidensiya laban sa mga naabot na pangyayari.")}</footer>
+        <footer className="analysis-dialog-footer">{tr(l, "numbersAndEvidenceAreVerifiedAgainstReachedEvents")}</footer>
     </dialog>;
 }

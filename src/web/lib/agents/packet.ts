@@ -1,8 +1,9 @@
 import { isKeyMoment, isMeaningful } from "@/lib/match/commentary";
+import { translate } from "@/lib/i18n/translate";
 import { ruleBasedProvider } from "@/lib/match/insights";
 import { formatTime, pitchPosition, type MatchStatus } from "@/lib/match/playback";
 import { accuracy, addEvent, emptyMetrics } from "@/lib/match/statistics";
-import type { Insight, MatchData, MatchEvent, Metrics, Position, Preferences } from "@/lib/match/types";
+import type { Insight, Language, MatchData, MatchEvent, Metrics, Position, Preferences } from "@/lib/match/types";
 import type { Bilingual } from "./contracts";
 
 const BLOCK_SECONDS = 900;
@@ -38,6 +39,13 @@ const LABELS: Record<MetricName, Bilingual> = {
     turnovers: b("Ball losses (interceptions and tackles)", "Mga nawalang bola (interception at tackle)"),
     actions: b("Recorded actions", "Naitalang aksyon"),
 };
+const METRIC_KEYS: Record<MetricName, string> = {
+    goals: "agentMetricGoals", shots: "agentMetricShots", shots_on_target: "agentMetricShotsOnTarget",
+    passes_attempted: "agentMetricPassesAttempted", passes_completed: "agentMetricPassesCompleted",
+    pass_accuracy: "agentMetricPassAccuracy", tackles_won: "agentMetricTacklesWon",
+    pressure_events: "agentMetricPressureEvents", high_pressure: "agentMetricHighPressure",
+    recoveries: "agentMetricRecoveries", turnovers: "agentMetricTurnovers", actions: "agentMetricActions",
+};
 const ZONE_LABELS: Record<ZoneType, Bilingual> = {
     passes: b("Passes started", "Mga pasang nagsimula"),
     shots: b("Shots", "Mga tira"),
@@ -45,8 +53,11 @@ const ZONE_LABELS: Record<ZoneType, Bilingual> = {
     turnovers: b("Ball losses", "Mga nawalang bola"),
     pressures: b("Pressure events", "Mga pagdiin"),
 };
+const ZONE_KEYS: Record<ZoneType, string> = { passes: "agentZonePasses", shots: "agentZoneShots", recoveries: "agentZoneRecoveries", turnovers: "agentZoneTurnovers", pressures: "agentZonePressures" };
 const THIRD_LABELS: Record<Third, Bilingual> = { defensive: b("defensive third", "defensive third"), middle: b("middle third", "middle third"), attacking: b("attacking third", "attacking third") };
 const FLANK_LABELS: Record<Flank, Bilingual> = { top: b("top flank", "itaas na gilid"), centre: b("centre channel", "gitnang daan"), bottom: b("bottom flank", "ibabang gilid") };
+const THIRD_KEYS: Record<Third, string> = { defensive: "agentThirdDefensive", middle: "agentThirdMiddle", attacking: "agentThirdAttacking" };
+const FLANK_KEYS: Record<Flank, string> = { top: "agentFlankTop", centre: "agentFlankCentre", bottom: "agentFlankBottom" };
 
 /** Team-relative x, with the same attacking-third boundary as the rule-based recovery insight. */
 export const thirdOf = (x: number): Third => x >= 66.67 ? "attacking" : x > 33.33 ? "middle" : "defensive";
@@ -80,7 +91,7 @@ function blockOf(event: MatchEvent, data: MatchData): number {
 }
 
 /** `evidence` lists every supporting reached event, oldest first. */
-export interface CatalogMetric { label: Bilingual; value: string; evidence: readonly string[]; from: number; to: number; teamId?: string; playerId?: string }
+export interface CatalogMetric { label: string; value: string; evidence: readonly string[]; from: number; to: number; teamId?: string; playerId?: string }
 export interface PacketEvent {
     event_id: string; time: string; period: 1 | 2; type: string;
     team_id: string | null; player_id: string | null; player: string | null;
@@ -99,6 +110,7 @@ export interface MatchPacket {
     teams: ReadonlyMap<string, string>;
     playerTeams: ReadonlyMap<string, string>;
     elapsed: number; cursor: number; status: MatchStatus;
+    language: Language;
 }
 
 class Tally {
@@ -113,6 +125,12 @@ class Tally {
  */
 export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[], context: PacketContext): MatchPacket {
     const { elapsed } = context;
+    const language = context.preferences?.language ?? "en";
+    const t = (key: string, values?: Record<string, string>) => translate(language, key, values);
+    const metricText = (metric: MetricName) => language === "en" || language === "fil" ? LABELS[metric][language] : t(METRIC_KEYS[metric]);
+    const zoneText = (zone: ZoneType) => language === "en" || language === "fil" ? ZONE_LABELS[zone][language] : t(ZONE_KEYS[zone]);
+    const thirdText = (third: Third) => language === "en" || language === "fil" ? THIRD_LABELS[third][language] : t(THIRD_KEYS[third]);
+    const flankText = (flank: Flank) => language === "en" || language === "fil" ? FLANK_LABELS[flank][language] : t(FLANK_KEYS[flank]);
     const homeId = data.match.home_team_id;
     const teams = new Map(data.teams.map(team => [team.team_id, team.name]));
     const players = new Map(data.players.map(player => [player.player_id, player]));
@@ -161,14 +179,13 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
     }
 
     const catalog = new Map<string, CatalogMetric>();
-    const named = (label: Bilingual, owner: string, suffix?: string | Bilingual): Bilingual => {
-        const tail = (language: keyof Bilingual) => suffix === undefined ? "" : `, ${typeof suffix === "string" ? suffix : suffix[language]}`;
-        return { en: `${label.en}${tail("en")} (${owner})`, fil: `${label.fil}${tail("fil")} (${owner})` };
-    };
-    const emit = (key: string, label: Bilingual, value: string, evidence: string[], from: number, to: number, owner: { teamId?: string; playerId?: string }) => {
+    const named = (label: string, owner: string, suffix?: string): string => suffix === undefined
+        ? t("agentLabelOwner", { metric: label, owner })
+        : t("agentLabelWindow", { metric: label, window: suffix, owner });
+    const emit = (key: string, label: string, value: string, evidence: string[], from: number, to: number, owner: { teamId?: string; playerId?: string }) => {
         catalog.set(key, { label, value, evidence, from, to, ...owner });
     };
-    const emitMetric = (prefix: string, metric: MetricName, label: Bilingual, from: number, to: number, owner: { teamId?: string; playerId?: string }) => {
+    const emitMetric = (prefix: string, metric: MetricName, label: string, from: number, to: number, owner: { teamId?: string; playerId?: string }) => {
         if (metric === "pass_accuracy") {
             const attempted = ids(`${prefix}.passes_attempted`);
             const rate = accuracy({ ...emptyMetrics(), passes_attempted: attempted.length, passes_completed: ids(`${prefix}.passes_completed`).length });
@@ -177,27 +194,27 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
     };
     for (const team of data.teams) {
         const owner = { teamId: team.team_id };
-        for (const metric of TEAM_TOTALS) emitMetric(`${team.team_id}.total`, metric, named(LABELS[metric], team.name), 0, elapsed, owner);
+        for (const metric of TEAM_TOTALS) emitMetric(`${team.team_id}.total`, metric, named(metricText(metric), team.name), 0, elapsed, owner);
         for (let block = 1; block <= blockCount; block++) {
             const from = (block - 1) * BLOCK_SECONDS, to = Math.max(from, Math.min(block * BLOCK_SECONDS, elapsed));
             const window = `${formatTime(from)}–${formatTime(to)}`;
-            for (const metric of BLOCK_METRICS) emitMetric(`${team.team_id}.b${block}`, metric, named(LABELS[metric], team.name, window), from, to, owner);
+            for (const metric of BLOCK_METRICS) emitMetric(`${team.team_id}.b${block}`, metric, named(metricText(metric), team.name, window), from, to, owner);
         }
         for (const type of ZONE_TYPES) {
             for (const third of THIRDS) {
                 const key = `${team.team_id}.zone.${type}.${third}`;
-                emit(key, named(b(`${ZONE_LABELS[type].en} in the ${THIRD_LABELS[third].en}`, `${ZONE_LABELS[type].fil} sa ${THIRD_LABELS[third].fil}`), team.name), String(ids(key).length), ids(key), 0, elapsed, owner);
+                emit(key, t("agentLabelInThird", { metric: zoneText(type), area: thirdText(third), owner: team.name }), String(ids(key).length), ids(key), 0, elapsed, owner);
             }
             for (const flank of FLANKS) {
                 const key = `${team.team_id}.zone.${type}.${flank}`;
-                emit(key, named(b(`${ZONE_LABELS[type].en} on the ${FLANK_LABELS[flank].en}`, `${ZONE_LABELS[type].fil} sa ${FLANK_LABELS[flank].fil}`), team.name), String(ids(key).length), ids(key), 0, elapsed, owner);
+                emit(key, t("agentLabelOnFlank", { metric: zoneText(type), area: flankText(flank), owner: team.name }), String(ids(key).length), ids(key), 0, elapsed, owner);
             }
         }
     }
     for (const player of data.players) {
         if (!tallies.has(`${player.player_id}.total.actions`)) continue;
         const owner = { teamId: player.team_id, playerId: player.player_id };
-        for (const metric of PLAYER_TOTALS) emitMetric(`${player.player_id}.total`, metric, named(LABELS[metric], player.name), 0, elapsed, owner);
+        for (const metric of PLAYER_TOTALS) emitMetric(`${player.player_id}.total`, metric, named(metricText(metric), player.name), 0, elapsed, owner);
     }
 
     const describe = (event: MatchEvent): PacketEvent => {
@@ -206,7 +223,7 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
             event_id: event.event_id, time: formatTime(event.match_time_seconds), period: event.period, type: event.type,
             team_id: event.team_id, player_id: event.player_id, player: playerName(event.player_id),
             result: event.outcome ?? event.reason ?? event.intensity ?? null,
-            zone: location && event.team_id ? `${THIRD_LABELS[thirdOf(location.x)].en}, ${FLANK_LABELS[flankOf(pitchPosition(location, event.team_id, homeId).y)].en}` : null,
+            zone: location && event.team_id ? `${thirdText(thirdOf(location.x))}, ${flankText(flankOf(pitchPosition(location, event.team_id, homeId).y))}` : null,
             ...(event.recipient_player_id ? { recipient: playerName(event.recipient_player_id)! } : {}),
             ...(event.target_player_id ? { target: playerName(event.target_player_id)! } : {}),
             ...(event.from_team_id ? { from_team_id: event.from_team_id } : {}),
@@ -220,7 +237,7 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
         if (events[index].team_id !== null && isMeaningful(events[index])) recent.unshift(events[index]);
     }
     const latestRules = new Map<string, Insight>();
-    for (const insight of ruleBasedProvider.generate(data, events, elapsed)) latestRules.set(`${insight.rule}:${insight.teamId}:${insight.playerId ?? ""}`, insight);
+    for (const insight of ruleBasedProvider.generate(data, events, elapsed, { preferences: context.preferences })) latestRules.set(`${insight.rule}:${insight.teamId}:${insight.playerId ?? ""}`, insight);
     const ruleInsights = [...latestRules.values()].sort((left, right) => right.at - left.at).slice(0, RULE_INSIGHT_LIMIT);
     const score = Object.fromEntries(data.teams.map(team => [team.team_id, ids(`${team.team_id}.total.goals`).length]));
 
@@ -236,7 +253,7 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
         score,
         roster: data.players.map(player => ({ player_id: player.player_id, name: player.name, team_id: player.team_id, ...(player.position ? { position: player.position } : {}) })),
         // Labels give the model plain words for each number, so keys stay out of its prose.
-        metrics: Object.fromEntries([...catalog].map(([key, metric]) => [key, { label: metric.label.en, value: metric.value }])),
+        metrics: Object.fromEntries([...catalog].map(([key, metric]) => [key, { label: metric.label, value: metric.value }])),
         metric_glossary: {
             key_format: "<team_id or player_id>.<scope>.<metric>; keys are for metric_keys only, and text uses the label wording",
             total: "from kick-off to the current clock",
@@ -251,10 +268,10 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
         rule_insights: ruleInsights.map(insight => ({
             rule: insight.rule, team_id: insight.teamId, player_id: insight.playerId ?? null,
             window: `${formatTime(insight.from)}–${formatTime(insight.at)}`,
-            headline: insight.headline.en, observed: insight.explanation.en, interpretation: insight.interpretation.en,
+            headline: insight.headline, observed: insight.explanation, interpretation: insight.interpretation,
             event_ids: insight.eventIds.slice(-RULE_EVIDENCE_LIMIT),
         })),
-        ...(context.preferences ? { viewer: { mode: context.preferences.mode, favourite_team_id: context.preferences.team, focus_player_id: context.preferences.player || null } } : {}),
+        ...(context.preferences ? { viewer: { language, mode: context.preferences.mode, favourite_team_id: context.preferences.team, focus_player_id: context.preferences.player || null } } : {}),
     };
 
     return {
@@ -263,6 +280,6 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
         names: [...data.teams.map(team => team.name), ...data.players.map(player => player.name)],
         teams,
         playerTeams: new Map(data.players.map(player => [player.player_id, player.team_id])),
-        elapsed, cursor: events.length, status: context.status,
+        elapsed, cursor: events.length, status: context.status, language,
     };
 }

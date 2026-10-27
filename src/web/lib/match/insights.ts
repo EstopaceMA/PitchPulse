@@ -1,5 +1,6 @@
 import { formatTime } from "./playback";
-import type { Insight, InsightProvider, Language, MatchData, MatchEvent } from "./types";
+import { translate } from "@/lib/i18n/translate";
+import type { Insight, InsightProvider, InsightRequestOptions, Language, MatchData, MatchEvent } from "./types";
 
 const WINDOW_SECONDS = 300;
 const COOLDOWN_SECONDS = 180;
@@ -8,9 +9,7 @@ const MIN_PASS_ATTEMPTS = 5;
 const MIN_PASS_CHANGE_PP = 10;
 const MIN_PLAYER_ACTIONS = 4;
 
-type Translation = Record<Language, string>;
-const translated = (en: string, fil: string): Translation => ({ en, fil });
-const metric = (en: string, fil: string, value: string): Insight["metrics"][number] => ({ label: translated(en, fil), value });
+const localize = (language: Language, key: string, values?: Record<string, string | number>) => translate(language, key, values);
 const range = (from: number, to: number): string => `${formatTime(from)}–${formatTime(to)}`;
 const completedPass = (event: MatchEvent): number => Number(event.type === "pass" && event.outcome === "complete");
 const goal = (event: MatchEvent): number => Number(event.type === "shot" && event.outcome === "goal");
@@ -88,7 +87,8 @@ function compareEvents(left: MatchEvent, right: MatchEvent): number {
  *
  * Team rules run after every event, including expiry-only changes. Player rules
  * run on that player's own actions, never on a global "best player" selection.
- * No timers, preferences, shared cache, or playback-speed-dependent checkpoints.
+ * No timers, shared cache, or playback-speed-dependent checkpoints. Only the
+ * selected language affects wording; it never changes facts or evidence.
  * Early windows are clipped at kick-off, explicitly noted in comparisons.
  *
  * For validated two-team imports, a call costs O(n log n) worst-case for sorting,
@@ -96,8 +96,11 @@ function compareEvents(left: MatchEvent, right: MatchEvent): number {
  * bound the number of times each event can appear in emitted evidence. Working
  * memory is O(n + metadata), plus at most 200 retained insights.
  */
-function generate(data: MatchData, events: readonly MatchEvent[], elapsed: number): Insight[] {
+function generate(data: MatchData, events: readonly MatchEvent[], elapsed: number, options?: InsightRequestOptions): Insight[] {
     if (!Number.isFinite(elapsed) || elapsed < 0 || events.length === 0) return [];
+    const language = options?.preferences?.language ?? "en";
+    const t = (key: string, values?: Record<string, string | number>) => localize(language, key, values);
+    const metric = (key: string, value: string): Insight["metrics"][number] => ({ label: t(key), value });
 
     const ordered = events.filter(event => event.match_time_seconds <= elapsed);
     if (ordered.some((event, index) => index > 0 && compareEvents(ordered[index - 1], event) > 0)) {
@@ -120,8 +123,7 @@ function generate(data: MatchData, events: readonly MatchEvent[], elapsed: numbe
         const recentRange = range(recentFrom, at);
         const previousRange = range(previousFrom, recentFrom);
         const earlyComparison = at < 2 * WINDOW_SECONDS;
-        const earlyEn = earlyComparison ? " Windows are clipped at kick-off, so this is not yet a comparison of two full five-minute periods." : "";
-        const earlyFil = earlyComparison ? " Nagsisimula lamang sa kick-off ang datos, kaya hindi pa ito paghahambing ng dalawang buong limang minuto." : "";
+        const earlyNote = earlyComparison ? ` ${t("ruleEarlyWindow")}` : "";
 
         // Lazy construction avoids copying evidence or formatting a card on cooldown.
         const emit = (rule: Insight["rule"], teamId: string, playerId: string | undefined, make: () => Omit<Insight, "id" | "rule" | "teamId" | "playerId" | "at">): void => {
@@ -181,20 +183,11 @@ function generate(data: MatchData, events: readonly MatchEvent[], elapsed: numbe
                     const count = recoveries.recentCount;
                     return {
                         from: recentFrom,
-                        headline: translated(`Attacking-third recoveries: ${name}`, `Mga pagbawi sa attacking third: ${name}`),
-                        explanation: translated(
-                            `${name} recorded ${count} attacking-third ${count === 1 ? "recovery" : "recoveries"} in ${recentRange}. Only possession changes from an interception or tackle at x ≥ 66.67 count.`,
-                            `Nagtala ang ${name} ng ${count} pagbawi ng bola sa attacking third sa ${recentRange}. Binibilang lamang ang possession change dahil sa interception o tackle sa x ≥ 66.67.`,
-                        ),
-                        casual: translated(
-                            `${name} won the ball back ${count} ${count === 1 ? "time" : "times"} in the third nearest the opponent's goal during this window.`,
-                            `${count} beses nabawi ng ${name} ang bola sa ikatlong bahagi ng pitch na pinakamalapit sa goal ng kalaban sa saklaw na ito.`,
-                        ),
-                        interpretation: translated(
-                            "These recoveries may offer chances to attack closer to goal. They do not establish sustained pressure or guarantee a scoring chance.",
-                            "Maaaring magbigay ang mga pagbawing ito ng pagkakataong umatake malapit sa goal. Hindi nito pinatutunayan ang tuloy-tuloy na pressure o tinitiyak ang pagkakataong makaiskor.",
-                        ),
-                        metrics: [metric("Attacking-third recoveries", "Mga pagbawi sa attacking third", String(count)), metric("Recent window", "Kamakailang saklaw", recentRange)],
+                        headline: t("ruleRecoveriesHeadline", { name }),
+                        explanation: t("ruleRecoveriesExplanation", { name, count, range: recentRange, recovery: t(count === 1 ? "ruleRecoveryOne" : "ruleRecoveryMany") }),
+                        casual: t("ruleRecoveriesCasual", { name, count, times: t(count === 1 ? "ruleTimeOne" : "ruleTimeMany") }),
+                        interpretation: t("ruleRecoveriesInterpretation"),
+                        metrics: [metric("ruleMetricAttackingRecoveries", String(count)), metric("ruleMetricRecentWindow", recentRange)],
                         eventIds: recoveries.eventIds(),
                     };
                 });
@@ -203,25 +196,16 @@ function generate(data: MatchData, events: readonly MatchEvent[], elapsed: numbe
             if (shots.recentCount > shots.previousCount) {
                 emit("shots", teamId, undefined, () => ({
                     from: previousFrom,
-                    headline: translated(`More recent shots: ${name}`, `Mas maraming tira kamakailan: ${name}`),
-                    explanation: translated(
-                        `${name} recorded ${shots.recentCount} shots in ${recentRange}, compared with ${shots.previousCount} in ${previousRange}: an increase of ${shots.recentCount - shots.previousCount}.${earlyEn}`,
-                        `Nagtala ang ${name} ng ${shots.recentCount} tira sa ${recentRange}, kumpara sa ${shots.previousCount} sa ${previousRange}: nadagdagan ng ${shots.recentCount - shots.previousCount}.${earlyFil}`,
-                    ),
-                    casual: translated(
-                        `${name} took more shots in the recent window than in the preceding one.${earlyEn}`,
-                        `Mas maraming tira ang ${name} sa kamakailang saklaw kaysa sa naunang saklaw.${earlyFil}`,
-                    ),
-                    interpretation: translated(
-                        `This may indicate more shooting activity, not better chances or a likely goal.${earlyComparison ? " Unequal playing time in these early windows limits the comparison." : " Shot quality is not assessed by this count."}`,
-                        `Maaaring mas aktibo ang pagtira, ngunit hindi ito nangangahulugang mas maganda ang mga pagkakataon o malapit nang magka-goal.${earlyComparison ? " Limitado ang paghahambing dahil hindi pa pantay ang haba ng oras ng laro sa mga saklaw." : " Hindi sinusukat ng bilang na ito ang kalidad ng mga tira."}`,
-                    ),
+                    headline: t("ruleShotsHeadline", { name }),
+                    explanation: t("ruleShotsExplanation", { name, recent: shots.recentCount, recentRange, previous: shots.previousCount, previousRange, increase: shots.recentCount - shots.previousCount }) + earlyNote,
+                    casual: t("ruleShotsCasual", { name }) + earlyNote,
+                    interpretation: t("ruleShotsInterpretation") + ` ${t(earlyComparison ? "ruleShotsEarlyLimit" : "ruleShotsQualityLimit")}`,
                     metrics: [
-                        metric("Recent shots", "Kamakailang mga tira", String(shots.recentCount)),
-                        metric("Previous shots", "Naunang mga tira", String(shots.previousCount)),
-                        metric("Increase", "Dagdag", `+${shots.recentCount - shots.previousCount}`),
-                        metric("Recent window", "Kamakailang saklaw", recentRange),
-                        metric("Previous window", "Naunang saklaw", previousRange),
+                        metric("ruleMetricRecentShots", String(shots.recentCount)),
+                        metric("ruleMetricPreviousShots", String(shots.previousCount)),
+                        metric("ruleMetricIncrease", `+${shots.recentCount - shots.previousCount}`),
+                        metric("ruleMetricRecentWindow", recentRange),
+                        metric("ruleMetricPreviousWindow", previousRange),
                     ],
                     eventIds: shots.eventIds(true),
                 }));
@@ -240,28 +224,16 @@ function generate(data: MatchData, events: readonly MatchEvent[], elapsed: numbe
                         const change = `${delta > 0 ? "+" : ""}${delta.toFixed(1)} pp`;
                         return {
                             from: previousFrom,
-                            headline: translated(
-                                `${name}: pass completion ${delta > 0 ? "up" : "down"}`,
-                                `${name}: ${delta > 0 ? "tumaas" : "bumaba"} ang porsiyento ng kumpletong pasa`,
-                            ),
-                            explanation: translated(
-                                `${name} completed ${passes.recentCompleted}/${passes.recentCount} passes (${recentPercent}%) in ${recentRange}, versus ${passes.previousCompleted}/${passes.previousCount} (${previousPercent}%) in ${previousRange}. Change: ${change} (percentage points).${earlyEn}`,
-                                `Nakumpleto ng ${name} ang ${passes.recentCompleted}/${passes.recentCount} pasa (${recentPercent}%) sa ${recentRange}, kumpara sa ${passes.previousCompleted}/${passes.previousCount} (${previousPercent}%) sa ${previousRange}. Pagbabago: ${change} (puntos-porsiyento).${earlyFil}`,
-                            ),
-                            casual: translated(
-                                `A ${delta > 0 ? "larger" : "smaller"} share of ${name}'s recent passes reached a teammate.${earlyEn}`,
-                                `${delta > 0 ? "Mas malaking" : "Mas maliit na"} bahagi ng mga kamakailang pasa ng ${name} ang umabot sa kakampi.${earlyFil}`,
-                            ),
-                            interpretation: translated(
-                                "This may reflect a change in passing execution, but pass difficulty, pressure and the small samples could also explain it. It does not prove a tactical change.",
-                                "Maaaring nagbago ang pagpasa, ngunit maaari ring dahil ito sa hirap ng mga pasa, pressure, o maliit na sample. Hindi nito pinatutunayan ang pagbabago ng taktika.",
-                            ),
+                            headline: t(delta > 0 ? "rulePassingUpHeadline" : "rulePassingDownHeadline", { name }),
+                            explanation: t("rulePassingExplanation", { name, recentCompleted: passes.recentCompleted, recentCount: passes.recentCount, recentPercent, recentRange, previousCompleted: passes.previousCompleted, previousCount: passes.previousCount, previousPercent, previousRange, change }) + earlyNote,
+                            casual: t(delta > 0 ? "rulePassingLargerCasual" : "rulePassingSmallerCasual", { name }) + earlyNote,
+                            interpretation: t("rulePassingInterpretation"),
                             metrics: [
-                                metric("Recent completion", "Kamakailang kumpletong pasa", `${passes.recentCompleted}/${passes.recentCount} (${recentPercent}%)`),
-                                metric("Previous completion", "Naunang kumpletong pasa", `${passes.previousCompleted}/${passes.previousCount} (${previousPercent}%)`),
-                                metric("Change (percentage points)", "Pagbabago (puntos-porsiyento)", change),
-                                metric("Recent window", "Kamakailang saklaw", recentRange),
-                                metric("Previous window", "Naunang saklaw", previousRange),
+                                metric("ruleMetricRecentCompletion", `${passes.recentCompleted}/${passes.recentCount} (${recentPercent}%)`),
+                                metric("ruleMetricPreviousCompletion", `${passes.previousCompleted}/${passes.previousCount} (${previousPercent}%)`),
+                                metric("ruleMetricChange", change),
+                                metric("ruleMetricRecentWindow", recentRange),
+                                metric("ruleMetricPreviousWindow", previousRange),
                             ],
                             eventIds: passes.eventIds(true),
                         };
@@ -277,27 +249,11 @@ function generate(data: MatchData, events: readonly MatchEvent[], elapsed: numbe
             // Goals use the existing player rule and the same per-player cooldown.
             emit("player", event.team_id, event.player_id, () => ({
                 from: recentFrom,
-                headline: translated(
-                    `${name}: ${player.recentGoals > 0 ? "a goal in the recent window" : "recent contributions"}`,
-                    `${name}: ${player.recentGoals > 0 ? "may goal sa kamakailang saklaw" : "mga kamakailang ambag"}`,
-                ),
-                explanation: translated(
-                    `${name} recorded ${player.recentCount} ${player.recentCount === 1 ? "action" : "actions"}, including ${player.recentGoals} ${player.recentGoals === 1 ? "goal" : "goals"}, in ${recentRange}. Actions count events credited to this player, not recipient or target mentions.`,
-                    `Nagtala si ${name} ng ${player.recentCount} aksyon, kabilang ang ${player.recentGoals} goal, sa ${recentRange}. Binibilang ang mga event kung saan siya ang kumilos, hindi ang pagbanggit bilang tatanggap o target.`,
-                ),
-                casual: translated(
-                    player.recentGoals > 0
-                        ? `${name} scored in this recent window; the goal is included in their ${player.recentCount} recorded ${player.recentCount === 1 ? "action" : "actions"}.`
-                        : `${name} was involved in ${player.recentCount} recorded actions in this window.`,
-                    player.recentGoals > 0
-                        ? `Naka-goal si ${name} sa kamakailang saklaw; kasama ang goal sa kanyang ${player.recentCount} naitalang aksyon.`
-                        : `May ${player.recentCount} naitalang aksyon si ${name} sa saklaw na ito.`,
-                ),
-                interpretation: translated(
-                    "This highlights recent recorded involvement, not an overall player rating. Action counts alone cannot establish quality, off-ball influence or future performance.",
-                    "Ipinapakita nito ang kamakailang naitalang pakikilahok, hindi ang kabuuang rating ng manlalaro. Hindi sapat ang bilang ng aksyon upang patunayan ang kalidad, ambag nang walang bola, o susunod na pagganap.",
-                ),
-                metrics: [metric("Recorded actions", "Naitalang aksyon", String(player.recentCount)), metric("Goals", "Mga goal", String(player.recentGoals)), metric("Recent window", "Kamakailang saklaw", recentRange)],
+                headline: t(player.recentGoals > 0 ? "rulePlayerGoalHeadline" : "rulePlayerActionsHeadline", { name }),
+                explanation: t("rulePlayerExplanation", { name, actions: player.recentCount, goals: player.recentGoals, range: recentRange, actionWord: t(player.recentCount === 1 ? "ruleActionOne" : "ruleActionMany"), goalWord: t(player.recentGoals === 1 ? "ruleGoalOne" : "ruleGoalMany") }),
+                casual: player.recentGoals > 0 ? t("rulePlayerGoalCasual", { name, actions: player.recentCount, actionWord: t(player.recentCount === 1 ? "ruleActionOne" : "ruleActionMany") }) : t("rulePlayerActionsCasual", { name, actions: player.recentCount }),
+                interpretation: t("rulePlayerInterpretation"),
+                metrics: [metric("ruleMetricActions", String(player.recentCount)), metric("ruleMetricGoals", String(player.recentGoals)), metric("ruleMetricRecentWindow", recentRange)],
                 eventIds: player.eventIds(),
             }));
         }

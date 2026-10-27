@@ -613,6 +613,16 @@ describe("fixed pitch coordinate conversion", () => {
 });
 
 describe("rule-based insight provider", () => {
+  test("renders the same reached evidence in every selected language", () => {
+    const prefix = data.events.filter(event => event.match_time_seconds <= 1200);
+    const languages = ["en", "fil", "es", "pt-BR", "id", "ar", "th"] as const;
+    const results = languages.map(language => ruleBasedProvider.generate(data, prefix, 1200, { preferences: { mode: "analyst", language, team: data.match.home_team_id, player: "" } }));
+    assert.ok(results[0].length > 0);
+    for (const [index, insights] of results.entries()) {
+      assert.deepEqual(insights.map(insight => [insight.id, insight.eventIds, insight.metrics.map(metric => metric.value)]), results[0].map(insight => [insight.id, insight.eventIds, insight.metrics.map(metric => metric.value)]));
+      if (index) assert.notEqual(insights[0].headline, results[0][0].headline, languages[index]);
+    }
+  });
   test("is local and deterministic across repeated runs, reordered input, and backwards seeks", () => {
     assert.equal(ruleBasedProvider.kind, "rule-based");
     const elapsed = 1200;
@@ -637,7 +647,7 @@ describe("rule-based insight provider", () => {
     assert.deepEqual(ruleBasedProvider.generate(data, [], end), []);
   });
 
-  test("keeps all evidence within emitted events and emits bilingual, bounded, unique cards", () => {
+  test("keeps all evidence within emitted events and emits localized, bounded, unique cards", () => {
     const state = act(initialPlayback(), { type: "seek", elapsed: half });
     const prefix = data.events.slice(0, state.cursor);
     const events = new Map(prefix.map((event) => [event.event_id, event]));
@@ -666,8 +676,7 @@ describe("rule-based insight provider", () => {
       }
       assert.ok(insight.metrics.length > 0);
       for (const translation of [insight.headline, insight.explanation, insight.casual, insight.interpretation, ...insight.metrics.map((metric) => metric.label)]) {
-        assert.ok(translation.en.trim().length > 0);
-        assert.ok(translation.fil.trim().length > 0);
+        assert.ok(translation.trim().length > 0);
       }
       assert.ok(insight.metrics.every((metric) => metric.value.trim().length > 0));
     }
@@ -717,11 +726,11 @@ describe("rule-based insight provider", () => {
     const player = insights.find((insight) => insight.rule === "player");
     assert.ok(shots && player);
     assert.deepEqual(shots.eventIds, [goal.event_id]);
-    assert.equal(shots.metrics.find((metric) => metric.label.en === "Recent shots")?.value, "1");
+    assert.equal(shots.metrics.find((metric) => metric.label === "Recent shots")?.value, "1");
     assert.equal(player.playerId, goal.player_id);
     assert.deepEqual(player.eventIds, [goal.event_id]);
-    assert.equal(player.metrics.find((metric) => metric.label.en === "Recorded actions")?.value, "1");
-    assert.equal(player.metrics.find((metric) => metric.label.en === "Goals")?.value, "1");
+    assert.equal(player.metrics.find((metric) => metric.label === "Recorded actions")?.value, "1");
+    assert.equal(player.metrics.find((metric) => metric.label === "Goals")?.value, "1");
   });
 });
 // Studio checkpoints must preserve cursor identity, not just the displayed clock.

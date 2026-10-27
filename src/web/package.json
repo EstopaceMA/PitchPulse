@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/match/*.test.ts lib/agents/*.test.ts lib/foundry/*.test.ts components/match/*.test.tsx scripts/demo-data/*.test.ts",
+    "test": "tsx --test lib/i18n/*.test.ts lib/match/*.test.ts lib/agents/*.test.ts lib/foundry/*.test.ts components/match/*.test.tsx scripts/demo-data/*.test.ts",
     "agents:provision": "tsx --env-file=.env.local scripts/provision-agents.ts",
     "agents:evaluate": "tsx --env-file=.env.local scripts/evaluate-agents.ts",
     "data:demo": "tsx scripts/build-demo.ts"
@@ -25,6 +25,7 @@
     "cn": "^0.4.0",
     "lucide-react": "^1.60.0",
     "next": "16.4.2",
+    "next-intl": "^4.14.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",

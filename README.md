@@ -21,7 +21,7 @@ Repository layout:
 - Half-time pauses before period-two events sharing 45:00. **Start second half** explicitly resumes. Full-time stops automatically. Seeking beyond half-time is allowed.
 - Selecting an event or insight evidence inspects its processed-prefix pitch snapshot without changing the live clock or statistics. **Follow live** returns to the playhead. Scrubbing deliberately changes playback and rebuilds the prefix when moving backward.
 - **Note** pauses playback and opens a text editor anchored to the playhead or inspected event. **Bookmark** saves that moment immediately. Notes and bookmarks can be edited or deleted. Selecting an annotation opens its text; **Go to moment** explicitly restores its precise saved prefix, paused. Notes are plain text, up to 4,000 characters.
-- **Preferences** changes perspective, favorite team, player, and English/Filipino language without restarting. Preferences remain session-only. Player Focus resets feed filters when the focus changes.
+- **Preferences** changes perspective, favorite team, player, and language without restarting or changing the match URL. English, Filipino, Spanish, Brazilian Portuguese, Indonesian, Arabic, and Thai are available from the studio and library selectors. The selected language is saved in a browser cookie; other preferences remain session-only. Arabic uses a right-to-left interface while the pitch and timeline keep their fixed physical directions. Player Focus resets feed filters when the focus changes.
 - Imports validate before rendering: 10 MB maximum and 50,000 events. Invalid uploads leave the current match and library unchanged. Use the top-bar **Library** link to return to the match library to import or switch matches. Empty datasets have a dedicated state.
 - Checkpoints save every two seconds during playback and immediately on pause, seek, and studio navigation. Annotation changes save immediately. Abrupt browser/process termination may lose the latest unsaved interval. **Unsaved · this session only** indicates blocked/unavailable storage; **Retry** attempts persistence without discarding in-memory analysis. Corrupted stored match records are skipped with a recovery message; invalid checkpoints reset safely.
 - Imported games can be removed from their card after confirmation; this also removes their notes and bookmarks. The bundled demo remains available.
@@ -65,7 +65,8 @@ To change the roster:
 | Statistics reducer | [lib/match/statistics.ts](src/web/lib/match/statistics.ts) |
 | Illustrative movement model | [lib/match/movement.ts](src/web/lib/match/movement.ts) |
 | Named player markers and roster | [components/match/team-motion.tsx](src/web/components/match/team-motion.tsx) |
-| Deterministic bilingual rules | [lib/match/insights.ts](src/web/lib/match/insights.ts) |
+| Deterministic localized rules | [lib/match/insights.ts](src/web/lib/match/insights.ts) |
+| Locale cookie and message catalogs | [i18n/request.ts](src/web/i18n/request.ts), [messages/](src/web/messages/) |
 | Dataset API | [app/api/match/route.ts](src/web/app/api/match/route.ts) |
 | Game library | [components/match/match-library.tsx](src/web/components/match/match-library.tsx) |
 | Studio composition | [components/match/simulator.tsx](src/web/components/match/simulator.tsx) |
@@ -109,7 +110,7 @@ How the agents stay honest:
   - outside knowledge about the real clubs and players, such as seasons, transfers, injuries, captaincy or competitions;
   - internal metric keys, block codes or dataset IDs in the prose.
 - Card metrics and evidence come from the packet catalog. When the list of supporting events is capped, the card states the full count.
-- AI output is always labeled **AI · Microsoft Foundry**, and is hidden after a rewind past the moment it describes. Ask history from a later playhead is never sent back.
+- AI output is always labeled **AI · Microsoft Foundry**, generated in the selected language, and hidden after a rewind past the moment it describes or a language switch. Each language has a separate session cache; selecting a new language never sends a Foundry request until the user clicks an AI action or asks a question. Ask history from a later playhead or another language is never sent back.
 - No web grounding is enabled.
 
 Setup (requires Node 22 or later, for example via `nvm use`):
@@ -154,14 +155,14 @@ Supported event types: `match_start`, `kickoff`, `pass`, `shot`, `tackle`, `pres
 From `src/web`, use `npm test`, `npm run lint`, and `npm run build`. For the infrastructure, run `terraform fmt -check` and `terraform validate` in `infra/`. Agent tests run without Azure, using fake runners. They cover:
 - prefix-only packets and parity with the statistics reducer;
 - zone mirroring;
-- grounding and banned claims in English and Filipino;
+- grounding and banned claims across the seven supported languages;
 - the local tool loop;
 - request rejection and error classification;
 - markup for the labeled AI panels.
 
 Demo roster tests cover lineup checks against the squad snapshot, shot realignment, minimal-diff rewriting of the bundled JSON and the demo refresh that keeps saved progress and notes.
 
-Replay tests cover score rollback, period boundaries, validation, coordinates, and evidence. Movement tests cover all-player coverage, continuity, mirrored formations, equal timestamps, backward sampling, missing fields, and independence from future events. Component markup regressions in [components/match/presentation.test.tsx](src/web/components/match/presentation.test.tsx) cover pitch defaults, bilingual inspection controls, playback boundaries, transport labels, and header personalization. [components/match/summary-panels.test.tsx](src/web/components/match/summary-panels.test.tsx) verifies statistics comparisons, absence of possession estimates, bounded commentary, linked evidence, empty rosters, and exclusion of future goals and equal-time second-half events. Studio regressions cover exact checkpoint restoration, same-time and period boundaries, annotation anchors, invalid persisted records, library cards, bilingual note controls, and bounded 50,000-event timeline rendering. Browser checks cover multiple imports, invalid input preservation, notes/bookmarks, reload persistence, navigation, removal, storage failure/retry, timeline zoom, playback boundaries, mobile layout, keyboard controls, and reduced motion.
+Replay tests cover score rollback, period boundaries, validation, coordinates, and evidence. Movement tests cover all-player coverage, continuity, mirrored formations, equal timestamps, backward sampling, missing fields, and independence from future events. Catalog tests check completeness and interpolation. Component markup regressions in [components/match/presentation.test.tsx](src/web/components/match/presentation.test.tsx) cover pitch defaults, localized inspection controls, playback boundaries, transport labels, and header personalization. [components/match/summary-panels.test.tsx](src/web/components/match/summary-panels.test.tsx) verifies statistics comparisons, absence of possession estimates, bounded commentary, linked evidence, empty rosters, and exclusion of future goals and equal-time second-half events. Studio regressions cover exact checkpoint restoration, same-time and period boundaries, annotation anchors, invalid persisted records, library cards, localized note controls, and bounded 50,000-event timeline rendering. Browser checks cover language persistence and Arabic direction as well as imports, notes/bookmarks, reload persistence, navigation, timeline zoom, playback boundaries, mobile layout, keyboard controls, and reduced motion.
 
 The current audit reports nine high-severity dependency paths rooted in `braces@3.0.3` ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)). The registry's latest release remains 3.0.3; suggested fixes downgrade shadcn/Next ESLint across major versions. These were not force-applied. Recheck upstream patches before deployment. Uploaded JSON never enters those glob-pattern tooling packages.
 

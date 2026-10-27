@@ -10,11 +10,7 @@ import type { ChatEntry } from "@/lib/match/use-agents";
 import type { Language } from "@/lib/match/types";
 import { AiBadge, agentErrorText } from "./agent-insights";
 
-const SUGGESTIONS: [string, string][] = [
-    ["Which player has the most recorded actions so far?", "Sinong manlalaro ang may pinakamaraming naitalang aksiyon sa ngayon?"],
-    ["Where is each team winning the ball back?", "Saan nababawi ng bawat koponan ang bola?"],
-    ["How has passing changed between the 15-minute blocks?", "Paano nagbago ang pagpasa sa bawat 15 minuto?"],
-];
+const SUGGESTIONS = ["suggestionMostActions", "suggestionBallRecovery", "suggestionPassingBlocks"] as const;
 
 export function AskAnalyst({ entries, cursor, elapsed, language: l, asking, onAsk, onEvidence }: {
     entries: ChatEntry[]; cursor: number; elapsed: number; language: Language; asking: boolean;
@@ -35,29 +31,29 @@ export function AskAnalyst({ entries, cursor, elapsed, language: l, asking, onAs
         setQuestion("");
     };
     return <section className="panel agent-panel ask-analyst" aria-labelledby={`${id}-heading`}>
-        <div className="panel-heading"><div className="heading-icon"><MessageCircleQuestion size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(l, "Ask the Analyst", "Magtanong sa Analista")}</h2></div><AiBadge language={l} /></div>
-        <p className="agent-note">{tr(l, `Answers use only events reached by ${formatTime(elapsed)}. Asking pauses playback.`, `Mga pangyayaring naabot hanggang ${formatTime(elapsed)} lamang ang batayan ng sagot. Humihinto ang laro kapag nagtanong.`)}</p>
-        {hidden.length > 0 && <p className="agent-note">{tr(l, `${hidden.length} later ${hidden.length === 1 ? "message is" : "messages are"} hidden until playback reaches ${formatTime(returnsAt)} again.`, `Nakatago ang ${hidden.length} mensahe hanggang maabot muli ang ${formatTime(returnsAt)}.`)}</p>}
-        <ol ref={thread} className="ask-thread" aria-label={tr(l, "Conversation with the analyst", "Usapan kasama ang analista")}>
+        <div className="panel-heading"><div className="heading-icon"><MessageCircleQuestion size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(l, "askTheAnalyst")}</h2></div><AiBadge language={l} /></div>
+        <p className="agent-note">{tr(l, "answersReachedBy", { time: formatTime(elapsed) })}</p>
+        {hidden.length > 0 && <p className="agent-note">{tr(l, hidden.length === 1 ? "laterMessageHiddenOne" : "laterMessagesHidden", { count: hidden.length, time: formatTime(returnsAt) })}</p>}
+        <ol ref={thread} className="ask-thread" aria-label={tr(l, "conversationWithTheAnalyst")}>
             {visible.map(entry => <li key={entry.id} className={entry.role === "user" ? "ask-user" : "ask-assistant"}>
-                <span className="ask-meta">{entry.role === "user" ? tr(l, "You", "Ikaw") : tr(l, "Analyst · AI", "Analista · AI")} · <time>{formatTime(entry.elapsed)}</time></span>
+                <span className="ask-meta">{entry.role === "user" ? tr(l, "you") : tr(l, "analystAi")} · <time>{formatTime(entry.elapsed)}</time></span>
                 {entry.role === "user" ? <p>{entry.question}</p>
                     : entry.answer ? <>
-                        <p>{entry.answer.answer[l]}</p>
-                        {entry.answer.outOfScope && <p className="ask-caveat">{tr(l, "Outside what this event data can show.", "Labas sa kayang ipakita ng datos na ito.")}</p>}
-                        {entry.answer.caveat && <p className="ask-caveat">{entry.answer.caveat[l]}</p>}
-                        {entry.answer.eventIds.length > 0 && <div className="evidence-ids" aria-label={tr(l, "Supporting events", "Mga batayang aksiyon")}>{entry.answer.eventIds.map(eventId => <button type="button" key={eventId} onClick={() => onEvidence(eventId)}>{eventId}</button>)}</div>}
+                        <p>{entry.answer.answer}</p>
+                        {entry.answer.outOfScope && <p className="ask-caveat">{tr(l, "outsideWhatThisEventDataCanShow")}</p>}
+                        {entry.answer.caveat && <p className="ask-caveat">{entry.answer.caveat}</p>}
+                        {entry.answer.eventIds.length > 0 && <div className="evidence-ids" aria-label={tr(l, "supportingEvents2")}>{entry.answer.eventIds.map(eventId => <button type="button" key={eventId} onClick={() => onEvidence(eventId)}>{eventId}</button>)}</div>}
                     </> : <p className="ask-error">{agentErrorText(entry.error, l)}</p>}
             </li>)}
         </ol>
-        <p className="agent-status" role="status" aria-live="polite">{asking ? tr(l, "Checking the recorded events…", "Sinusuri ang mga naitalang pangyayari…") : ""}</p>
-        {!visible.length && !asking && <div className="ask-suggestions">{SUGGESTIONS.map(([en, fil]) => <button type="button" key={en} onClick={() => submit(tr(l, en, fil))}>{tr(l, en, fil)}</button>)}</div>}
+        <p className="agent-status" role="status" aria-live="polite">{asking ? tr(l, "checkingTheRecordedEvents") : ""}</p>
+        {!visible.length && !asking && <div className="ask-suggestions">{SUGGESTIONS.map(key => <button type="button" key={key} onClick={() => submit(tr(l, key))}>{tr(l, key)}</button>)}</div>}
         <form className="ask-form" onSubmit={event => { event.preventDefault(); submit(question); }}>
-            <label htmlFor={`${id}-question`}>{tr(l, "Your question", "Iyong tanong")}</label>
-            <textarea id={`${id}-question`} rows={3} maxLength={ASK_QUESTION_LIMIT} value={question} placeholder={tr(l, "Ask about the reached match…", "Magtanong tungkol sa naabot na laban…")}
+            <label htmlFor={`${id}-question`}>{tr(l, "yourQuestion")}</label>
+            <textarea id={`${id}-question`} rows={3} maxLength={ASK_QUESTION_LIMIT} value={question} placeholder={tr(l, "askAboutTheReachedMatch")}
                 onChange={event => setQuestion(event.target.value)}
                 onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit(question); } }} />
-            <Button size="sm" type="submit" disabled={!question.trim() || asking}><SendHorizontal size={14} aria-hidden="true" />{tr(l, "Ask", "Itanong")}</Button>
+            <Button size="sm" type="submit" disabled={!question.trim() || asking}><SendHorizontal size={14} aria-hidden="true" />{tr(l, "ask")}</Button>
         </form>
     </section>;
 }

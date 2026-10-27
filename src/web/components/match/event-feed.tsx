@@ -20,18 +20,6 @@ export interface EventFeedProps {
 type TeamFilter = "all" | "home" | "away";
 type TypeFilter = "all" | EventType;
 const PAGE_SIZE = 60;
-const TYPE_LABELS: Record<EventType, readonly [string, string]> = {
-    match_start: ["Match started", "Nagsimula ang laban"],
-    kickoff: ["Kick-off", "Simula ng laro"],
-    pass: ["Pass", "Pasa"],
-    shot: ["Shot", "Tira"],
-    tackle: ["Tackle", "Agaw"],
-    pressure: ["Pressure", "Pagdiin"],
-    possession_change: ["Possession change", "Pagpalit ng may bola"],
-    half_time: ["Half-time", "Pahinga"],
-    second_half_start: ["Second half", "Ikalawang hati"],
-    full_time: ["Full-time", "Tapos na"],
-};
 
 function eventIcon(type: EventType) {
     switch (type) {
@@ -52,9 +40,9 @@ function eventIcon(type: EventType) {
 
 function intensityLabel(intensity: string, language: Language): string {
     switch (intensity) {
-        case "high": return tr(language, "High", "Mataas");
-        case "medium": return tr(language, "Medium", "Katamtaman");
-        case "low": return tr(language, "Low", "Mababa");
+        case "high": return tr(language, "high");
+        case "medium": return tr(language, "medium");
+        case "low": return tr(language, "low");
         default: return intensity.replaceAll("_", " ");
     }
 }
@@ -65,58 +53,58 @@ export function EventDetails({ data, event, language, id }: { data: MatchData; e
 
     return (
         <section className="event-details evidence" id={id} aria-labelledby={`${id}-heading`}>
-            <h3 id={`${id}-heading`}>{tr(language, "Event details", "Mga detalye ng pangyayari")}</h3>
+            <h3 id={`${id}-heading`}>{tr(language, "eventDetails")}</h3>
             <p>
                 <time>{formatTime(event.match_time_seconds)}</time> · {eventLabel(event, language)} · {outcomeLabel(event, language)}
             </p>
             <dl className="detail-grid">
-                <div><dt>{tr(language, "Event ID", "ID ng pangyayari")}</dt><dd>{event.event_id}</dd></div>
-                <div><dt>{tr(language, "Sequence", "Pagkakasunod")}</dt><dd>{event.sequence}</dd></div>
-                <div><dt>{tr(language, "Period", "Hati")}</dt><dd>{event.period}</dd></div>
-                <div><dt>{tr(language, "Possession ID", "ID ng paghawak ng bola")}</dt><dd>{event.possession_id ?? tr(language, "Not recorded", "Hindi naitala")}</dd></div>
+                <div><dt>{tr(language, "eventId")}</dt><dd>{event.event_id}</dd></div>
+                <div><dt>{tr(language, "sequence")}</dt><dd>{event.sequence}</dd></div>
+                <div><dt>{tr(language, "period")}</dt><dd>{event.period}</dd></div>
+                <div><dt>{tr(language, "possessionId")}</dt><dd>{event.possession_id ?? tr(language, "notRecorded")}</dd></div>
                 <div>
-                    <dt>{tr(language, "Player", "Manlalaro")}</dt>
-                    <dd>{event.player_id ? playerName(event.player_id) : tr(language, "Match event", "Pangyayari sa laban")}</dd>
+                    <dt>{tr(language, "player")}</dt>
+                    <dd>{event.player_id ? playerName(event.player_id) : tr(language, "matchEvent")}</dd>
                 </div>
                 <div>
-                    <dt>{tr(language, "Team", "Koponan")}</dt>
-                    <dd>{data.teams.find(team => team.team_id === event.team_id)?.name ?? event.team_id ?? tr(language, "Neutral", "Walang koponan")}</dd>
+                    <dt>{tr(language, "team")}</dt>
+                    <dd>{data.teams.find(team => team.team_id === event.team_id)?.name ?? event.team_id ?? tr(language, "neutral")}</dd>
                 </div>
                 {event.recipient_player_id && (
                     <div>
-                        <dt>{intendedRecipient ? tr(language, "Intended recipient", "Nilalayong tatanggap") : tr(language, "Recipient", "Tatanggap")}</dt>
+                        <dt>{intendedRecipient ? tr(language, "intendedRecipient") : tr(language, "recipient")}</dt>
                         <dd>{playerName(event.recipient_player_id)}</dd>
                     </div>
                 )}
                 {event.target_player_id && (
-                    <div><dt>{tr(language, "Target player", "Pinuntiryang manlalaro")}</dt><dd>{playerName(event.target_player_id)}</dd></div>
+                    <div><dt>{tr(language, "targetPlayer")}</dt><dd>{playerName(event.target_player_id)}</dd></div>
                 )}
                 {event.distance_m !== undefined && (
-                    <div><dt>{tr(language, "Distance", "Distansiya")}</dt><dd>{event.distance_m} m</dd></div>
+                    <div><dt>{tr(language, "distance")}</dt><dd>{event.distance_m} m</dd></div>
                 )}
                 {event.difficulty_rating !== undefined && (
                     <div>
-                        <dt>{tr(language, "Difficulty · illustrative estimate", "Hirap · halimbawang tantiya")}</dt>
+                        <dt>{tr(language, "difficultyIllustrativeEstimate")}</dt>
                         <dd>{event.difficulty_rating}</dd>
                     </div>
                 )}
                 {event.synthetic_xg !== undefined && (
                     <div>
-                        <dt>{tr(language, "Synthetic xG · illustrative estimate", "Sintetikong xG · halimbawang tantiya")}</dt>
+                        <dt>{tr(language, "syntheticXgIllustrativeEstimate")}</dt>
                         <dd>{event.synthetic_xg}</dd>
                     </div>
                 )}
                 {event.intensity && (
-                    <div><dt>{tr(language, "Intensity", "Tindi")}</dt><dd>{intensityLabel(event.intensity, language)}</dd></div>
+                    <div><dt>{tr(language, "intensity")}</dt><dd>{intensityLabel(event.intensity, language)}</dd></div>
                 )}
             </dl>
             {event.difficulty_rating !== undefined && (
-                <p className="data-note">{tr(language, "Difficulty is an illustrative estimate, not a completion probability.", "Ang hirap ay halimbawang tantiya, hindi probabilidad ng matagumpay na pasa.")}</p>
+                <p className="data-note">{tr(language, "difficultyIsAnIllustrativeEstimateNotACompletion")}</p>
             )}
             {event.synthetic_xg !== undefined && (
-                <p className="data-note">{tr(language, "Synthetic xG is an illustrative estimate, not a validated expected-goals model or calibrated scoring probability.", "Ang sintetikong xG ay halimbawang tantiya, hindi beripikadong modelo ng inaasahang gol o nasukat na probabilidad ng pag-iskor.")}</p>
+                <p className="data-note">{tr(language, "syntheticXgIsAnIllustrativeEstimateNotA")}</p>
             )}
-            <p className="data-note">{tr(language, "Values come only from this processed event. No inferred movement or extra metrics.", "Mula lamang sa naprosesong pangyayaring ito ang mga halaga. Walang hinulaang galaw o dagdag na sukatan.")}</p>
+            <p className="data-note">{tr(language, "valuesComeOnlyFromThisProcessedEventNo")}</p>
         </section>
     );
 }
@@ -151,39 +139,39 @@ export function EventFeed({ data, events, preferences, selectedId, onSelect, hid
     return (
         <section className="panel event-feed" aria-labelledby={`${id}-heading`}>
             <div className="panel-heading">
-                <div className="heading-icon"><ListFilter size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(language, "Event feed", "Mga pangyayari")}</h2></div>
-                <span className="micro-label">{filteredEvents.length} {tr(language, "matching", "tugma")} · {events.length} {tr(language, "reached", "naabot")}</span>
+                <div className="heading-icon"><ListFilter size={17} aria-hidden="true" /><h2 id={`${id}-heading`}>{tr(language, "eventFeed")}</h2></div>
+                <span className="micro-label">{filteredEvents.length} {tr(language, "matching")} · {events.length} {tr(language, "reached")}</span>
             </div>
             <div className="feed-filters">
                 <label className="select-field" htmlFor={`${id}-team`}>
-                    <span>{tr(language, "Team", "Koponan")}</span>
-                    <Select id={`${id}-team`} label={tr(language, "Team", "Koponan")} value={teamFilter} onValueChange={value => {
+                    <span>{tr(language, "team")}</span>
+                    <Select id={`${id}-team`} label={tr(language, "team")} value={teamFilter} onValueChange={value => {
                         setTeamFilter(value as TeamFilter);
                         setLimit(PAGE_SIZE);
                     }} options={[
-                        { value: "all", label: tr(language, "All teams", "Lahat ng koponan") },
-                        { value: "home", label: `${tr(language, "Home", "Tahanan")} · ${homeName}` },
-                        { value: "away", label: `${tr(language, "Away", "Dayo")} · ${awayName}` },
+                        { value: "all", label: tr(language, "allTeams") },
+                        { value: "home", label: `${tr(language, "home")} · ${homeName}` },
+                        { value: "away", label: `${tr(language, "away")} · ${awayName}` },
                     ]} />
                 </label>
                 <label className="select-field" htmlFor={`${id}-player`}>
-                    <span>{tr(language, "Player", "Manlalaro")}</span>
-                    <Select id={`${id}-player`} label={tr(language, "Player", "Manlalaro")} value={effectivePlayer} onValueChange={value => {
+                    <span>{tr(language, "player")}</span>
+                    <Select id={`${id}-player`} label={tr(language, "player")} value={effectivePlayer} onValueChange={value => {
                         setPlayerFilter(value);
                         setLimit(PAGE_SIZE);
                     }} options={[
-                        { value: "all", label: tr(language, "All players", "Lahat ng manlalaro") },
+                        { value: "all", label: tr(language, "allPlayers") },
                         ...data.teams.flatMap(team => data.players.filter(player => player.team_id === team.team_id).map(player => ({ value: player.player_id, label: player.name, group: team.name }))),
                     ]} />
                 </label>
                 <label className="select-field" htmlFor={`${id}-type`}>
-                    <span>{tr(language, "Event type", "Uri ng pangyayari")}</span>
-                    <Select id={`${id}-type`} label={tr(language, "Event type", "Uri ng pangyayari")} value={typeFilter} onValueChange={value => {
+                    <span>{tr(language, "eventType")}</span>
+                    <Select id={`${id}-type`} label={tr(language, "eventType")} value={typeFilter} onValueChange={value => {
                         setTypeFilter(value as TypeFilter);
                         setLimit(PAGE_SIZE);
                     }} options={[
-                        { value: "all", label: tr(language, "All event types", "Lahat ng uri") },
-                        ...EVENT_TYPES.map(type => ({ value: type, label: tr(language, ...TYPE_LABELS[type]) })),
+                        { value: "all", label: tr(language, "allEventTypes") },
+                        ...EVENT_TYPES.map(type => ({ value: type, label: eventLabel({ type }, language) })),
                     ]} />
                 </label>
             </div>
@@ -191,18 +179,18 @@ export function EventFeed({ data, events, preferences, selectedId, onSelect, hid
             {events.length === 0 ? (
                 <div className="feed-empty" role="status">
                     <Clock3 size={24} aria-hidden="true" />
-                    <h3>{tr(language, "No events reached yet", "Wala pang naabot na pangyayari")}</h3>
-                    <p>{tr(language, "Play or step through the match to reveal recorded events.", "I-play o isa-isang isulong ang laban upang makita ang mga naitalang pangyayari.")}</p>
+                    <h3>{tr(language, "noEventsReachedYet")}</h3>
+                    <p>{tr(language, "playOrStepThroughTheMatchToReveal")}</p>
                 </div>
             ) : filteredEvents.length === 0 ? (
                 <div className="feed-empty" role="status">
                     <ListFilter size={24} aria-hidden="true" />
-                    <h3>{tr(language, "No matching events", "Walang tugmang pangyayari")}</h3>
-                    <p>{tr(language, "Processed events exist. Try another team, player, or event type.", "May mga naprosesong pangyayari. Pumili ng ibang koponan, manlalaro, o uri.")}</p>
+                    <h3>{tr(language, "noMatchingEvents")}</h3>
+                    <p>{tr(language, "processedEventsExistTryAnotherTeamPlayerOr")}</p>
                 </div>
             ) : (
                 <>
-                    <ol className="feed-list" aria-label={tr(language, "Processed events, latest first", "Mga naprosesong pangyayari, pinakabago muna")}>
+                    <ol className="feed-list" aria-label={tr(language, "processedEventsLatestFirst")}>
                         {visibleEvents.map(event => {
                             const Icon = eventIcon(event.type);
                             const player = data.players.find(player => player.player_id === event.player_id);
@@ -223,10 +211,10 @@ export function EventFeed({ data, events, preferences, selectedId, onSelect, hid
                                         <time className="event-time">{formatTime(event.match_time_seconds)}</time>
                                         <span className="event-icon"><Icon size={16} aria-hidden="true" /></span>
                                         <span className="event-content">
-                                            <strong>{player?.name ?? event.player_id ?? tr(language, "Match event", "Pangyayari sa laban")}</strong>
+                                            <strong>{player?.name ?? event.player_id ?? tr(language, "matchEvent")}</strong>
                                             <span>
                                                 <i className="tiny-dot" style={{ background: teamColor(event.team_id, data.match.home_team_id) }} aria-hidden="true" />
-                                                {team?.name ?? event.team_id ?? tr(language, "Neutral", "Walang koponan")} · {eventLabel(event, language)}
+                                                {team?.name ?? event.team_id ?? tr(language, "neutral")} · {eventLabel(event, language)}
                                             </span>
                                         </span>
                                         <span className="event-outcome">{outcomeLabel(event, language)}</span>
@@ -236,10 +224,10 @@ export function EventFeed({ data, events, preferences, selectedId, onSelect, hid
                         })}
                     </ol>
                     <div className="feed-pagination">
-                        <span className="data-note">{tr(language, `Showing ${visibleEvents.length} of ${filteredEvents.length} matching events`, `Ipinapakita ang ${visibleEvents.length} sa ${filteredEvents.length} tugmang pangyayari`)}</span>
+                        <span className="data-note">{tr(language, "showingMatchingEvents", { shown: visibleEvents.length, total: filteredEvents.length })}</span>
                         {visibleEvents.length < filteredEvents.length && (
                             <Button type="button" variant="ghost" size="sm" onClick={() => setLimit(current => current + PAGE_SIZE)}>
-                                <ChevronDown size={14} aria-hidden="true" />{tr(language, "Show 60 more", "Ipakita ang 60 pa")}
+                                <ChevronDown size={14} aria-hidden="true" />{tr(language, "show60More")}
                             </Button>
                         )}
                     </div>
@@ -249,7 +237,7 @@ export function EventFeed({ data, events, preferences, selectedId, onSelect, hid
             {!hideDetails && (selectedEvent ? (
                 <EventDetails data={data} event={selectedEvent} language={language} id={detailsId} />
             ) : (
-                <p className="data-note">{tr(language, "Select an event to inspect its recorded details and highlight it on the pitch.", "Pumili ng pangyayari upang suriin ang naitalang detalye at itampok ito sa pitch.")}</p>
+                <p className="data-note">{tr(language, "selectAnEventToInspectItsRecordedDetails")}</p>
             ))}
         </section>
     );

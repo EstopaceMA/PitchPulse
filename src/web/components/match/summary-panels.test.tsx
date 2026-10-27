@@ -45,7 +45,7 @@ function commentary(events: readonly MatchEvent[], language: Language = "en", ma
 }
 
 function values(html: string, label: string): string[] {
-    const row = html.match(new RegExp(`<div class="stat-numbers"><strong>([^<]*)</strong><span>${label}</span><strong>([^<]*)</strong></div>`));
+    const row = html.match(new RegExp(`<div class="stat-numbers" dir="ltr"><strong>([^<]*)</strong><span>${label}</span><strong>([^<]*)</strong></div>`));
     assert.ok(row, `Missing statistics row: ${label}`);
     return [row[1], row[2]];
 }

@@ -1913,6 +1913,24 @@ details[open]>.pitch-info-summary .disclosure-chevron {
   background: repeating-linear-gradient(135deg, transparent 0 4px, #19211B66 4px 7px), var(--team-away);
 }
 
+/* These views encode home/away or elapsed time by physical left/right position. */
+.preview-teams,
+.game-title h2,
+.studio-match-title h1,
+.studio-score,
+.comparison-teams,
+.stat-numbers,
+.comparison-track,
+.pitch-toolbar,
+.timeline-wrap,
+.timeline-scroll {
+  direction: ltr;
+}
+
+.timeline {
+  direction: ltr;
+}
+
 .player-summary {
   display: flex;
   flex-wrap: wrap;

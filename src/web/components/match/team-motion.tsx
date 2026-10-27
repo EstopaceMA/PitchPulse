@@ -51,8 +51,8 @@ export function TeamMotion({ data, frame, names, selectedPlayer, onSelect, langu
     return <g data-testid="full-team-layer">
         {players.map(({ playerId, point, active, player }) => {
             const color = teamColor(player.team_id, data.match.home_team_id), chosen = playerId === selectedPlayer;
-            return <g key={playerId} className={`sim-player${chosen ? " chosen" : ""}`} data-player-id={playerId} data-active={active} transform={`translate(${point.x}, ${point.y})`} role="button" tabIndex={0} aria-pressed={chosen} aria-label={`${player.name}, ${player.position ?? tr(language, "player", "manlalaro")}, ${tr(language, "simulated position", "simuladong posisyon")}`} onClick={() => onSelect(playerId)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(playerId); } }}>
-                <title>{`${player.name} · ${player.position ?? ""} · ${tr(language, "Illustrative movement, not tracking", "Halimbawang galaw, hindi tracking")}`}</title>
+            return <g key={playerId} className={`sim-player${chosen ? " chosen" : ""}`} data-player-id={playerId} data-active={active} transform={`translate(${point.x}, ${point.y})`} role="button" tabIndex={0} aria-pressed={chosen} aria-label={`${player.name}, ${player.position ?? tr(language, "player2")}, ${tr(language, "simulatedPosition")}`} onClick={() => onSelect(playerId)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(playerId); } }}>
+                <title>{`${player.name} · ${player.position ?? ""} · ${tr(language, "illustrativeMovementNotTracking")}`}</title>
                 <circle className="player-focus-ring" r="20" fill="none" stroke={chosen ? "#b4f6dc" : color} strokeOpacity={chosen ? 1 : active ? .7 : 0} strokeWidth="1.6" strokeDasharray={chosen ? "3 3" : undefined} />
                 <circle r="15" fill="#101824" stroke={color} strokeWidth={active ? 3 : 1.8} />
                 <circle r="11.5" fill={color} fillOpacity={active ? .7 : .25} />
@@ -73,23 +73,23 @@ export function TeamMotion({ data, frame, names, selectedPlayer, onSelect, langu
 }
 
 function rosterNote(data: MatchData, language: Language): string {
-    const names = tr(language, "Names come directly from the dataset.", "Mula mismo sa dataset ang mga pangalan.");
+    const names = tr(language, "namesComeDirectlyFromTheDataset");
     switch (rosterKind(data)) {
-        case "fictional": return `${names} ${tr(language, "Demo player labels are fictional.", "Kathang-isip ang mga demo na manlalaro.")}`;
-        case "real-simulated": return `${names} ${tr(language, "The players are real, but the match is simulated: none of these events happened.", "Totoo ang mga manlalaro, pero simulado ang laban: hindi talaga nangyari ang mga pangyayaring ito.")}`;
-        case "simulated": return `${names} ${tr(language, "The match is simulated: none of these events happened.", "Simulado ang laban: hindi talaga nangyari ang mga pangyayaring ito.")}`;
+        case "fictional": return `${names} ${tr(language, "demoPlayerLabelsAreFictional")}`;
+        case "real-simulated": return `${names} ${tr(language, "thePlayersAreRealButTheMatchIs")}`;
+        case "simulated": return `${names} ${tr(language, "theMatchIsSimulatedNoneOfTheseEvents")}`;
         default: return names;
     }
 }
 
 export function PlayerRoster({ data, language, selectedPlayer, onSelect, activeIds }: { data: MatchData; language: Language; selectedPlayer: string | null; onSelect: (id: string) => void; activeIds: ReadonlySet<string> }) {
     return <div className="pitch-roster">
-        <details><summary className="pitch-info-summary"><Users size={16} aria-hidden="true" /><span className="pitch-info-title">{tr(language, "Player names & lineups", "Mga pangalan at lineup")}</span><span className="lineup-count">{data.players.length} {tr(language, "players", "manlalaro")}</span><ChevronDown className="disclosure-chevron" size={16} aria-hidden="true" /></summary><div className="lineup-content"><div className="roster-teams">{[data.match.home_team_id, data.match.away_team_id].map(teamId => <section key={teamId} aria-label={`${data.teams.find(t => t.team_id === teamId)?.name} ${tr(language, "lineup", "lineup")}`}>
+        <details><summary className="pitch-info-summary"><Users size={16} aria-hidden="true" /><span className="pitch-info-title">{tr(language, "playerNamesLineups")}</span><span className="lineup-count">{data.players.length} {tr(language, "players")}</span><ChevronDown className="disclosure-chevron" size={16} aria-hidden="true" /></summary><div className="lineup-content"><div className="roster-teams">{[data.match.home_team_id, data.match.away_team_id].map(teamId => <section key={teamId} aria-label={`${data.teams.find(t => t.team_id === teamId)?.name} ${tr(language, "lineup")}`}>
             <h3 style={{ color: teamColor(teamId, data.match.home_team_id) }}>{data.teams.find(t => t.team_id === teamId)?.name}</h3>
-            <ul>{data.players.filter(p => p.team_id === teamId).map(player => <li key={player.player_id}><button type="button" className={player.player_id === selectedPlayer ? "selected" : ""} aria-pressed={player.player_id === selectedPlayer} onClick={() => onSelect(player.player_id)}><span className="roster-number" style={{ color: teamColor(teamId, data.match.home_team_id) }}>{player.shirt_number ?? "•"}</span><span className="roster-name">{player.name}</span>{player.nationality && <span className="roster-nation">{player.nationality}</span>}<span className="roster-position">{player.position ?? "—"}</span>{activeIds.has(player.player_id) && <i className="tiny-dot green" title={tr(language, "Current participant", "Kasalukuyang kasali")} />}</button></li>)}</ul>
+            <ul>{data.players.filter(p => p.team_id === teamId).map(player => <li key={player.player_id}><button type="button" className={player.player_id === selectedPlayer ? "selected" : ""} aria-pressed={player.player_id === selectedPlayer} onClick={() => onSelect(player.player_id)}><span className="roster-number" style={{ color: teamColor(teamId, data.match.home_team_id) }}>{player.shirt_number ?? "•"}</span><span className="roster-name">{player.name}</span>{player.nationality && <span className="roster-nation">{player.nationality}</span>}<span className="roster-position">{player.position ?? "—"}</span>{activeIds.has(player.player_id) && <i className="tiny-dot green" title={tr(language, "currentParticipant")} />}</button></li>)}</ul>
         </section>)}</div>
             <p className="roster-note">{rosterNote(data, language)}</p>
-            {data.disclaimer && <p className="roster-note">{`${tr(language, "Dataset note", "Tala ng dataset")}: ${data.disclaimer}`}</p>}
+            {data.disclaimer && <p className="roster-note">{`${tr(language, "datasetNote")}: ${data.disclaimer}`}</p>}
         </div></details>
     </div>;
 }

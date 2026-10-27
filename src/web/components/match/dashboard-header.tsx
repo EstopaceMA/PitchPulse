@@ -30,9 +30,9 @@ export function DashboardHeader({ data, preferences, source, sourceKind, loading
     return <header className="topbar">
         <div className="topbar-inner">
             <Brand />
-            <nav className="top-navigation" aria-label={tr(l, "Main navigation", "Pangunahing nabigasyon")}>
-                <a href="#main-content" className="active">{tr(l, "Match centre", "Sentro ng laban")}</a>
-                <a href="#insights" onClick={onInsights}>{tr(l, "Insights", "Pagsusuri")}</a>
+            <nav className="top-navigation" aria-label={tr(l, "mainNavigation")}>
+                <a href="#main-content" className="active">{tr(l, "matchCentre")}</a>
+                <a href="#insights" onClick={onInsights}>{tr(l, "insights")}</a>
             </nav>
             <div className="header-preferences"><PreferencesMenu data={data} preferences={preferences} onChange={onChange} compact /></div>
         </div>
@@ -40,18 +40,18 @@ export function DashboardHeader({ data, preferences, source, sourceKind, loading
             <div className="matchbar-inner">
                 <div className="matchbar-controls">
                     <label className="scenario-select">
-                        <span>{tr(l, "Match", "Laban")}</span>
-                        <Select label={tr(l, "Match scenario", "Senaryo ng laban")} title={sourceKind === "upload" ? source : tr(l, "Arsenal vs Chelsea · Synthetic demo", "Arsenal vs Chelsea · Sintetikong demo")} value={sourceKind} disabled={loading} onValueChange={value => { if (value === "demo") onDemo(); }} options={[
-                            { value: "demo", label: tr(l, "Arsenal vs Chelsea · Demo", "Arsenal vs Chelsea · Demo") },
+                        <span>{tr(l, "match")}</span>
+                        <Select label={tr(l, "matchScenario")} title={sourceKind === "upload" ? source : tr(l, "arsenalVsChelseaSyntheticDemo")} value={sourceKind} disabled={loading} onValueChange={value => { if (value === "demo") onDemo(); }} options={[
+                            { value: "demo", label: tr(l, "arsenalVsChelseaDemo") },
                             ...(sourceKind === "upload" ? [{ value: "upload", label: source }] : []),
                         ]} />
                     </label>
-                    <Button variant="outline" className="upload-button" aria-label={tr(l, "Load match", "Mag-load ng laban")} disabled={loading} onClick={onUpload}>
+                    <Button variant="outline" className="upload-button" aria-label={tr(l, "loadMatch")} disabled={loading} onClick={onUpload}>
                         {loading ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Upload aria-hidden="true" />}
-                        <span>{tr(l, "Load match", "Mag-load ng laban")}</span>
+                        <span>{tr(l, "loadMatch")}</span>
                     </Button>
                 </div>
-                <span className={`header-status ${status}`}><span className="tiny-dot" aria-hidden="true" /><span className="sr-only">{tr(l, "Simulation status: ", "Kalagayan ng simulasyon: ")}</span>{statusText}</span>
+                <span className={`header-status ${status}`}><span className="tiny-dot" aria-hidden="true" /><span className="sr-only">{tr(l, "simulationStatus")}</span>{statusText}</span>
             </div>
         </div>
     </header>;

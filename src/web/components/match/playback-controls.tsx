@@ -39,26 +39,26 @@ export function PlaybackControls({ data, state, language, statusText, dispatch, 
         };
     }, []);
 
-    return <section ref={ref} id="playback-controls" className="panel playback-panel" aria-label={tr(l, "Playback controls", "Mga kontrol sa replay")}>
+    return <section ref={ref} id="playback-controls" className="panel playback-panel" aria-label={tr(l, "playbackControls")}>
         <div className="playback-top">
             <div className="transport">
-                <Button variant="ghost" className="reset-button" aria-label={tr(l, "Restart match", "Simulang muli ang laban")} onClick={onRestart}><RotateCcw size={17} /><span>{tr(l, "Reset", "Ulitin")}</span></Button>
-                <Button className="play-button" aria-label={halftime ? tr(l, "Start second half", "Simulan ang ikalawang hati") : complete ? tr(l, "Match completed", "Tapos na ang laban") : playing ? tr(l, "Pause match", "Ihinto ang laban") : tr(l, "Play match", "I-play ang laban")} disabled={complete || data.events.length === 0} onClick={() => dispatch({ type: "toggle" })}>
+                <Button variant="ghost" className="reset-button" aria-label={tr(l, "restartMatch")} onClick={onRestart}><RotateCcw size={17} /><span>{tr(l, "reset")}</span></Button>
+                <Button className="play-button" aria-label={halftime ? tr(l, "startSecondHalf") : complete ? tr(l, "matchCompleted") : playing ? tr(l, "pauseMatch") : tr(l, "playMatch")} disabled={complete || data.events.length === 0} onClick={() => dispatch({ type: "toggle" })}>
                     {playing ? <Pause fill="currentColor" size={15} /> : <Play fill="currentColor" size={15} />}
-                    <span>{halftime ? tr(l, "Start second half", "Ikalawang hati") : playing ? tr(l, "Pause", "Ihinto") : complete ? tr(l, "Completed", "Tapos na") : state.status === "ready" ? tr(l, "Start", "Simulan") : tr(l, "Resume", "Ituloy")}</span>
+                    <span>{halftime ? tr(l, "startSecondHalf2") : playing ? tr(l, "pause") : complete ? tr(l, "completed") : state.status === "ready" ? tr(l, "start") : tr(l, "resume")}</span>
                 </Button>
-                <Button size="icon" variant="ghost" aria-label={tr(l, "Step to next event", "Susunod na aksiyon")} disabled={halftime || complete || data.events.length === 0} onClick={onStep}><SkipForward size={17} /></Button>
-                <span className="playback-time"><b>{formatTime(state.elapsed)}</b><span>/ {formatTime(data.match.duration_seconds)}</span></span>
+                <Button size="icon" variant="ghost" aria-label={tr(l, "stepToNextEvent")} disabled={halftime || complete || data.events.length === 0} onClick={onStep}><SkipForward size={17} /></Button>
+                <span className="playback-time" dir="ltr"><b>{formatTime(state.elapsed)}</b><span>/ {formatTime(data.match.duration_seconds)}</span></span>
             </div>
             <div className="playback-options">
-                <label className="speed-control"><span>{tr(l, "Speed", "Bilis")}</span><Select label={tr(l, "Playback speed", "Bilis ng replay")} value={String(state.speed)} options={[1, 5, 10, 30].map(speed => ({ value: String(speed), label: `${speed}×` }))} onValueChange={value => dispatch({ type: "speed", speed: Number(value) as PlaybackState["speed"] })} /></label>
+                <label className="speed-control"><span>{tr(l, "speed")}</span><Select label={tr(l, "playbackSpeed")} value={String(state.speed)} options={[1, 5, 10, 30].map(speed => ({ value: String(speed), label: `${speed}×` }))} onValueChange={value => dispatch({ type: "speed", speed: Number(value) as PlaybackState["speed"] })} /></label>
                 {timelineControls}
             </div>
         </div>
-        {showTimeline && <div className="timeline-wrap">
+        {showTimeline && <div className="timeline-wrap" dir="ltr">
             <div className="timeline-marker" style={{ left: `${data.match.period_seconds / data.match.duration_seconds * 100}%` }} />
-            <input className="timeline" type="range" min="0" max={data.match.duration_seconds} step="1" value={state.elapsed} aria-label={tr(l, "Match timeline", "Timeline ng laban")} aria-valuetext={`${formatTime(state.elapsed)} ${statusText}`} style={{ "--progress": `${state.elapsed / data.match.duration_seconds * 100}%` } as CSSProperties} onChange={e => onSeek(Number(e.target.value))} />
-            <div className="timeline-labels"><span>00:00</span><span>{tr(l, "HALF-TIME", "PAHINGA")} · {formatTime(data.match.period_seconds)}</span><span>{formatTime(data.match.duration_seconds)}</span></div>
+            <input className="timeline" dir="ltr" type="range" min="0" max={data.match.duration_seconds} step="1" value={state.elapsed} aria-label={tr(l, "matchTimeline")} aria-valuetext={`${formatTime(state.elapsed)} ${statusText}`} style={{ "--progress": `${state.elapsed / data.match.duration_seconds * 100}%` } as CSSProperties} onChange={e => onSeek(Number(e.target.value))} />
+            <div className="timeline-labels"><span>00:00</span><span>{tr(l, "halfTime")} · {formatTime(data.match.period_seconds)}</span><span>{formatTime(data.match.duration_seconds)}</span></div>
         </div>}
     </section>;
 }

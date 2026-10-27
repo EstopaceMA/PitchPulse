@@ -9,7 +9,7 @@ import { tr } from "@/lib/match/presentation";
 import { ruleBasedProvider } from "@/lib/match/insights";
 import { useSimulation } from "@/lib/match/use-simulation";
 import { AgentRequestError, useStudioAgents } from "@/lib/match/use-agents";
-import { saveReview, setLibraryLanguage, useLibrary } from "@/lib/match/use-library";
+import { saveReview, useLibrary } from "@/lib/match/use-library";
 import type { LibraryMatch, MatchAnnotation, Preferences } from "@/lib/match/types";
 import { Pitch } from "./pitch";
 import { EventDetails, EventFeed } from "./event-feed";
@@ -26,25 +26,27 @@ import { StudioNotes } from "./studio-notes";
 import { AgentAnalysisModal, AgentInsights, agentErrorText } from "./agent-insights";
 import { AgentRecapPanel } from "./agent-recap";
 import { AskAnalyst } from "./ask-analyst";
+import { useAppLocale } from "./locale-provider";
 
 export default function Studio({ id, aiAvailable = false }: { id: string; aiAvailable?: boolean }) {
     const library = useLibrary();
+    const { locale: l } = useAppLocale();
     const record = library.matches.find(match => match.id === id);
-    const l = library.language;
-    if (!library.ready) return <div className="studio-loading"><StudioBrand /><p role="status">{tr(l, "Opening your studio…", "Binubuksan ang iyong studio…")}</p></div>;
-    if (!record) return <div className="studio-loading"><StudioBrand /><FolderOpen size={40} /><h1>{tr(l, "This match isn’t in your library", "Wala sa iyong library ang laban")}</h1><p>{tr(l, "Imported games are saved in the browser where you added them. Open your library to import this match again.", "Naka-save ang mga laban sa browser kung saan sila na-import. Buksan ang library upang i-import muli ang laban.")}</p><StorageStatus language={l} /><Link className="open-studio" href="/">{tr(l, "Back to library", "Bumalik sa library")}<ArrowUpRight size={16} /></Link></div>;
+    if (!library.ready) return <div className="studio-loading"><StudioBrand /><p role="status">{tr(l, "openingYourStudio")}</p></div>;
+    if (!record) return <div className="studio-loading"><StudioBrand /><FolderOpen size={40} /><h1>{tr(l, "thisMatchIsnTInYourLibrary")}</h1><p>{tr(l, "importedGamesAreSavedInTheBrowserWhere")}</p><StorageStatus language={l} /><Link className="open-studio" href="/">{tr(l, "backToLibrary")}<ArrowUpRight size={16} /></Link></div>;
     return <MatchStudio key={record.id} record={record} aiAvailable={aiAvailable} />;
 }
 
 function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailable: boolean }) {
+    const { locale: l, setLocale } = useAppLocale();
     const data = record.data;
     const panelId = useId();
     const bodyRef = useRef<HTMLDivElement>(null);
     const viewerRef = useRef<HTMLElement>(null);
     const inspectorRef = useRef<HTMLElement>(null);
-    const library = useLibrary();
     const { state, dispatch, events, stats } = useSimulation(data, record.checkpoint);
-    const [preferences, setPreferences] = useState<Preferences>({ mode: "analyst", language: library.language, team: data.match.home_team_id, player: data.players.find(p => p.team_id === data.match.home_team_id && p.position !== "GK")?.player_id ?? data.players[0]?.player_id ?? "" });
+    const [viewPreferences, setPreferences] = useState<Preferences>({ mode: "analyst", language: l, team: data.match.home_team_id, player: data.players.find(p => p.team_id === data.match.home_team_id && p.position !== "GK")?.player_id ?? data.players[0]?.player_id ?? "" });
+    const preferences = useMemo(() => ({ ...viewPreferences, language: l }), [viewPreferences, l]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [inspector, setInspector] = useState<"details" | "statistics" | "insights" | "ask" | "notes">("statistics");
     const [leftOpen, setLeftOpen] = useState(false);
@@ -57,17 +59,16 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
     const [analysisModalDismissed, setAnalysisModalDismissed] = useState(false);
     const [drafting, setDrafting] = useState(false);
     const [draftStatus, setDraftStatus] = useState("");
-    const l = preferences.language;
     const selected = events.find(e => e.event_id === selectedId);
     const home = data.teams.find(t => t.team_id === data.match.home_team_id)!;
     const away = data.teams.find(t => t.team_id === data.match.away_team_id)!;
     const reachedTime = events.at(-1)?.match_time_seconds ?? 0;
-    const insights = useMemo(() => ruleBasedProvider.generate(data, events, reachedTime), [data, events, reachedTime]);
+    const insights = useMemo(() => ruleBasedProvider.generate(data, events, reachedTime, { preferences }), [data, events, reachedTime, preferences]);
     const ai = useStudioAgents(record.id, data, events, { elapsed: state.elapsed, secondHalf: state.secondHalf, status: state.status }, preferences);
     const aiOn = aiAvailable;
     const analysisModalOpen = pitchAnalysisRequested && !analysisModalDismissed && (ai.analyst.status === "done" || ai.analyst.status === "error");
     const activeInspector = inspector === "ask" && !aiOn ? "insights" : inspector;
-    const statusText = { ready: tr(l, "Ready", "Handa"), playing: tr(l, "Playing", "Naglalaro"), paused: tr(l, "Paused", "Nakahinto"), "half-time": tr(l, "Half-time", "Pahinga"), "full-time": tr(l, "Full-time", "Tapos na") }[state.status];
+    const statusText = { ready: tr(l, "ready"), playing: tr(l, "playing"), paused: tr(l, "paused"), "half-time": tr(l, "halfTime2"), "full-time": tr(l, "fullTime") }[state.status];
     const latest = useRef({ state, annotations });
     useEffect(() => {
         const viewer = viewerRef.current;
@@ -103,7 +104,7 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
     }, [record.id]);
     const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) => {
         setPreferences(p => ({ ...p, [key]: value }));
-        if (key === "language") setLibraryLanguage(value as Preferences["language"]);
+        if (key === "language") { setLocale(value as Preferences["language"]); setPitchAnalysisRequested(false); setAnalysisModalDismissed(true); }
     };
     const inspect = (id: string) => {
         if (!events.some(event => event.event_id === id)) return;
@@ -130,39 +131,39 @@ function MatchStudio({ record, aiAvailable }: { record: LibraryMatch; aiAvailabl
     const draftWithAI = (note: MatchAnnotation) => {
         const language = l;
         setDrafting(true); setDraftStatus("");
-        ai.draftNote(note.anchor).then(text => setDraft(current => current?.id === note.id ? { ...current, text: (current.text.trim() ? `${current.text.trim()}\n\n${text[language]}` : text[language]).slice(0, 4000) } : current),
+        ai.draftNote(note.anchor).then(text => setDraft(current => current?.id === note.id ? { ...current, text: (current.text.trim() ? `${current.text.trim()}\n\n${text}` : text).slice(0, 4000) } : current),
             (error: unknown) => setDraftStatus(agentErrorText(error instanceof AgentRequestError ? error.code : "upstream_error", language)))
             .finally(() => setDrafting(false));
     };
     const showRecap = state.status === "half-time" || state.status === "full-time";
     return <div className="studio-shell" data-left-open={leftOpen} data-right-open={rightOpen}>
-        <a className="skip-link" href={`#${panelId}-viewer`}>{tr(l, "Skip to match", "Lumaktaw sa laban")}</a>
+        <a className="skip-link" href={`#${panelId}-viewer`}>{tr(l, "skipToMatch")}</a>
         <header className="studio-topbar">
-            <Link className="back-library" href="/" aria-label={tr(l, "Back to library", "Bumalik sa library")}><ArrowLeft size={17} /><span>{tr(l, "Library", "Library")}</span></Link>
-            <div className="studio-match-title"><h1><span className="match-team-home">{home.name}</span> <span className="match-versus">vs</span> <span className="match-team-away">{away.name}</span></h1></div>
-            <div className="studio-score" aria-label={`${home.name} ${stats.teams[home.team_id].goals}, ${away.name} ${stats.teams[away.team_id].goals}`} data-testid="score"><span>{stats.teams[home.team_id].goals}</span><b>:</b><span>{stats.teams[away.team_id].goals}</span></div>
+            <Link className="back-library" href="/" aria-label={tr(l, "backToLibrary")}><ArrowLeft size={17} /><span>{tr(l, "library")}</span></Link>
+            <div className="studio-match-title"><h1 dir="ltr"><span className="match-team-home">{home.name}</span> <span className="match-versus">vs</span> <span className="match-team-away">{away.name}</span></h1></div>
+            <div className="studio-score" dir="ltr" aria-label={`${home.name} ${stats.teams[home.team_id].goals}, ${away.name} ${stats.teams[away.team_id].goals}`} data-testid="score"><span>{stats.teams[home.team_id].goals}</span><b>:</b><span>{stats.teams[away.team_id].goals}</span></div>
             <div className="studio-clock"><time data-testid="match-clock">{formatTime(state.elapsed)}</time><span>{statusText}</span></div>
             <div className="studio-topbar-actions"><StorageStatus language={l} /><PreferencesMenu data={data} preferences={preferences} onChange={update} compact /></div>
         </header>
 
         <div ref={bodyRef} className="studio-body" style={layout.style}>
-            <aside id={`${panelId}-browser`} className="studio-browser" hidden={!leftOpen} aria-label={tr(l, "Match browser", "Browser ng laban")}>
+            <aside id={`${panelId}-browser`} className="studio-browser" hidden={!leftOpen} aria-label={tr(l, "matchBrowser")}>
                 <div className="studio-pane-scroll"><EventFeed key={preferences.mode === "player" ? `player:${preferences.player}` : "match"} data={data} events={events} preferences={preferences} selectedId={selected?.event_id ?? null} onSelect={event => inspect(event.event_id)} hideDetails /></div>
             </aside>
             {layout.desktop && leftOpen && <StudioSplitter {...layout.browser} panelId={`${panelId}-browser`} language={l} cancelKey={layout.cancelKey} />}
             <main ref={viewerRef} id={`${panelId}-viewer`} className="studio-viewer">
 
-                <div className="viewer-content"><Pitch compact panelActions={<><Button size="sm" variant="ghost" aria-expanded={leftOpen} aria-controls={`${panelId}-browser`} onClick={() => setLeftOpen(value => !value)}><ListFilter size={14} />{tr(l, "Browser", "Browser")}{leftOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}</Button><Button size="sm" variant="ghost" aria-expanded={rightOpen} aria-controls={`${panelId}-inspector`} onClick={() => setRightOpen(value => !value)}><FilePenLine size={14} />{tr(l, "Inspector", "Tagasuri")}{rightOpen ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}</Button></>} actions={<><Button size="sm" variant="ghost" onClick={() => createAnnotation("note")}><FilePenLine size={14} />{tr(l, "Note", "Tala")}</Button><Button size="sm" variant="ghost" onClick={() => createAnnotation("bookmark")}><Bookmark size={14} />{tr(l, "Bookmark", "Bookmark")}</Button></>} analysis={aiOn ? { disabled: events.length === 0, loading: ai.analyst.status === "loading", onAnalyze: () => { pause(); setSelectedId(null); setPitchAnalysisRequested(true); setAnalysisModalDismissed(false); ai.analyze(); } } : undefined} data={data} events={events} elapsed={state.elapsed} event={selected ?? events.at(-1)} pinned={!!selected} language={l} onLive={() => setSelectedId(null)} />{data.events.length === 0 && <p className="workspace-notice">{tr(l, "This match has no recorded events. Import another dataset to replay a game.", "Walang naitalang pangyayari sa laban. Mag-import ng ibang dataset upang mag-replay.")}</p>}</div>
+                <div className="viewer-content"><Pitch compact panelActions={<><Button size="sm" variant="ghost" aria-expanded={leftOpen} aria-controls={`${panelId}-browser`} onClick={() => setLeftOpen(value => !value)}><ListFilter size={14} />{tr(l, "browser")}{leftOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}</Button><Button size="sm" variant="ghost" aria-expanded={rightOpen} aria-controls={`${panelId}-inspector`} onClick={() => setRightOpen(value => !value)}><FilePenLine size={14} />{tr(l, "inspector")}{rightOpen ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}</Button></>} actions={<><Button size="sm" variant="ghost" onClick={() => createAnnotation("note")}><FilePenLine size={14} />{tr(l, "note")}</Button><Button size="sm" variant="ghost" onClick={() => createAnnotation("bookmark")}><Bookmark size={14} />{tr(l, "bookmark")}</Button></>} analysis={aiOn ? { disabled: events.length === 0, loading: ai.analyst.status === "loading", onAnalyze: () => { pause(); setSelectedId(null); setPitchAnalysisRequested(true); setAnalysisModalDismissed(false); ai.analyze(); } } : undefined} data={data} events={events} elapsed={state.elapsed} event={selected ?? events.at(-1)} pinned={!!selected} language={l} onLive={() => setSelectedId(null)} />{data.events.length === 0 && <p className="workspace-notice">{tr(l, "thisMatchHasNoRecordedEventsImportAnother")}</p>}</div>
 
             </main>
             {layout.desktop && rightOpen && <StudioSplitter {...layout.inspector} panelId={`${panelId}-inspector`} language={l} cancelKey={layout.cancelKey} />}
-            <aside ref={inspectorRef} id={`${panelId}-inspector`} className="studio-inspector" hidden={!rightOpen} aria-label={tr(l, "Analysis inspector", "Tagasuri ng laban")}>
-                <div className="studio-tabs inspector-tabs" role="group" aria-label={tr(l, "Analysis panels", "Mga panel ng pagsusuri")}>{([
-                    ["details", tr(l, "Details", "Detalye")], ["statistics", tr(l, "Stats", "Datos")], ["insights", tr(l, "Insights", "Pagsusuri")], ...(aiOn ? [["ask", tr(l, "Ask", "Magtanong")] as const] : []), ["notes", tr(l, "Notes", "Mga tala")],
+            <aside ref={inspectorRef} id={`${panelId}-inspector`} className="studio-inspector" hidden={!rightOpen} aria-label={tr(l, "analysisInspector")}>
+                <div className="studio-tabs inspector-tabs" role="group" aria-label={tr(l, "analysisPanels")}>{([
+                    ["details", tr(l, "details")], ["statistics", tr(l, "stats")], ["insights", tr(l, "insights")], ...(aiOn ? [["ask", tr(l, "ask2")] as const] : []), ["notes", tr(l, "notes")],
                 ] as const).map(([id, label]) => <button key={id} type="button" aria-pressed={activeInspector === id} onClick={() => setInspector(id)}>{label}{id === "notes" && annotations.length > 0 && <small>{annotations.length}</small>}</button>)}</div>
-                <p className="inspector-perspective">{tr(l, "Perspective", "Pananaw")}: <strong>{perspectiveLabel(preferences.mode, l)}</strong>{preferences.mode === "player" && <span> · {data.players.find(player => player.player_id === preferences.player)?.name ?? tr(l, "No players", "Walang manlalaro")}</span>}</p>
+                <p className="inspector-perspective">{tr(l, "perspective")}: <strong>{perspectiveLabel(preferences.mode, l)}</strong>{preferences.mode === "player" && <span> · {data.players.find(player => player.player_id === preferences.player)?.name ?? tr(l, "noPlayers")}</span>}</p>
                 <div className="studio-pane-scroll">
-                    {activeInspector === "details" && <>{selected ? <EventDetails data={data} event={selected} language={l} id="studio-event-details" /> : <div className="workspace-empty"><ListFilter size={28} /><h2>{tr(l, "A closer look", "Mas malapit na pagtingin")}</h2><p>{tr(l, "Select a reached event in the browser or timeline to inspect its recorded details.", "Pumili ng naabot na pangyayari sa browser o timeline upang suriin ang mga detalye.")}</p></div>}</>}
+                    {activeInspector === "details" && <>{selected ? <EventDetails data={data} event={selected} language={l} id="studio-event-details" /> : <div className="workspace-empty"><ListFilter size={28} /><h2>{tr(l, "aCloserLook")}</h2><p>{tr(l, "selectAReachedEventInTheBrowserOr")}</p></div>}</>}
                     {activeInspector === "statistics" && <><StatisticsPanel data={data} stats={stats} preferences={preferences} /></>}
                     {activeInspector === "insights" && <><InsightsPanel data={data} insights={insights} elapsed={state.elapsed} preferences={preferences} onEvidence={inspect} aiConnected={aiOn} /><AgentInsights preferences={preferences} available={aiAvailable} task={ai.analyst} cursor={events.length} canAnalyze={events.length > 0} onAnalyze={() => { pause(); ai.analyze(); }} onEvidence={inspect} /><CommentaryPanel data={data} events={events} preferences={preferences} onEvidence={inspect} narration={aiOn ? { lines: ai.lines, pending: ai.pending, loading: ai.narrating.loading, errorText: ai.narrating.error ? agentErrorText(ai.narrating.error, l) : undefined, onNarrate: () => { pause(); ai.narrate(); } } : undefined} /></>}
                     {activeInspector === "ask" && <AskAnalyst entries={ai.chat} cursor={events.length} elapsed={state.elapsed} language={l} asking={ai.asking} onAsk={question => { pause(); ai.ask(question); }} onEvidence={inspect} />}

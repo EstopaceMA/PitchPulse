@@ -16,7 +16,7 @@ export class InvalidRequest extends Error { }
 
 const STATUSES: readonly unknown[] = ["ready", "playing", "paused", "half-time", "full-time"] satisfies MatchStatus[];
 const MODES: readonly unknown[] = ["casual", "analyst", "player"] satisfies ViewMode[];
-const LANGUAGES: readonly unknown[] = ["en", "fil"] satisfies Language[];
+const LANGUAGES: readonly unknown[] = ["en", "fil", "es", "pt-BR", "id", "ar", "th"] satisfies Language[];
 const HISTORY_TEXT_LIMIT = 2000;
 const object = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 function check(ok: unknown, message: string): asserts ok { if (!ok) throw new InvalidRequest(message); }
@@ -102,7 +102,7 @@ async function generate<N extends AgentName>(agent: N, request: ParsedRequest, p
         };
     } else if (agent === "commentator") {
         const byId = new Map(request.data.events.map(event => [event.event_id, event]));
-        const payload = { task: "narrate", clock: facts.clock, score: facts.score, teams: facts.teams, narrate: request.narrate.map(id => packet.describe(byId.get(id)!)) };
+        const payload = { task: "narrate", language: request.preferences.language, clock: facts.clock, score: facts.score, teams: facts.teams, narrate: request.narrate.map(id => packet.describe(byId.get(id)!)) };
         addGrounding(grounding, payload);
         input = [message(payload)];
     } else {
