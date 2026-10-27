@@ -1,12 +1,100 @@
 # PitchPulse
 
-A working event-driven football simulator using Next.js, TypeScript, Tailwind, shadcn/ui, Lucide, and self-hosted Inter and JetBrains Mono. No continuous tracking is involved. Optional [Microsoft Foundry analysis agents](#optional-microsoft-foundry-agents) are available when configured; without them, no AI connection or credentials are involved.
+A football match analysis studio for replaying recorded events, exploring tactical patterns, and saving notes. PitchPulse combines deterministic match analysis with [Microsoft Foundry agents](#microsoft-foundry-agents) for tactical insights, recaps, questions, and commentary. The bundled Arsenal vs Chelsea demo uses real squad names in a simulated match.
 
-The visual specification is maintained in [DESIGN.md](src/web/DESIGN.md): a charcoal match library and an editor-style analysis studio with green accents and red/blue team identity. The built-in insights are local and rule-based; the optional agents add separately labeled AI analysis.
+The interface supports seven languages and three perspectives: Casual Fan, Analyst, and Player Focus. Match libraries and notes stay in the browser, which runs replay and rule-based insights locally. The pitch's continuous movement is illustrative. See [DESIGN.md](src/web/DESIGN.md) for the visual specification.
+
+[Architecture](#architecture) · [Development tools](#development-tools) · [Getting started](#getting-started) · [Studio guide](#library-and-studio-guide) · [Foundry agents](#microsoft-foundry-agents) · [Deploy to Azure](#deploy-to-azure)
 
 Repository layout:
+
 - [src/web/](src/web/) is the whole Next.js app: source, tests, scripts, data and its `Dockerfile`. Run npm commands there.
 - [infra/](infra/) (Terraform) and [azure.yaml](azure.yaml) make the repository an Azure Developer CLI template; see [Deploy to Azure](#deploy-to-azure).
+
+## Architecture
+
+The browser runs the replay clock, statistics, illustrative movement, and local insights. Azure Container Apps hosts the Next.js server and API routes. When AI analysis is requested, the browser sends only the events reached so far; the server validates them, calls Microsoft Foundry, and checks the returned numbers and evidence before displaying the response.
+
+```mermaid
+flowchart LR
+    subgraph Browser["Browser"]
+        Studio["Match library and studio<br/>React · TypeScript · next-intl"]
+        Replay["Replay, statistics and local insights"]
+        Storage[("IndexedDB and localStorage")]
+        Studio <--> Replay
+        Studio <--> Storage
+    end
+
+    subgraph Azure["Microsoft Azure"]
+        Web["Azure Container Apps<br/>Next.js server and API routes"]
+        Foundry["Microsoft Foundry Agent Service<br/>Analyst · Recap · Ask · Commentator"]
+        Models["Configured model deployments"]
+        Identity["Microsoft Entra ID<br/>User-assigned managed identity"]
+        Registry["Azure Container Registry<br/>Container builds and images"]
+        Logs["Azure Monitor<br/>Log Analytics workspace"]
+
+        Web <-->|"Reached events and AI responses"| Foundry
+        Foundry --> Models
+        Web -.->|"Authenticates as"| Identity
+        Identity -.->|"Foundry User on the project"| Foundry
+        Identity -.->|"AcrPull on the registry"| Registry
+        Registry -->|"Container image"| Web
+        Web -->|"Application and platform logs"| Logs
+    end
+
+    Studio <-->|"HTTPS · validated API responses"| Web
+    Delivery["Azure Developer CLI + Terraform"] -->|"Provision infrastructure"| Azure
+    Delivery -->|"Build and deploy with azd"| Registry
+```
+
+### Microsoft technology stack
+
+| Technology | Role in PitchPulse | Implementation |
+| --- | --- | --- |
+| **Microsoft Foundry Agent Service** | Hosts four versioned prompt agents with structured outputs. Their model deployments are selected through `FOUNDRY_MODEL_DEPLOYMENT` and the optional fast deployment setting. | [Agent definitions](src/web/lib/agents/definitions.ts), [provisioning script](src/web/scripts/provision-agents.ts) |
+| **Azure AI Projects SDK** (`@azure/ai-projects`) | Connects the server to the Foundry project and invokes agents through the Responses API. | [Foundry client](src/web/lib/foundry/client.ts), [agent runner](src/web/lib/foundry/run-agent.ts) |
+| **Microsoft Entra ID and Azure Identity SDK** (`@azure/identity`) | Authenticates the deployed app with a user-assigned managed identity. Its roles are `AcrPull` on the registry and `Foundry User` on the single Foundry project. | [Identity and role assignments](infra/main.tf), [credential setup](src/web/lib/foundry/client.ts) |
+| **Azure Container Apps** | Runs the Next.js standalone container behind HTTPS, with one warm replica and runtime environment configuration. | [Container App infrastructure](infra/main.tf), [Dockerfile](src/web/Dockerfile) |
+| **Azure Container Registry** | Builds the production container remotely and stores the images deployed to Container Apps. | [Azure service definition](azure.yaml), [registry infrastructure](infra/main.tf) |
+| **Azure Monitor / Log Analytics** | Collects Container Apps logs for operational checks and troubleshooting. | [Logging configuration](infra/main.tf) |
+| **Azure Cost Management** | Provides an optional monthly budget alert for the Foundry resource group. | [Budget configuration](infra/main.tf) |
+| **Azure Developer CLI (`azd`) and Azure CLI** | Coordinate provisioning, deployment, local Azure sign-in, and operational commands. Terraform declares the infrastructure. | [Azure template](azure.yaml), [deployment guide](#deploy-to-azure) |
+| **TypeScript** | Defines typed contracts across the React interface, match engine, validation, and Foundry integration. | [App configuration](src/web/tsconfig.json), [match contracts](src/web/lib/match/types.ts) |
+
+The application layer uses **Next.js App Router, React, Tailwind CSS, shadcn/ui with Base UI, Lucide, and next-intl**. Inter and JetBrains Mono are self-hosted. Browser persistence uses IndexedDB for matches and notes, localStorage for the fan profile, and a cookie for language selection. The deployed architecture is defined in [infra/](infra/); the application dependencies are listed in [package.json](src/web/package.json).
+
+## Development tools
+
+| Tool | Use in development |
+| --- | --- |
+| **GitHub** | Repository hosting, version control, collaboration, and code review. |
+| **GitHub Copilot** | AI assistance with code authoring, explanations, and refactoring during development. |
+| **Visual Studio Code (VS Code)** | Editor for the TypeScript and React application, debugging, and integrated terminal workflows. |
+| **Node.js and npm** | Local runtime, dependency installation, development server, and project scripts. |
+| **Docker and Terraform** | Reproducible application packaging and declarative Azure infrastructure. |
+| **Node.js test runner, tsx, and ESLint** | Automated domain and component checks, TypeScript test execution, and linting. |
+
+The development workflow uses GitHub Copilot alongside VS Code; the application's AI analysis runs through Microsoft Foundry. Contributor instructions live in [AGENTS.md](AGENTS.md) and [src/web/AGENTS.md](src/web/AGENTS.md).
+
+## Getting started
+
+Use Node.js 22 or later. If you use nvm, `nvm use` in `src/web` reads the repository's [.nvmrc](src/web/.nvmrc).
+
+```bash
+cd src/web
+npm ci
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to explore the bundled demo. Follow the [Foundry setup](#microsoft-foundry-agents) to configure the analysis agents.
+
+Run the verification commands from `src/web` before submitting application changes:
+
+```bash
+npm test
+npm run lint
+npm run build
+```
 
 ## Library and studio guide
 
@@ -15,7 +103,7 @@ Repository layout:
 - Each match opens at `/studio/[id]`. Reopening restores the exact last saved event cursor and clock, paused; ready, half-time, and full-time retain their boundary states. Unknown IDs offer a return to the library.
 - Desktop gives the pitch most of the workspace, with the event browser collapsed initially, a narrow inspector, and compact playback/timeline controls. **Browser** in the pitch toolbar reopens the event list; **Inspector** toggles analysis; **View** in the pitch header opens visualization, fit/detail, and name settings. Narrow screens stack analysis below the pitch and retain one playback dock with safe-area spacing.
 - Above 900px, drag the divider beside Browser or Inspector to resize it. Arrow keys move a focused divider by 10px (Shift: 50px); Home/End select its minimum/maximum width. Enter or double-click restores its responsive default; Escape cancels a drag. Widths are remembered for the mounted studio, including closing/reopening panels, and reset on a fresh visit. Smaller windows temporarily reduce panel widths to keep at least 360px for the pitch; the preferred widths return when space allows. Mobile keeps the stacked layout without splitters.
-- The inspector provides a plain-language story, event details, statistics, local insights/commentary, and notes. Half/full-time recaps appear there. New games default to Analyst; Casual Fan and Player Focus remain available under **Preferences → Perspective**, with the active perspective shown above the inspector content. When Foundry is configured, an **Ask** tab appears as well.
+- The inspector provides a plain-language story, event details, statistics, local insights/commentary, and notes. Half/full-time recaps appear there. New games default to Analyst; Casual Fan and Player Focus remain available under **Preferences → Perspective**, with the active perspective shown above the inspector content. The **Ask** tab connects to Foundry for questions about the reached match.
 - The perspectives are different layouts, not just different wording:
   - **Casual Fan** opens on **Story**: a large score and the latest goals, big chances and swings in one plain sentence each, with favorite-team moments highlighted. The timeline's dense event tracks are hidden.
   - **Analyst** adds a **Pitch layer** select (a shot map sized by the illustrative synthetic xG, or long and difficult passes), completion by difficulty band in **Stats**, and a CSV/JSON export of the statistics so far.
@@ -37,7 +125,7 @@ Repository layout:
 - The pitch starts in **Full-team simulation**, **Fit pitch**, with player names enabled. **Detailed view** supports horizontal scrolling; selecting a player or lineup entry shows their details. All movement is deterministic and illustrative, driven by the shared replay clock.
 - **Recorded events** displays only supplied positions. Missing shot endpoints are never invented. Pause/boundary states freeze movement; reduced motion uses event snapshots. A visible pitch disclosure identifies illustrative movement and what the dataset says about its players: fictional demo players, or real squad names in a simulated match, as in the bundled demo. **About this view** expands the legend, interaction hints, and detailed data limitations. Raw event IDs remain available in event details. The demo's events are never presented as an actual fixture.
 
-## Data and architecture
+## Match data and implementation
 
 The default source is [public/arsenal-vs-chelsea-match.json](src/web/public/arsenal-vs-chelsea-match.json). The match API imports this copy and validates it before sending it to the simulator. No parent-folder dataset or expanded Turbopack root is required. As with any public asset, the original JSON is also directly downloadable; its raw summaries are not used by live panels.
 
@@ -104,9 +192,9 @@ Insights use 300-second windows, 180-second per-rule/team/player cooldowns, and 
 - **Shot droughts** report a team's first shot after 12 minutes or more without one.
 - **Territory shifts** fire when a team's share of both teams' attacking-third actions moves from 45% or less to 60% or more between the two windows, with at least six actions in each.
 
-`InsightProvider` is the Microsoft Foundry boundary. `ruleBasedProvider` is local, deterministic and always on. `foundryInsightProvider` is the remote implementation. It calls a server route that keeps credentials private, accepts only processed events and returns typed, verified evidence. Foundry is called only when AI analysis is configured and a button is pressed.
+`InsightProvider` is the Microsoft Foundry boundary. `ruleBasedProvider` is local, deterministic and always on. `foundryInsightProvider` is the remote implementation. It calls a server route that keeps credentials private, accepts only processed events and returns typed, verified evidence. AI requests follow an explicit action or the auto-explain preference described below.
 
-## Optional Microsoft Foundry agents
+## Microsoft Foundry agents
 
 Four Foundry Agent Service prompt agents add AI analysis. Each runs only on demand and pauses playback first. The one exception is opt-in: **Preferences → Explain key moments automatically** (off by default, session-only) sends each newly reached goal or shot on target to the Live Commentator without pausing, up to 10 times per studio session.
 
@@ -142,7 +230,7 @@ Setup (requires Node 22 or later, for example via `nvm use`):
 When a recap or answer fails verification, or every card or line is removed, the agent gets one corrective retry that names the failed checks. The server logs removal reasons as `[agents/<name>] removed by verification: …`. With `gpt-5-mini`, a turn takes roughly 15–45 seconds; the route allows up to 115 seconds.
 
 Data and limits:
-- AI controls are available whenever Foundry is configured. Every AI request requires a button press, a question, or the opt-in auto-explain toggle.
+- The pitch and inspector provide the AI controls. Every AI request requires a button press, a question, or the opt-in auto-explain toggle.
 - When used, the match's reached events, your question and earlier visible answers are sent to your Foundry project, where responses are stored. Note text is never sent.
 - AI results live in session memory only.
 - The route accepts same-origin requests up to 10 MB, with a best-effort per-instance rate limit.
@@ -234,7 +322,7 @@ azd up
 
 | Setting | Effect |
 | --- | --- |
-| `FOUNDRY_PROJECT_ENDPOINT` | Turns AI analysis on and gives the app's identity access to that project. Leave it unset to deploy without AI. |
+| `FOUNDRY_PROJECT_ENDPOINT` | Connects AI analysis to the Foundry project and gives the app's identity access to that project. |
 | `FOUNDRY_AGENT_VERSION` | Pins all four agents to one provisioned version. Unset uses each agent's latest version. |
 | `AI_BUDGET_AMOUNT` | Monthly cost alert in US dollars on the Foundry resource group. The default is 25; 0 creates none. |
 
@@ -257,33 +345,3 @@ Notes:
     az acr build --registry "$AZURE_CONTAINER_REGISTRY_NAME" --image "pitchpulse/web-$AZURE_ENV_NAME:$TAG" src/web
     az containerapp update -n "$SERVICE_WEB_NAME" -g "$AZURE_RESOURCE_GROUP" --image "$AZURE_CONTAINER_REGISTRY_ENDPOINT/pitchpulse/web-$AZURE_ENV_NAME:$TAG"
     ```
-
-## Getting Started
-
-From `src/web`, use Node 22 or later (`nvm use` reads [.nvmrc](src/web/.nvmrc)), install with `npm ci`, then run the development server:
-
-```bash
-cd src/web
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `src/web/app/page.tsx`. The page auto-updates as you edit the file.
-
-Inter is self-hosted through `@fontsource-variable/inter`; metric values use self-hosted `@fontsource/jetbrains-mono`. No external font request is required.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
