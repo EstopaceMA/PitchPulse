@@ -44,7 +44,7 @@ describe("agent match packet", () => {
                 assert.equal(packet.catalog.get(`${id}.total.${key}`)?.value, String(metrics[key]), `${id}.total.${key}`);
                 assert.equal(packet.catalog.get(`${id}.total.${key}`)?.evidence.length, metrics[key]);
             }
-            assert.equal(packet.catalog.get(`${id}.total.pass_accuracy`)?.value, `${accuracy(metrics).toFixed(1)}%`);
+            assert.equal(packet.catalog.get(`${id}.total.pass_accuracy`)?.value, metrics.passes_attempted ? `${accuracy(metrics).toFixed(1)}%` : undefined);
         }
         assert.deepEqual(packet.facts.score, Object.fromEntries(data.teams.map(team => [team.team_id, stats.teams[team.team_id].goals])));
     });

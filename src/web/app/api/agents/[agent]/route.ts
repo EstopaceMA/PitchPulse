@@ -1,6 +1,6 @@
 import { isAgentName, type AgentErrorCode, type AgentResult } from "@/lib/agents/contracts";
 import { handleAgentRequest } from "@/lib/agents/handle";
-import { clientAddress, createRateLimiter } from "@/lib/agents/rate-limit";
+import { clientAddress, createRateLimiter, sameOrigin } from "@/lib/agents/rate-limit";
 import { agentReference, foundryResponses, foundryStatus } from "@/lib/foundry/client";
 import { runAgent } from "@/lib/foundry/run-agent";
 
@@ -16,24 +16,20 @@ const STATUS: Record<AgentErrorCode, number> = { invalid_request: 400, unverifia
 // Best-effort and per server instance, which is why production runs a single replica.
 const limiter = createRateLimiter(RATE_LIMIT, RATE_WINDOW_MS);
 
-/** Browsers always send Origin on POST; a mismatching one is another site spending this project's tokens. */
-function sameOrigin(request: Request): boolean {
-    const origin = request.headers.get("origin");
-    if (!origin) return true;
-    try { return new URL(origin).host === (request.headers.get("x-forwarded-host") ?? request.headers.get("host")); } catch { return false; }
-}
-
 const failure = (agent: string, error: AgentErrorCode, message: string, status = STATUS[error]) => Response.json({ ok: false, agent, error, message }, { status });
 
 export async function POST(request: Request, context: RouteContext<"/api/agents/[agent]">) {
     const { agent } = await context.params;
     if (!isAgentName(agent)) return failure(agent, "invalid_request", "Unknown agent.", 404);
-    if (!sameOrigin(request)) return failure(agent, "invalid_request", "Cross-origin requests are not accepted.", 403);
+    if (!sameOrigin(request.headers)) return failure(agent, "invalid_request", "Cross-origin requests are not accepted.", 403);
     if (!foundryStatus().configured) return failure(agent, "not_configured", "Microsoft Foundry agents are not configured on this server.");
     if (limiter.limited(clientAddress(request.headers), Date.now())) return failure(agent, "rate_limited", "Too many AI requests. Try again in a few minutes.");
-    if (Number(request.headers.get("content-length") ?? 0) > BODY_LIMIT) return failure(agent, "invalid_request", "The request is larger than 10 MB.", 413);
+    // Browsers always send Content-Length for a string body; without it a streamed body would be read in full first.
+    const length = request.headers.get("content-length");
+    if (length === null) return failure(agent, "invalid_request", "Content-Length is required.", 411);
+    if (Number(length) > BODY_LIMIT) return failure(agent, "invalid_request", "The request is larger than 10 MB.", 413);
+    // Node stops reading at Content-Length, so the body can be no larger than the header allowed.
     const text = await request.text();
-    if (text.length > BODY_LIMIT) return failure(agent, "invalid_request", "The request is larger than 10 MB.", 413);
     let body: unknown;
     try { body = JSON.parse(text); } catch { return failure(agent, "invalid_request", "The request body must be JSON."); }
 

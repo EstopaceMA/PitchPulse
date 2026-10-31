@@ -363,149 +363,14 @@ button:disabled {
   top: 12px;
 }
 
-/* Navigation and match actions have separate, predictable rows. */
-.topbar {
-  border-bottom: 1px solid var(--border);
-  background: var(--background);
-}
-
-.topbar-inner {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 32px;
-  max-width: 1600px;
-  min-height: 72px;
-  margin: auto;
-  padding: 12px 32px;
-}
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  color: var(--foreground);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -.06em;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.brand-light {
-  font-weight: 400;
-}
-
-.brand-period,
 .purple-text {
   color: var(--primary);
 }
 
-.brand-mark {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--primary);
-  background: var(--hover);
-}
-
-.top-navigation {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 24px;
-}
-
-.top-navigation a {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  border-bottom: 2px solid transparent;
-  color: var(--muted-foreground);
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.top-navigation a:hover {
-  color: var(--foreground);
-}
-
-.top-navigation a.active {
-  border-bottom-color: var(--accent);
-  color: var(--accent);
-}
-
-.matchbar {
-  border-top: 1px solid var(--border);
-  background: var(--surface-inset);
-}
-
-.matchbar-inner {
-  display: grid;
-  grid-template-columns: minmax(0, 520px) auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px 24px;
-  max-width: 1600px;
-  margin: auto;
-  padding: 12px 32px;
-}
-
-.matchbar-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.scenario-select {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  flex: 1;
-  gap: 16px;
-  min-width: 0;
-}
-
-.scenario-select>span,
 .select-field>span {
   color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 500;
-}
-
-.matchbar .upload-button {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.header-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  color: var(--muted-foreground);
-  font-size: 12px;
-}
-
-.header-status.playing,
-.header-status.full-time {
-  color: var(--primary);
-}
-
-.header-status.paused,
-.header-status.half-time {
-  color: var(--warning);
 }
 
 .demo-tag,
@@ -520,17 +385,10 @@ button:disabled {
   font-weight: 600;
 }
 
-.upload-button,
 .personalize-button {
   padding: 10px 12px;
   color: var(--foreground);
   font-size: 12px;
-}
-
-.header-preferences {
-  min-width: 0;
-  max-width: 100%;
-  justify-self: end;
 }
 
 .preferences-anchor {
@@ -654,12 +512,6 @@ button:disabled {
 }
 
 /* Independent rows: an expanded pitch/roster cannot stretch sidebar spacing. */
-.dashboard {
-  max-width: 1600px;
-  margin: auto;
-  padding: 24px 32px 0;
-}
-
 .match-workspace,
 .main-stage {
   display: grid;
@@ -824,8 +676,7 @@ button:disabled {
 }
 
 .heading-icon>svg,
-.pitch-heading-status svg,
-.matchbar-controls svg {
+.pitch-heading-status svg {
   flex-shrink: 0;
 }
 
@@ -2775,12 +2626,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 
 @media (max-width: 1100px) {
 
-  .topbar-inner,
-  .matchbar-inner,
-  .dashboard {
-    padding-inline: 24px;
-  }
-
   .match-overview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2854,23 +2699,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 
   .app-shell {
     padding-bottom: calc(var(--playback-dock-height, 300px) + 24px);
-  }
-
-  .topbar-inner {
-    gap: 16px;
-    padding: 12px 16px;
-  }
-
-  .matchbar-inner {
-    padding: 12px 16px;
-  }
-
-  .top-navigation {
-    gap: 8px 16px;
-  }
-
-  .dashboard {
-    padding: 20px 16px 0;
   }
 
   .match-overview {
@@ -2985,63 +2813,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 }
 
 @media (max-width: 640px) {
-  .topbar-inner {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px 16px;
-  }
-
-  .top-navigation {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    gap: 24px;
-  }
-
-  .header-preferences {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .header-preferences .personalize-button {
-    width: 44px;
-    padding: 10px;
-  }
-
-  .header-preferences .personalize-button>span,
-  .header-preferences .personalize-button>svg:last-child {
-    display: none;
-  }
-
-  .header-preferences .personalize-button>svg:first-child {
-    width: 20px;
-    height: 20px;
-  }
-
-  .matchbar-inner {
-    gap: 8px;
-  }
-
-  .matchbar-controls {
-    display: contents;
-  }
-
-  .scenario-select {
-    grid-column: 1 / -1;
-    gap: 12px;
-  }
-
-  .matchbar .upload-button {
-    grid-column: 1;
-    justify-self: start;
-  }
-
-  .header-status {
-    margin-left: auto;
-  }
-
-  .matchbar-inner {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
   .match-meta {
     padding: 12px 16px;
   }
@@ -3118,13 +2889,6 @@ details[open]>.pitch-info-summary .disclosure-chevron {
 
 @media (max-width: 380px) {
 
-  .topbar-inner,
-  .matchbar-inner,
-  .dashboard {
-    padding-inline: 12px;
-  }
-
-  .upload-button,
   .personalize-button {
     padding-inline: 8px;
   }

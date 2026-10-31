@@ -1,6 +1,7 @@
 import type { MatchData, MatchEvent, Position, PlaybackCheckpoint } from "./types";
 
-export type MatchStatus = "ready" | "playing" | "paused" | "half-time" | "full-time";
+export const MATCH_STATUSES = ["ready", "playing", "paused", "half-time", "full-time"] as const;
+export type MatchStatus = (typeof MATCH_STATUSES)[number];
 export interface PlaybackState { elapsed: number; cursor: number; status: MatchStatus; speed: number; secondHalf: boolean }
 export type PlaybackAction = { type: "toggle" } | { type: "restart" } | { type: "restore"; checkpoint: PlaybackCheckpoint } | { type: "speed"; speed: number } | { type: "tick"; seconds: number } | { type: "seek"; elapsed: number } | { type: "step" };
 export const initialPlayback = (): PlaybackState => ({ elapsed: 0, cursor: 0, status: "ready", speed: 5, secondHalf: false });
@@ -10,7 +11,7 @@ export function validCheckpoint(data: MatchData, value: unknown): value is Playb
     if (!value || typeof value !== "object") return false;
     const p = value as PlaybackCheckpoint;
     const half = data.match.period_seconds, end = data.match.duration_seconds;
-    if (!Number.isFinite(p.elapsed) || p.elapsed < 0 || p.elapsed > end || !Number.isInteger(p.cursor) || p.cursor < 0 || p.cursor > data.events.length || typeof p.secondHalf !== "boolean" || ![1, 5, 10, 30].includes(p.speed) || !["ready", "playing", "paused", "half-time", "full-time"].includes(p.status)) return false;
+    if (!Number.isFinite(p.elapsed) || p.elapsed < 0 || p.elapsed > end || !Number.isInteger(p.cursor) || p.cursor < 0 || p.cursor > data.events.length || typeof p.secondHalf !== "boolean" || ![1, 5, 10, 30].includes(p.speed) || !(MATCH_STATUSES as readonly string[]).includes(p.status)) return false;
     if (p.secondHalf ? p.elapsed < half : p.elapsed > half) return false;
     const previous = data.events[p.cursor - 1], next = data.events[p.cursor];
     if (previous && (previous.match_time_seconds > p.elapsed || (!p.secondHalf && previous.period === 2))) return false;

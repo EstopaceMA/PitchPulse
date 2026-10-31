@@ -1,7 +1,14 @@
 /**
- * Best-effort, per-server-instance limiting for the agents route. There are no accounts, so clients are keyed by
- * the address the hosting proxy saw.
+ * Request checks for the agents route: same-origin, and best-effort, per-server-instance limiting. There are no
+ * accounts, so clients are keyed by the address the hosting proxy saw.
  */
+
+/** Browsers always send Origin on POST; a mismatching one is another site spending this project's tokens. */
+export function sameOrigin(headers: Headers): boolean {
+    const origin = headers.get("origin");
+    if (!origin) return true;
+    try { return new URL(origin).host === (headers.get("x-forwarded-host") ?? headers.get("host")); } catch { return false; }
+}
 
 /**
  * The client address as reported by the platform proxy. Azure Container Apps appends the address it observed to
