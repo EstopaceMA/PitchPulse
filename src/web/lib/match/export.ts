@@ -7,7 +7,7 @@ export function statisticsRows(data: MatchData, stats: Statistics) {
     const row = (scope: "team" | "player", id: string, name: string, teamId: string, m: Metrics, q: Quality) => ({
         scope, id, name, team_id: teamId,
         goals: m.goals, shots: m.shots, shots_on_target: m.shots_on_target, passes_attempted: m.passes_attempted, passes_completed: m.passes_completed,
-        pass_accuracy_pct: Number(accuracy(m).toFixed(1)), tackles_won: m.tackles_won, pressure_events: m.pressure_events, actions: m.actions,
+        pass_accuracy_pct: m.passes_attempted ? Number(accuracy(m).toFixed(1)) : null, tackles_won: m.tackles_won, pressure_events: m.pressure_events, actions: m.actions,
         long_passes_completed: q.long_passes_completed, long_passes_attempted: q.long_passes_attempted,
         difficult_passes_completed: q.difficult_passes_completed, difficult_passes_attempted: q.difficult_passes_attempted,
         // Synthetic dataset values; null when the prefix has no sample.

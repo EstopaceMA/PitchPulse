@@ -21,7 +21,8 @@ export function validateMatch(raw: unknown): MatchData {
         teamIds.add(team.team_id);
     }
     requireValue(text(match.home_team_id) && text(match.away_team_id) && teamIds.has(match.home_team_id) && teamIds.has(match.away_team_id) && match.home_team_id !== match.away_team_id, "Home and away team IDs must reference the two different teams.");
-    requireValue(Array.isArray(players), 'Missing required "players" array.');
+    // Agent verification scans every player name per text field, so an uncapped roster is quadratic server work.
+    requireValue(Array.isArray(players) && players.length <= 200, 'A "players" array with at most 200 entries is required.');
     const playerTeams = new Map<string, string>();
     for (const player of players) {
         requireValue(object(player) && text(player.player_id) && text(player.name) && text(player.team_id) && teamIds.has(player.team_id), "Every player needs a player_id, name, and valid team_id.");

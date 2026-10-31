@@ -1,5 +1,6 @@
+import { isLocale } from "@/lib/i18n/locales";
 import { isMeaningful } from "@/lib/match/commentary";
-import type { MatchStatus } from "@/lib/match/playback";
+import { MATCH_STATUSES, type MatchStatus } from "@/lib/match/playback";
 import type { Language, MatchData, Preferences, ViewMode } from "@/lib/match/types";
 import { validateMatch } from "@/lib/match/validation";
 import { ASK_HISTORY_LIMIT, ASK_QUESTION_LIMIT, NARRATE_LIMIT, type AgentChatTurn, type AgentErrorCode, type AgentName, type AgentOutputs, type AgentResult } from "./contracts";
@@ -14,9 +15,7 @@ export interface AgentDependencies { run: AgentRunner; signal?: AbortSignal; log
 
 export class InvalidRequest extends Error { }
 
-const STATUSES: readonly unknown[] = ["ready", "playing", "paused", "half-time", "full-time"] satisfies MatchStatus[];
 const MODES: readonly unknown[] = ["casual", "analyst", "player"] satisfies ViewMode[];
-const LANGUAGES: readonly unknown[] = ["en", "fil", "es", "pt-BR", "id", "ar", "th"] satisfies Language[];
 const HISTORY_TEXT_LIMIT = 2000;
 const object = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 function check(ok: unknown, message: string): asserts ok { if (!ok) throw new InvalidRequest(message); }
@@ -33,8 +32,8 @@ function parseRequest(agent: AgentName, body: unknown): ParsedRequest {
     check(Number.isInteger(cursor) && (cursor as number) >= 0, "cursor must be a non-negative integer.");
     check(typeof elapsed === "number" && Number.isFinite(elapsed) && elapsed >= 0, "elapsed must be a non-negative number.");
     check(typeof secondHalf === "boolean", "secondHalf must be a boolean.");
-    check(STATUSES.includes(status), "Unsupported playback status.");
-    check(object(preferences) && MODES.includes(preferences.mode) && LANGUAGES.includes(preferences.language) && typeof preferences.team === "string" && typeof preferences.player === "string", "Invalid preferences.");
+    check((MATCH_STATUSES as readonly unknown[]).includes(status), "Unsupported playback status.");
+    check(object(preferences) && MODES.includes(preferences.mode) && isLocale(preferences.language) && typeof preferences.team === "string" && typeof preferences.player === "string", "Invalid preferences.");
     let data: MatchData;
     try { data = validateMatch(body.match); } catch (error) { throw new InvalidRequest(error instanceof Error ? error.message : "Invalid match."); }
     const at = elapsed as number, half = data.match.period_seconds;

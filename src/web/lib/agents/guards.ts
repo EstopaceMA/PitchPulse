@@ -133,7 +133,7 @@ function stripCitations(text: string, grounding: Grounding): string {
     return leading && cited([leading[1]]) ? inline.slice(leading[0].length) : inline;
 }
 
-function text(value: unknown, limit: number, grounding: Grounding, field: string, declining = false): string {
+function verifiedText(value: unknown, limit: number, grounding: Grounding, field: string, declining = false): string {
     const trimmed = typeof value === "string" ? stripCitations(value, grounding).trim() : "";
     if (!trimmed) return reject(`${field} is missing`);
     if (trimmed.length > limit) return reject(`${field} is longer than ${limit} characters`);
@@ -144,9 +144,6 @@ function text(value: unknown, limit: number, grounding: Grounding, field: string
     if (reference !== null) return reject(`${field} contains the internal reference ${reference}; use plain words instead`);
     const unseen = ungrounded(trimmed, grounding);
     return unseen === null ? trimmed : reject(`${field} uses ${unseen}, which does not appear in the data`);
-}
-function verifiedText(value: unknown, limit: number, grounding: Grounding, field: string, declining = false): string {
-    return text(value, limit, grounding, field, declining);
 }
 /** Known catalog keys only; at least one must survive. */
 function metricKeys(value: unknown, packet: MatchPacket): string[] {

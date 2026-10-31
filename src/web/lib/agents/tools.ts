@@ -78,7 +78,7 @@ function statsOf(context: ToolContext, scope: "team" | "player", id: string, eve
         ...(scope === "player" ? { actions: metrics.actions } : {}),
         goals: metrics.goals, shots: metrics.shots, shots_on_target: metrics.shots_on_target,
         passes_attempted: metrics.passes_attempted, passes_completed: metrics.passes_completed,
-        pass_accuracy: `${accuracy(metrics).toFixed(1)}%`,
+        pass_accuracy: metrics.passes_attempted ? `${accuracy(metrics).toFixed(1)}%` : null,
         tackles_won: metrics.tackles_won, pressure_events: metrics.pressure_events, recoveries,
         ...(scope === "team" ? { turnovers: events.filter(event => isRecovery(event) && event.from_team_id === id && event.team_id !== id).length } : {}),
         long_passes_attempted: quality.long_passes_attempted, long_passes_completed: quality.long_passes_completed,

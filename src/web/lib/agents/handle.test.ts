@@ -6,6 +6,8 @@ import { countReached, type MatchStatus } from "../match/playback";
 import { aggregate } from "../match/statistics";
 import { validateMatch } from "../match/validation";
 import { handleAgentRequest, type AgentRunner } from "./handle";
+import { buildMatchPacket } from "./packet";
+import { executeTool } from "./tools";
 
 const raw = JSON.parse(readFileSync(new URL("../../public/arsenal-vs-chelsea-match.json", import.meta.url), "utf8"));
 const data = validateMatch(raw);
@@ -94,6 +96,14 @@ describe("agent request handling", () => {
         assert.equal((toolOutput as { stats: { actions: number } }).stats.actions, actions, "tools never count events beyond the prefix");
         assert.equal((toolOutput as { window: string }).window, "00:00–50:00");
         assert.equal(result.result.eventIds.length, 2);
+    });
+
+    test("get_stats reports no pass accuracy, not 0%, before any pass", () => {
+        const events = data.events.slice(0, countReached(data.events, 0, false));
+        const packet = buildMatchPacket(data, events, { elapsed: 0, secondHalf: false, status: "ready" });
+        const output = executeTool({ data, events, packet }, "get_stats", JSON.stringify({ scope: "team", id: home, from_seconds: null, to_seconds: null })) as { stats: { passes_attempted: number; pass_accuracy: string | null } };
+        assert.equal(output.stats.passes_attempted, 0);
+        assert.equal(output.stats.pass_accuracy, null);
     });
 
     test("Ask rejects context produced beyond the current cursor", async () => {

@@ -247,6 +247,8 @@ export function buildMatchPacket(data: MatchData, events: readonly MatchEvent[],
             emit(`${prefix}.${metric}`, label, `${value.toFixed(1)} ${source.unit}`, source.max ? [found.maxId] : found.ids, from, to, owner);
         } else if (metric === "pass_accuracy") {
             const attempted = ids(`${prefix}.passes_attempted`);
+            // No attempts means no rate, not 0%: like the sampled values, the metric is left out.
+            if (!attempted.length) return;
             const rate = accuracy({ ...emptyMetrics(), passes_attempted: attempted.length, passes_completed: ids(`${prefix}.passes_completed`).length });
             emit(`${prefix}.${metric}`, label, `${rate.toFixed(1)}%`, attempted, from, to, owner);
         } else emit(`${prefix}.${metric}`, label, String(ids(`${prefix}.${metric}`).length), ids(`${prefix}.${metric}`), from, to, owner);

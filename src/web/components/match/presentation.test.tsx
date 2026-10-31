@@ -7,7 +7,6 @@ import { validateMatch } from "@/lib/match/validation";
 import { Pitch } from "./pitch";
 import { PlaybackControls } from "./playback-controls";
 import { PreferencesMenu, PerspectiveSelect } from "./view-controls";
-import { DashboardHeader } from "./dashboard-header";
 import { Select } from "@/components/ui/select";
 import type { Preferences } from "@/lib/match/types";
 
@@ -107,39 +106,6 @@ test("event simulator transport shows Start, Pause, Resume and Reset labels", ()
     assert.match(controls(initialPlayback()), />Reset<\/span>/);
     assert.match(controls({ ...initialPlayback(), status: "playing" }), />Pause<\/span>/);
     assert.match(controls({ ...initialPlayback(), status: "paused" }), />Resume<\/span>/);
-});
-
-function header(language: Preferences["language"] = "en", uploaded = false, loading = false) {
-    return renderToStaticMarkup(<DashboardHeader data={data} preferences={{ ...preferences, language }} source="custom-match.json" sourceKind={uploaded ? "upload" : "demo"} loading={loading} status="ready" statusText={language === "en" ? "Ready" : "Handa"} onChange={noop} onUpload={noop} onDemo={noop} onInsights={noop} />);
-}
-
-test("header separates navigation from match actions without duplicate language or upload controls", () => {
-    const html = header();
-    const navigation = html.slice(0, html.indexOf('class="matchbar"'));
-    const matchbar = html.slice(html.indexOf('class="matchbar"'));
-    assert.match(navigation, /Main navigation/);
-    assert.match(navigation, /aria-label="Preferences"/);
-    assert.doesNotMatch(navigation, /<select|Load match|Match scenario/);
-    assert.match(matchbar, /aria-label="Match scenario"/);
-    assert.match(matchbar, /aria-label="Load match"/);
-    assert.match(matchbar, /Simulation status: /);
-    assert.equal((html.match(/role="combobox"/g) ?? []).length, 1);
-    assert.equal((html.match(/aria-label="Load match"/g) ?? []).length, 1);
-    assert.doesNotMatch(html, /choose-upload|Language \/ Wika/);
-});
-
-test("compact header retains translated labels and an accessible settings trigger", () => {
-    const html = header("fil");
-    for (const label of ["Pangunahing nabigasyon", "Sentro ng laban", "Pagsusuri", "Mga setting", "Senaryo ng laban", "Mag-load ng laban", "Kalagayan ng simulasyon: ", "Handa"]) assert.ok(html.includes(label));
-    assert.match(html, /aria-label="Mga setting"[^>]*aria-expanded="false"/);
-});
-
-test("match selection retains uploaded source and disables loading actions", () => {
-    const html = header("en", true, true);
-    assert.match(html, /class="dropdown-value">custom-match.json<\/span>/);
-    assert.match(header(), /class="dropdown-value">Arsenal vs Chelsea · Demo<\/span>/);
-    assert.match(html, /<button[^>]*disabled=""[^>]*role="combobox"/);
-    assert.match(html, /<button[^>]*disabled=""[^>]*aria-label="Load match"/);
 });
 
 test("shared dropdown exposes a labeled collapsed combobox and selected text before opening", () => {

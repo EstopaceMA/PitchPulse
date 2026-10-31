@@ -12,10 +12,10 @@ import {
 } from "./playback";
 import {
   accuracy,
+  advanceStatistics,
   aggregate,
   createStatistics,
   emptyMetrics,
-  StatisticsAccumulator,
 } from "./statistics";
 import type { EventType, MatchData, MatchEvent, Metrics, Statistics } from "./types";
 import { validateMatch } from "./validation";
@@ -46,6 +46,12 @@ const zero: Metrics = {
 
 function act(state: PlaybackState, action: PlaybackAction): PlaybackState {
   return playbackReducer(data, state, action);
+}
+
+/** Follows cursor moves through advanceStatistics, as the useSimulation reducer does. */
+function follow(match: MatchData) {
+  let cursor = 0, stats = createStatistics(match);
+  return { at(count: number) { stats = advanceStatistics(match, stats, cursor, count); cursor = count; return stats; } };
 }
 
 function eventOf(match: MatchData, type: EventType): MatchEvent {
@@ -152,6 +158,9 @@ describe("match upload validation", () => {
   rejectsUpload("rejects duplicate team IDs", (upload) => {
     upload.teams[1].team_id = upload.teams[0].team_id;
   }, /Duplicate team_id/);
+  rejectsUpload("rejects more than 200 players", (upload) => {
+    upload.players = Array.from({ length: 201 }, (_, index) => ({ ...upload.players[index % 2], player_id: `X${index}` }));
+  }, /at most 200/);
   rejectsUpload("rejects duplicate player IDs", (upload) => {
     upload.players[1].player_id = upload.players[0].player_id;
   }, /Duplicate player_id/);
@@ -399,7 +408,7 @@ describe("playback controls and event boundaries", () => {
   });
 
   test("restart resets the clock, cursor, period, score, and every metric while retaining speed", () => {
-    const accumulator = new StatisticsAccumulator(data);
+    const accumulator = follow(data);
     let state = act(initialPlayback(), { type: "speed", speed: 30 });
     state = act(state, { type: "seek", elapsed: end });
     assert.deepEqual(score(accumulator.at(state.cursor)), fixture.match.final_score);
@@ -531,7 +540,7 @@ describe("event-derived statistics", () => {
   });
 
   test("backwards seeks rebuild statistics rather than retaining future goals or counters", () => {
-    const accumulator = new StatisticsAccumulator(data);
+    const accumulator = follow(data);
     let state = initialPlayback();
     const firstGoal = data.events.find((event) => event.type === "shot" && event.outcome === "goal");
     assert.ok(firstGoal);
@@ -545,8 +554,8 @@ describe("event-derived statistics", () => {
     }
   });
 
-  test("accumulator snapshots stay independent across forward, backwards, and reset reads", () => {
-    const accumulator = new StatisticsAccumulator(data);
+  test("statistics snapshots stay independent across forward, backwards, and reset moves", () => {
+    const accumulator = follow(data);
     const earlyCount = countReached(data.events, 60, false);
     const early = accumulator.at(earlyCount);
     const saved = structuredClone(early);
@@ -859,7 +868,7 @@ describe("pass quality, synthetic speeds and threshold highlights", () => {
   });
 
   test("forward folding keeps quality equal to a fresh aggregate after seeks", () => {
-    const accumulator = new StatisticsAccumulator(data);
+    const accumulator = follow(data);
     for (const count of [300, 900, 120, data.events.length]) assert.deepEqual(accumulator.at(count).quality, aggregate(data, data.events.slice(0, count)).quality, `cursor ${count}`);
   });
 

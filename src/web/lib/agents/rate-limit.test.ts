@@ -1,8 +1,19 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { clientAddress, createRateLimiter } from "./rate-limit";
+import { clientAddress, createRateLimiter, sameOrigin } from "./rate-limit";
 
 const headers = (values: Record<string, string>) => new Headers(values);
+
+describe("same-origin check", () => {
+    test("allows no Origin and this host, and blocks other sites and malformed origins", () => {
+        assert.equal(sameOrigin(headers({ host: "pitchpulse.example" })), true);
+        assert.equal(sameOrigin(headers({ origin: "https://pitchpulse.example", host: "pitchpulse.example" })), true);
+        assert.equal(sameOrigin(headers({ origin: "https://pitchpulse.example", "x-forwarded-host": "pitchpulse.example", host: "10.0.0.4:8080" })), true);
+        assert.equal(sameOrigin(headers({ origin: "https://evil.example", host: "pitchpulse.example" })), false);
+        assert.equal(sameOrigin(headers({ origin: "https://evil.example", "x-forwarded-host": "pitchpulse.example", host: "evil.example" })), false);
+        assert.equal(sameOrigin(headers({ origin: "not a url", host: "pitchpulse.example" })), false);
+    });
+});
 
 describe("client address behind the hosting proxy", () => {
     test("uses the rightmost X-Forwarded-For entry, which the platform appended", () => {

@@ -71,16 +71,13 @@ export function reduceStatistics(stats: Statistics, event: MatchEvent): Statisti
 export function aggregate(data: MatchData, events: readonly MatchEvent[]): Statistics {
     return events.reduce(reduceStatistics, createStatistics(data));
 }
-/** Incremental for forward playback; replay from zero on backwards seeks. Owned by one simulation hook. */
-export class StatisticsAccumulator {
-    private count = 0;
-    private stats: Statistics;
-    constructor(private readonly data: MatchData) { this.stats = createStatistics(data); }
-    at(count: number): Statistics {
-        if (count < this.count) { this.stats = createStatistics(this.data); this.count = 0; }
-        while (this.count < count) reduceStatistics(this.stats, this.data.events[this.count++]);
-        return cloneStatistics(this.stats);
-    }
+/** Statistics after a cursor move: forward folds only the new events into a copy; backwards rebuilds the prefix. */
+export function advanceStatistics(data: MatchData, stats: Statistics, from: number, to: number): Statistics {
+    if (to === from) return stats;
+    if (to < from) return aggregate(data, data.events.slice(0, to));
+    const next = cloneStatistics(stats);
+    for (let i = from; i < to; i++) reduceStatistics(next, data.events[i]);
+    return next;
 }
 /** Attempted and completed passes per difficulty band for the events an owner made; unrated passes count nowhere. */
 export function passBands(events: readonly MatchEvent[], owns: (event: MatchEvent) => boolean): Record<DifficultyBand, { attempted: number; completed: number }> {
